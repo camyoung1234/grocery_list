@@ -37,7 +37,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     modeToggle.addEventListener('change', () => {
-        currentMode = modeToggle.checked ? 'shop' : 'home';
+        const newMode = modeToggle.checked ? 'shop' : 'home';
+
+        // Auto-update "Have" counts when switching FROM Shop TO Home
+        if (currentMode === 'shop' && newMode === 'home') {
+            items.forEach(item => {
+                if (item.shopCompleted) {
+                    item.haveCount = item.wantCount; // Assume bought to full capacity
+                    item.shopCompleted = false;      // Reset for next trip
+                }
+            });
+            saveItems();
+        }
+
+        currentMode = newMode;
         saveMode();
         updateModeUI();
         renderList(); // Re-render to sort by new mode
@@ -101,14 +114,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateModeUI() {
+        const inputGroup = document.querySelector('.input-group');
         if (currentMode === 'home') {
             modeLabelHome.classList.add('active');
             modeLabelShop.classList.remove('active');
             document.documentElement.style.setProperty('--primary-color', '#4a90e2');
+            inputGroup.style.display = 'flex';
         } else {
             modeLabelHome.classList.remove('active');
             modeLabelShop.classList.add('active');
             document.documentElement.style.setProperty('--primary-color', '#eebb4d'); // Switch accent color
+            inputGroup.style.display = 'none';
         }
     }
 
@@ -134,8 +150,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderList() {
         groceryList.innerHTML = '';
 
+        let visibleItems = [...items];
+
+        // Filter for Shop Mode: Only show items needed or currently in basket
+        if (currentMode === 'shop') {
+            visibleItems = visibleItems.filter(item => {
+                const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                return toBuy > 0 || item.shopCompleted;
+            });
+        }
+
         // Sort items based on current mode's index
-        const sortedItems = [...items].sort((a, b) => {
+        const sortedItems = visibleItems.sort((a, b) => {
             const indexKey = currentMode === 'home' ? 'homeIndex' : 'shopIndex';
             return a[indexKey] - b[indexKey];
         });
@@ -196,14 +222,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.appendChild(content);
             }
 
-            const delBtn = document.createElement('button');
-            delBtn.className = 'delete-btn';
-            delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            delBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                deleteItem(item.id);
-            });
-            li.appendChild(delBtn);
+            // Only show delete button in Home mode
+            if (currentMode === 'home') {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteItem(item.id);
+                });
+                li.appendChild(delBtn);
+            }
 
 
             // Drag events
