@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modeLabelShop = document.getElementById('mode-label-shop');
     const emptyState = document.getElementById('empty-state');
     const tabsList = document.getElementById('tabs-list');
-    const addTabBtn = document.getElementById('add-tab-btn');
+    // const addTabBtn = document.getElementById('add-tab-btn'); // Removed static ref
 
     // Modal Elements
     const modalOverlay = document.getElementById('modal-overlay');
@@ -107,11 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList(); // Re-render to sort by new mode
     });
 
-    addTabBtn.addEventListener('click', () => {
-        showModal('Create New List', 'New List', (name) => {
-            if (name) addNewList(name);
-        });
-    });
+    // addTabBtn listener moved to renderTabs
+
 
     // --- Modal Logic ---
     function showModal(title, initialValue, callback) {
@@ -372,6 +369,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tabsList.appendChild(tab);
         });
+
+        // Add the "+" button at the end
+        const addBtn = document.createElement('button');
+        addBtn.id = 'add-tab-btn';
+        addBtn.className = 'add-tab-btn';
+        addBtn.innerHTML = '<i class="fas fa-plus"></i>';
+        addBtn.title = "Create New List";
+        addBtn.addEventListener('click', () => {
+            showModal('Create New List', 'New List', (name) => {
+                if (name) addNewList(name);
+            });
+        });
+        tabsList.appendChild(addBtn);
     }
 
     function renderList() {
