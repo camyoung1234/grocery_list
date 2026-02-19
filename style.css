@@ -471,21 +471,57 @@ input:checked+.slider:before {
     text-align: center;
 }
 
+.form-group {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group.hidden {
+    display: none;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.modal-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 #modal-input,
-#delete-input {
+#delete-input,
+.modal-select {
     width: 100%;
     padding: 0.8rem;
     border: 2px solid #eee;
     border-radius: 8px;
     font-size: 1rem;
-    margin-bottom: 1.5rem;
     box-sizing: border-box;
-    /* Important for padding */
     font-family: inherit;
+    transition: border-color var(--transition);
+}
+
+#delete-input {
+    margin-bottom: 1.5rem;
 }
 
 #modal-input:focus,
-#delete-input:focus {
+#delete-input:focus,
+.modal-select:focus {
     border-color: var(--primary-color);
     outline: none;
 }

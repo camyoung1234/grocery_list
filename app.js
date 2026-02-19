@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalInput = document.getElementById('modal-input');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
     const modalSaveBtn = document.getElementById('modal-save-btn');
+    const modalThemeGroup = document.getElementById('modal-theme-group');
+    const modalThemeSelect = document.getElementById('modal-theme');
 
     // Delete Modal Elements
     const deleteModalOverlay = document.getElementById('delete-modal-overlay');
@@ -63,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appState.lists = [{
                 id: defaultListId,
                 name: 'Grocery List',
+                theme: '#4a90e2', // Default Theme
                 items: []
             }];
             appState.currentListId = defaultListId;
@@ -111,9 +114,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- Modal Logic ---
-    function showModal(title, initialValue, callback) {
+    function showModal(title, initialValue, showTheme, initialTheme, callback) {
         modalTitle.textContent = title;
         modalInput.value = initialValue || '';
+
+        if (showTheme) {
+            modalThemeGroup.classList.remove('hidden');
+            modalThemeSelect.value = initialTheme || '#4a90e2';
+        } else {
+            modalThemeGroup.classList.add('hidden');
+        }
+
         currentModalCallback = callback;
         modalOverlay.classList.add('visible');
         modalInput.focus();
@@ -129,8 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     modalSaveBtn.addEventListener('click', () => {
         const val = modalInput.value.trim();
+        const theme = !modalThemeGroup.classList.contains('hidden') ? modalThemeSelect.value : null;
         if (currentModalCallback) {
-            currentModalCallback(val);
+            currentModalCallback(val, theme);
         }
         hideModal();
     });
@@ -138,8 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
     modalInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             const val = modalInput.value.trim();
+            const theme = !modalThemeGroup.classList.contains('hidden') ? modalThemeSelect.value : null;
             if (currentModalCallback) {
-                currentModalCallback(val);
+                currentModalCallback(val, theme);
             }
             hideModal();
         }
@@ -196,16 +209,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- List Management ---
-    function addNewList(name) {
+    function addNewList(name, theme) {
         const newList = {
             id: Date.now().toString(),
             name: name,
+            theme: theme || '#4a90e2',
             items: []
         };
         appState.lists.push(newList);
         appState.currentListId = newList.id;
         saveAppState();
         renderTabs();
+        updateModeUI(); // Update theme color
         renderList();
     }
 
@@ -213,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         appState.currentListId = id;
         saveAppState();
         renderTabs();
+        updateModeUI(); // Apply the theme of the new list
         renderList();
     }
 
@@ -220,11 +236,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const list = appState.lists.find(l => l.id === id);
         if (!list) return;
 
-        showModal('Rename List', list.name, (newName) => {
+        showModal('Edit List', list.name, true, list.theme, (newName, newTheme) => {
             if (newName) {
                 list.name = newName;
+                if (newTheme) list.theme = newTheme;
                 saveAppState();
                 renderTabs();
+                updateModeUI(); // Re-apply theme if current list changed
             }
         });
     }
@@ -234,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        showModal('Rename Item', item.text, (newName) => {
+        showModal('Rename Item', item.text, false, null, (newName) => {
             if (newName && newName.trim() !== '') {
                 item.text = newName.trim();
                 saveAppState();
@@ -259,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             saveAppState();
             renderTabs();
+            updateModeUI(); // Important to switch to properties of new active list
             renderList();
         });
     }
@@ -327,15 +346,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateModeUI() {
         const inputGroup = document.querySelector('.input-group');
+        const currentList = getCurrentList();
+        // Fallback color if something goes wrong or no list
+        const themeColor = currentList && currentList.theme ? currentList.theme : '#4a90e2';
+
         if (currentMode === 'home') {
             modeLabelHome.classList.add('active');
             modeLabelShop.classList.remove('active');
-            document.documentElement.style.setProperty('--primary-color', '#4a90e2');
+            // Always set to the list's selected theme color
+            document.documentElement.style.setProperty('--primary-color', themeColor);
             inputGroup.style.display = 'flex';
         } else {
             modeLabelHome.classList.remove('active');
             modeLabelShop.classList.add('active');
-            document.documentElement.style.setProperty('--primary-color', '#eebb4d'); // Switch accent color
+            // Shop mode uses the SAME theme color for brand consistency on each list
+            document.documentElement.style.setProperty('--primary-color', themeColor);
             inputGroup.style.display = 'none';
         }
     }
@@ -391,8 +416,8 @@ document.addEventListener('DOMContentLoaded', () => {
         addBtn.innerHTML = '<i class="fas fa-plus"></i>';
         addBtn.title = "Create New List";
         addBtn.addEventListener('click', () => {
-            showModal('Create New List', 'New List', (name) => {
-                if (name) addNewList(name);
+            showModal('Create New List', 'New List', true, '#4a90e2', (name, theme) => {
+                if (name) addNewList(name, theme);
             });
         });
         tabsList.appendChild(addBtn);
