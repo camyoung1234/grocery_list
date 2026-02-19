@@ -17,13 +17,22 @@
     <div class="app-container">
         <header>
             <h1>Grocery List</h1>
-            <div class="mode-switch-container">
-                <span id="mode-label-home" class="mode-label active">Home</span>
-                <label class="switch">
-                    <input type="checkbox" id="mode-toggle">
-                    <span class="slider round"></span>
-                </label>
-                <span id="mode-label-shop" class="mode-label">Shop</span>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button id="import-btn" class="icon-btn" title="Import Data"><i
+                            class="fas fa-file-import"></i></button>
+                    <button id="export-btn" class="icon-btn" title="Export Data"><i
+                            class="fas fa-file-export"></i></button>
+                    <input type="file" id="import-input" accept=".json" class="hidden-input">
+                </div>
+                <div class="mode-switch-container">
+                    <span id="mode-label-home" class="mode-label active">Home</span>
+                    <label class="switch">
+                        <input type="checkbox" id="mode-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                    <span id="mode-label-shop" class="mode-label">Shop</span>
+                </div>
             </div>
         </header>
 

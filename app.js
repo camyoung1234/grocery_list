@@ -30,6 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalThemeGroup = document.getElementById('modal-theme-group');
     const modalThemeSelect = document.getElementById('modal-theme');
 
+    // Import / Export Elements
+    const importBtn = document.getElementById('import-btn');
+    const exportBtn = document.getElementById('export-btn');
+    const importInput = document.getElementById('import-input');
+
     // Delete Modal Elements
     const deleteModalOverlay = document.getElementById('delete-modal-overlay');
     const deleteMatchName = document.getElementById('delete-match-name');
@@ -108,6 +113,61 @@ document.addEventListener('DOMContentLoaded', () => {
         saveMode();
         updateModeUI();
         renderList(); // Re-render to sort by new mode
+    });
+
+    // --- Import / Export Logic ---
+    exportBtn.addEventListener('click', () => {
+        const dataStr = JSON.stringify(appState, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        // Use full date and time, replacing colons to ensure valid filenames on all OS
+        a.download = `${new Date().toISOString().split('.')[0].replace(/:/g, '-')}.json`;
+        document.body.appendChild(a);
+        a.click();
+
+        // Cleanup
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    importBtn.addEventListener('click', () => {
+        importInput.click();
+    });
+
+    importInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+
+                // Very basic validation to ensure it looks like our appState
+                if (importedData && Array.isArray(importedData.lists)) {
+                    appState = importedData;
+                    // Ensure currentListId is valid
+                    if (!appState.lists.find(l => l.id === appState.currentListId)) {
+                        appState.currentListId = appState.lists[0] ? appState.lists[0].id : null;
+                    }
+                    saveAppState();
+                    renderTabs();
+                    updateModeUI();
+                    renderList();
+                } else {
+                    alert("Invalid backup file format.");
+                }
+            } catch (error) {
+                console.error("Error importing data:", error);
+                alert("Failed to parse backup file. Please ensure it is a valid JSON file.");
+            }
+            // Reset the input so the same file can be selected again if needed
+            importInput.value = '';
+        };
+        reader.readAsText(file);
     });
 
     // addTabBtn listener moved to renderTabs
