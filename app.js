@@ -229,6 +229,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renameItem(id) {
+        const currentList = getCurrentList();
+        const item = currentList.items.find(i => i.id === id);
+        if (!item) return;
+
+        showModal('Rename Item', item.text, (newName) => {
+            if (newName && newName.trim() !== '') {
+                item.text = newName.trim();
+                saveAppState();
+                renderList();
+            }
+        });
+    }
+
     function deleteList(id) {
         if (appState.lists.length <= 1) {
             alert("You must have at least one list.");
@@ -417,7 +431,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentMode === 'home') {
                 const info = document.createElement('div');
                 info.className = 'item-info';
-                info.innerHTML = `<span class="item-text">${item.text}</span>`;
+
+                const textSpan = document.createElement('span');
+                textSpan.className = 'item-text';
+                textSpan.textContent = item.text;
+                textSpan.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    renameItem(item.id);
+                });
+                info.appendChild(textSpan);
                 li.appendChild(info);
 
                 const controls = document.createElement('div');
@@ -449,6 +471,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const textSpan = document.createElement('span');
                 textSpan.className = 'item-text';
                 textSpan.textContent = item.text;
+                textSpan.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    renameItem(item.id);
+                });
                 details.appendChild(textSpan);
 
                 const toBuy = Math.max(0, item.wantCount - item.haveCount);

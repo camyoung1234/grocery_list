@@ -273,6 +273,16 @@ input:checked+.slider:before {
     flex-direction: column;
 }
 
+.item-text {
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition);
+}
+
+.item-text:hover {
+    color: var(--primary-color);
+}
+
 .grocery-item.completed .item-text {
     text-decoration: line-through;
     color: var(--text-muted);
