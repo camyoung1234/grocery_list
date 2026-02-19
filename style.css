@@ -126,6 +126,68 @@ input:checked+.slider:before {
     transform: translateX(24px);
 }
 
+/* Tabs */
+.tabs-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+}
+
+.tabs-scroll {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    /* Initial scrollbar space */
+    scrollbar-width: thin;
+    flex: 1;
+}
+
+.tab-item {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    background: #f8f9fa;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition);
+    border: 1px solid transparent;
+}
+
+.tab-item:hover {
+    background: #e9ecef;
+}
+
+.tab-item.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.add-tab-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: #f0f0f0;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.add-tab-btn:hover {
+    background: #e0e0e0;
+    color: var(--primary-color);
+}
+
 /* Input Group */
 .input-group {
     display: flex;
@@ -299,7 +361,7 @@ input:checked+.slider:before {
     background-color: #fab1a0;
     color: #c0392b;
     display: none;
-    /* Hide if nothing to buy? Or show usage? Let's hide for "Shop" focus */
+    /* Hide if nothing to buy since we filter now */
 }
 
 /* Delete Button */
@@ -341,4 +403,139 @@ input:checked+.slider:before {
 
 .empty-state.visible {
     display: flex;
+}
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(2px);
+}
+
+.modal-overlay.visible {
+    display: flex;
+    animation: fadeIn 0.3s;
+}
+
+.modal {
+    background: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 400px;
+    animation: slideUp 0.3s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+#modal-title {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+#modal-input,
+#delete-input {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    box-sizing: border-box;
+    /* Important for padding */
+    font-family: inherit;
+}
+
+#modal-input:focus,
+#delete-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+#delete-input:focus {
+    border-color: var(--danger-color);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.modal-btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.modal-btn.cancel {
+    background: #f0f0f0;
+    color: var(--text-muted);
+}
+
+.modal-btn.cancel:hover {
+    background: #e0e0e0;
+}
+
+.modal-btn.save {
+    background: var(--primary-color);
+    color: white;
+}
+
+.modal-btn.save:hover {
+    background: #357abd;
+}
+
+.modal-btn.delete {
+    background: var(--danger-color);
+    color: white;
+}
+
+.modal-btn.delete:hover {
+    background: #c0392b;
+}
+
+.modal-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #ccc !important;
+    color: #666 !important;
+}
+
+.text-danger {
+    color: var(--danger-color);
+    margin-top: 0;
 }

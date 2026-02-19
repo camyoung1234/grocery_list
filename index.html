@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grocery List</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
 
     <div class="app-container">
@@ -23,6 +27,13 @@
             </div>
         </header>
 
+        <div class="tabs-container">
+            <div class="tabs-scroll" id="tabs-list">
+                <!-- Tabs injected by JS -->
+            </div>
+            <button id="add-tab-btn" class="add-tab-btn"><i class="fas fa-plus"></i></button>
+        </div>
+
         <div class="input-group">
             <input type="text" id="item-input" placeholder="Add an item...">
             <button id="add-btn"><i class="fas fa-plus"></i></button>
@@ -31,13 +42,39 @@
         <ul id="grocery-list" class="grocery-list">
             <!-- Items will be added here dynamically -->
         </ul>
-        
+
         <div id="empty-state" class="empty-state">
             <i class="fas fa-shopping-basket"></i>
             <p>Your list is empty.</p>
         </div>
     </div>
 
+    <!-- Custom Modal -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modal-title">Enter Text</h3>
+            <input type="text" id="modal-input" placeholder="Type here...">
+            <div class="modal-actions">
+                <button id="modal-cancel-btn" class="modal-btn cancel">Cancel</button>
+                <button id="modal-save-btn" class="modal-btn save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal-overlay" class="modal-overlay">
+        <div class="modal">
+            <h3 class="text-danger">Delete List?</h3>
+            <p>This action cannot be undone. Please type <strong id="delete-match-name"></strong> to confirm.</p>
+            <input type="text" id="delete-input" placeholder="Type list name here...">
+            <div class="modal-actions">
+                <button id="delete-cancel-btn" class="modal-btn cancel">Cancel</button>
+                <button id="delete-confirm-btn" class="modal-btn delete" disabled>Delete</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
+
 </html>
