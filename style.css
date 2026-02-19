@@ -1,0 +1,344 @@
+:root {
+    --primary-color: #4a90e2;
+    /* Nice blue */
+    --secondary-color: #f5f6fa;
+    /* Light background */
+    --text-color: #2f3640;
+    /* Dark text */
+    --text-muted: #7f8fa6;
+    --accent-color: #eebb4d;
+    /* Yellow for 'shop' mode maybe? */
+    --danger-color: #e74c3c;
+    --success-color: #2ecc71;
+    --border-radius: 12px;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+    --font-family: 'Inter', sans-serif;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.app-container {
+    width: 100%;
+    max-width: 500px;
+    background: white;
+    padding: 2rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    /* Full height on mobile */
+}
+
+@media (min-width: 600px) {
+    .app-container {
+        margin: 2rem;
+        border-radius: var(--border-radius);
+        min-height: auto;
+        height: fit-content;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* Mode Switch */
+.mode-switch-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mode-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: var(--transition);
+}
+
+.mode-label.active {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: var(--primary-color);
+}
+
+input:checked+.slider:before {
+    transform: translateX(24px);
+}
+
+/* Input Group */
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+#item-input {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    border: 2px solid #eee;
+    border-radius: var(--border-radius);
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+    transition: var(--transition);
+}
+
+#item-input:focus {
+    border-color: var(--primary-color);
+}
+
+#add-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0 1.2rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: var(--transition);
+}
+
+#add-btn:hover {
+    background-color: #357abd;
+}
+
+/* Grocery List */
+.grocery-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+}
+
+.grocery-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* Space for delete btn */
+    padding: 1rem;
+    background: white;
+    border-bottom: 1px solid #f0f0f0;
+    transition: var(--transition);
+    cursor: grab;
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens if needed */
+    gap: 1rem;
+}
+
+.grocery-item:last-child {
+    border-bottom: none;
+}
+
+.grocery-item.dragging {
+    opacity: 0.5;
+    background: #f9f9f9;
+}
+
+.item-info {
+    flex: 1;
+    font-weight: 500;
+}
+
+/* Shop Mode Content */
+.item-content-shop {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.shop-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.grocery-item.completed .item-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.grocery-item.completed .buy-badge {
+    opacity: 0.5;
+}
+
+.item-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--success-color);
+}
+
+/* Quantity Controls (Home Mode) */
+.quantity-controls {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.qty-group {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #f8f9fa;
+    padding: 0.3rem 0.6rem;
+    border-radius: 8px;
+}
+
+.qty-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-right: 0.3rem;
+}
+
+.qty-val {
+    font-weight: 700;
+    min-width: 1.5rem;
+    text-align: center;
+}
+
+.qty-btn {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--primary-color);
+    font-weight: bold;
+    transition: var(--transition);
+}
+
+.qty-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Buy Badge (Shop Mode) */
+.buy-badge {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 600;
+    margin-top: 0.2rem;
+    width: fit-content;
+}
+
+.buy-badge.needed {
+    background-color: #ffeaa7;
+    color: #d35400;
+}
+
+.buy-badge.stocked {
+    background-color: #fab1a0;
+    color: #c0392b;
+    display: none;
+    /* Hide if nothing to buy? Or show usage? Let's hide for "Shop" focus */
+}
+
+/* Delete Button */
+.delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    font-size: 1rem;
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.grocery-item:hover .delete-btn {
+    opacity: 1;
+}
+
+.delete-btn:hover {
+    color: var(--danger-color);
+}
+
+/* Empty State */
+.empty-state {
+    display: none;
+    /* Hidden by default */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    margin-top: 3rem;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state.visible {
+    display: flex;
+}

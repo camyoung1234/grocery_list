@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grocery List</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1>Grocery List</h1>
+            <div class="mode-switch-container">
+                <span id="mode-label-home" class="mode-label active">Home</span>
+                <label class="switch">
+                    <input type="checkbox" id="mode-toggle">
+                    <span class="slider round"></span>
+                </label>
+                <span id="mode-label-shop" class="mode-label">Shop</span>
+            </div>
+        </header>
+
+        <div class="input-group">
+            <input type="text" id="item-input" placeholder="Add an item...">
+            <button id="add-btn"><i class="fas fa-plus"></i></button>
+        </div>
+
+        <ul id="grocery-list" class="grocery-list">
+            <!-- Items will be added here dynamically -->
+        </ul>
+        
+        <div id="empty-state" class="empty-state">
+            <i class="fas fa-shopping-basket"></i>
+            <p>Your list is empty.</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
