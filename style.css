@@ -139,10 +139,8 @@ input:checked+.slider:before {
 .tabs-scroll {
     display: flex;
     gap: 0.5rem;
-    overflow-x: auto;
+    flex-wrap: wrap;
     padding-bottom: 0.2rem;
-    /* Initial scrollbar space */
-    scrollbar-width: thin;
     flex: 1;
 }
 
