@@ -1138,14 +1138,5 @@ document.addEventListener('DOMContentLoaded', () => {
         saveAppState();
     }
 
-    // Initialize application mode based on DOM
-    if (modeToggle) {
-        if (modeToggle.checked) {
-            currentMode = 'shop';
-        } else {
-            currentMode = 'home';
-        }
-    }
-
     init();
 });
