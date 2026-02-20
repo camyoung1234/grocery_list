@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalInput = document.getElementById('modal-input');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
     const modalSaveBtn = document.getElementById('modal-save-btn');
+    const modalDeleteBtn = document.getElementById('modal-delete-btn');
     const modalThemeGroup = document.getElementById('modal-theme-group');
     const modalThemeSelect = document.getElementById('modal-theme');
 
@@ -35,14 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete Modal Elements
     const deleteModalOverlay = document.getElementById('delete-modal-overlay');
     const deleteMatchName = document.getElementById('delete-match-name');
-    const deleteInput = document.getElementById('delete-input');
+    const deleteModalTitle = document.getElementById('delete-modal-title');
     const deleteCancelBtn = document.getElementById('delete-cancel-btn');
     const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
 
     // Modal State
-    let currentModalCallback = null;
     let currentDeleteCallback = null;
-    let currentDeleteTargetName = '';
 
     // --- Initialization ---
     function init() {
@@ -186,8 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // addTabBtn listener moved to renderTabs
 
 
-    // --- Modal Logic ---
-    function showModal(title, initialValue, showTheme, initialTheme, callback) {
+    let currentModalCallback = null;
+    let currentDeleteActionCallback = null;
+
+    function showModal(title, initialValue, showTheme, initialTheme, callback, deleteCallback) {
         modalTitle.textContent = title;
         modalInput.value = initialValue || '';
 
@@ -196,6 +197,14 @@ document.addEventListener('DOMContentLoaded', () => {
             modalThemeSelect.value = initialTheme || '#4a90e2';
         } else {
             modalThemeGroup.classList.add('hidden');
+        }
+
+        if (deleteCallback) {
+            modalDeleteBtn.style.display = 'block';
+            currentDeleteActionCallback = deleteCallback;
+        } else {
+            modalDeleteBtn.style.display = 'none';
+            currentDeleteActionCallback = null;
         }
 
         currentModalCallback = callback;
@@ -207,9 +216,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideModal() {
         modalOverlay.classList.remove('visible');
         currentModalCallback = null;
+        currentDeleteActionCallback = null;
     }
 
     modalCancelBtn.addEventListener('click', hideModal);
+
+    modalDeleteBtn.addEventListener('click', () => {
+        if (currentDeleteActionCallback) {
+            currentDeleteActionCallback();
+        }
+        hideModal();
+    });
 
     modalSaveBtn.addEventListener('click', () => {
         const val = modalInput.value.trim();
@@ -232,31 +249,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Delete Modal Logic ---
-    function showDeleteModal(listName, callback) {
-        currentDeleteTargetName = listName;
+    function showDeleteModal(title, matchName, callback) {
         currentDeleteCallback = callback;
-        deleteMatchName.textContent = listName;
-        deleteInput.value = '';
-        deleteInput.placeholder = `Type "${listName}" to confirm`;
-        deleteConfirmBtn.disabled = true;
+        deleteModalTitle.textContent = title;
+        deleteMatchName.textContent = matchName;
 
         deleteModalOverlay.classList.add('visible');
-        deleteInput.focus();
     }
 
     function hideDeleteModal() {
         deleteModalOverlay.classList.remove('visible');
         currentDeleteCallback = null;
-        currentDeleteTargetName = '';
     }
-
-    deleteInput.addEventListener('input', () => {
-        if (deleteInput.value === currentDeleteTargetName) {
-            deleteConfirmBtn.disabled = false;
-        } else {
-            deleteConfirmBtn.disabled = true;
-        }
-    });
 
     deleteConfirmBtn.addEventListener('click', () => {
         if (currentDeleteCallback) {
@@ -266,15 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     deleteCancelBtn.addEventListener('click', hideDeleteModal);
-
-    deleteInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !deleteConfirmBtn.disabled) {
-            if (currentDeleteCallback) {
-                currentDeleteCallback();
-            }
-            hideDeleteModal();
-        }
-    });
 
     // --- Helper ---
     function getCurrentList() {
@@ -319,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderTabs();
                 updateModeUI(); // Re-apply theme if current list changed
             }
-        });
+        }, () => deleteListWithConfirmation(id, list.name));
     }
 
     function renameItem(id) {
@@ -333,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveAppState();
                 renderList();
             }
-        });
+        }, () => deleteItemWithConfirmation(id, item.text));
     }
 
     function addSection(name, isHome) {
@@ -360,26 +355,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveAppState();
                 renderList();
             }
-        });
+        }, () => deleteSectionWithConfirmation(id, isHome, section.name));
     }
 
-    function deleteList(id) {
+    function deleteListWithConfirmation(id, name) {
         if (appState.lists.length <= 1) {
             alert("You must have at least one list.");
             return;
         }
 
-        const list = appState.lists.find(l => l.id === id);
-        if (!list) return;
-
-        showDeleteModal(list.name, () => {
+        showDeleteModal('Delete List?', name, () => {
             appState.lists = appState.lists.filter(l => l.id !== id);
             if (appState.currentListId === id) {
                 appState.currentListId = appState.lists[0].id;
             }
             saveAppState();
             renderTabs();
-            updateModeUI(); // Important to switch to properties of new active list
+            updateModeUI();
+            renderList();
+        });
+    }
+
+    function deleteItemWithConfirmation(id, name) {
+        showDeleteModal('Delete Item?', name, () => {
+            deleteItem(id);
+        });
+    }
+
+    function deleteSectionWithConfirmation(id, isHome, name) {
+        showDeleteModal('Delete Section?', name, () => {
+            const currentList = getCurrentList();
+            const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
+            const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+            const defaultSectionId = sectionArray[0].id; // Fallback to first section (Uncategorized)
+
+            // Re-assign items
+            currentList.items.forEach(item => {
+                if (item[sectionIdKey] === id) {
+                    item[sectionIdKey] = defaultSectionId;
+                }
+            });
+
+            // Remove section
+            if (isHome) {
+                currentList.homeSections = currentList.homeSections.filter(s => s.id !== id);
+            } else {
+                currentList.shopSections = currentList.shopSections.filter(s => s.id !== id);
+            }
+
+            saveAppState();
             renderList();
         });
     }
@@ -487,11 +511,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 renameList(list.id);
             });
 
-            // Long press or something for delete? Or maybe just right click
-            tab.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                deleteList(list.id);
-            });
+            // Remove context menu listener, using edit modal delete now.
+            // tab.addEventListener('contextmenu', (e) => {
+            //     e.preventDefault();
+            //     deleteListWithConfirmation(list.id, list.name);
+            // });
 
             tabsList.appendChild(tab);
         });
@@ -631,16 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     li.appendChild(content);
                 }
 
-                if (isHome) {
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'delete-btn';
-                    delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-                    delBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        deleteItem(item.id);
-                    });
-                    li.appendChild(delBtn);
-                }
+                // Delete button removed since double tap covers deletion
 
                 // Drag events for items
                 li.addEventListener('dragstart', handleItemDragStart);

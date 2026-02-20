@@ -400,26 +400,6 @@ input:checked+.slider:before {
     /* Hide if nothing to buy since we filter now */
 }
 
-/* Delete Button */
-.delete-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0.5rem;
-    font-size: 1rem;
-    opacity: 0;
-    transition: var(--transition);
-}
-
-.grocery-item:hover .delete-btn {
-    opacity: 1;
-}
-
-.delete-btn:hover {
-    color: var(--danger-color);
-}
-
 /* Modal */
 .modal-overlay {
     display: none;
