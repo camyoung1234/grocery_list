@@ -11,13 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMode = localStorage.getItem('grocery-mode') || 'home'; // 'home' or 'shop'
 
     // --- DOM Elements ---
-    const itemInput = document.getElementById('item-input');
-    const addBtn = document.getElementById('add-btn');
     const groceryList = document.getElementById('grocery-list');
     const modeToggle = document.getElementById('mode-toggle');
     const modeLabelHome = document.getElementById('mode-label-home');
     const modeLabelShop = document.getElementById('mode-label-shop');
-    const emptyState = document.getElementById('empty-state');
     const tabsList = document.getElementById('tabs-list');
     // const addTabBtn = document.getElementById('add-tab-btn'); // Removed static ref
 
@@ -89,11 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Event Listeners ---
-    addBtn.addEventListener('click', addItem);
-    itemInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addItem();
-    });
-
     modeToggle.addEventListener('change', () => {
         const newMode = modeToggle.checked ? 'shop' : 'home';
 
@@ -344,8 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Core Functions ---
 
-    function addItem() {
-        const text = itemInput.value.trim();
+    function addItem(textValue) {
+        const text = textValue ? textValue.trim() : '';
         if (!text) return;
 
         const currentList = getCurrentList();
@@ -363,8 +355,10 @@ document.addEventListener('DOMContentLoaded', () => {
         currentList.items.push(newItem);
         saveAppState();
         renderList();
-        itemInput.value = '';
-        itemInput.focus();
+
+        // Restore focus to input dynamically since it gets rebuilt
+        const newInlineInput = document.getElementById('inline-item-input');
+        if (newInlineInput) newInlineInput.focus();
     }
 
     function toggleShopCompleted(id) {
@@ -405,7 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateModeUI() {
-        const inputGroup = document.querySelector('.input-group');
         const currentList = getCurrentList();
         // Fallback color if something goes wrong or no list
         const themeColor = currentList && currentList.theme ? currentList.theme : '#4a90e2';
@@ -413,36 +406,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentMode === 'home') {
             modeLabelHome.classList.add('active');
             modeLabelShop.classList.remove('active');
-            // Always set to the list's selected theme color
             document.documentElement.style.setProperty('--primary-color', themeColor);
-            inputGroup.style.display = 'flex';
         } else {
             modeLabelHome.classList.remove('active');
             modeLabelShop.classList.add('active');
-            // Shop mode uses the SAME theme color for brand consistency on each list
             document.documentElement.style.setProperty('--primary-color', themeColor);
-            inputGroup.style.display = 'none';
         }
     }
 
     function saveAppState() {
         localStorage.setItem('grocery-app-state', JSON.stringify(appState));
-        updateEmptyState();
     }
 
     function saveMode() {
         localStorage.setItem('grocery-mode', currentMode);
-    }
-
-    function updateEmptyState() {
-        const currentList = getCurrentList();
-        if (!currentList || currentList.items.length === 0) {
-            emptyState.classList.add('visible');
-            groceryList.style.display = 'none';
-        } else {
-            emptyState.classList.remove('visible');
-            groceryList.style.display = 'block'; // Make sure this is 'block' not valid syntax error
-        }
     }
 
     function renderTabs() {
@@ -591,7 +568,36 @@ document.addEventListener('DOMContentLoaded', () => {
             groceryList.appendChild(li);
         });
 
-        updateEmptyState();
+        // Add inline input row at the very bottom strictly for Home mode
+        if (currentMode === 'home') {
+            const addRow = document.createElement('li');
+            addRow.className = 'grocery-item add-item-row';
+            // Do NOT add drag events to this row so it stays pinned
+
+            const inputContainer = document.createElement('div');
+            inputContainer.className = 'input-group inline-input-group';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'inline-item-input';
+            input.placeholder = 'Add an item...';
+
+            const btn = document.createElement('button');
+            btn.id = 'inline-add-btn';
+            btn.className = 'inline-add-btn';
+            btn.innerHTML = '<i class="fas fa-plus"></i>';
+
+            inputContainer.appendChild(input);
+            inputContainer.appendChild(btn);
+            addRow.appendChild(inputContainer);
+
+            btn.addEventListener('click', () => addItem(input.value));
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addItem(input.value);
+            });
+
+            groceryList.appendChild(addRow);
+        }
     }
 
     function createCompactQtyControl(item) {
