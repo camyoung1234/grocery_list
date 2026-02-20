@@ -25,7 +25,7 @@ body {
     justify-content: center;
     min-height: 100vh;
     overflow-x: hidden;
-    overscroll-behavior-x: none;
+    overscroll-behavior: none;
 }
 
 .app-container {
