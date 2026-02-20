@@ -657,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isHome) {
                 const addRow = document.createElement('li');
                 addRow.className = 'grocery-item add-item-row';
-                const inputContainer = document.createElement('div');
+                const inputContainer = document.createElement('form');
                 inputContainer.className = 'input-group inline-input-group';
 
                 const input = document.createElement('input');
@@ -665,10 +665,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.className = 'inline-item-input';
                 input.placeholder = '+ Add an item...';
 
-                const doAdd = () => addItemToSection(section.id, input.value, isHome);
-                input.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') doAdd();
-                });
+                const doAdd = (e) => {
+                    e.preventDefault();
+                    addItemToSection(section.id, input.value, isHome);
+                };
+                inputContainer.addEventListener('submit', doAdd);
                 inputContainer.appendChild(input);
                 addRow.appendChild(inputContainer);
 
@@ -699,7 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const addSecRow = document.createElement('li');
         addSecRow.className = 'add-section-row';
 
-        const addSecContainer = document.createElement('div');
+        const addSecContainer = document.createElement('form');
         addSecContainer.className = 'inline-input-group';
 
         const addSecInput = document.createElement('input');
@@ -707,16 +708,15 @@ document.addEventListener('DOMContentLoaded', () => {
         addSecInput.placeholder = 'Add a section...';
         addSecInput.className = 'add-section-input';
 
-        const doAddSec = () => {
+        const doAddSec = (e) => {
+            e.preventDefault();
             if (addSecInput.value.trim()) {
                 addSection(addSecInput.value.trim(), isHome);
                 addSecInput.value = '';
             }
         };
 
-        addSecInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') doAddSec();
-        });
+        addSecContainer.addEventListener('submit', doAddSec);
 
         addSecContainer.appendChild(addSecInput);
         addSecRow.appendChild(addSecContainer);

@@ -1,0 +1,24 @@
+{
+  "name": "grocery_list",
+  "version": "1.0.0",
+  "description": "A simple offline grocery list app with two custom user defined sorting modes to make reviewing the list at home and shopping in the store both easier.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/camyoung1234/grocery_list.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/camyoung1234/grocery_list/issues"
+  },
+  "homepage": "https://github.com/camyoung1234/grocery_list#readme",
+  "devDependencies": {
+    "wrangler": "^4.67.0"
+  }
+}
