@@ -326,6 +326,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchList(id) {
+        if (appState.currentListId === id) return; // Fix double tap bug by preventing instantly unmounting the target 
+
         appState.currentListId = id;
         saveAppState();
         renderTabs();
@@ -533,6 +535,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const tab = document.createElement('div');
             tab.className = `tab-item ${list.id === appState.currentListId ? 'active' : ''}`;
             tab.textContent = list.name;
+            tab.dataset.id = list.id;
+            tab.draggable = true;
 
             tab.addEventListener('click', () => switchList(list.id));
 
@@ -541,6 +545,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.stopPropagation();
                 renameList(list.id);
             });
+
+            // Drag and drop events for list reordering
+            tab.addEventListener('dragstart', handleTabDragStart);
+            tab.addEventListener('dragover', handleTabDragOver);
+            tab.addEventListener('drop', handleTabDrop);
+            tab.addEventListener('dragenter', handleTabDragEnter);
+            tab.addEventListener('dragleave', handleTabDragLeave);
+            tab.addEventListener('dragend', handleDragEnd);
 
             // Remove context menu listener, using edit modal delete now.
             // tab.addEventListener('contextmenu', (e) => {
@@ -929,12 +941,62 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleDragEnd(e) {
         this.classList.remove('dragging');
         this.classList.remove('dragging-section');
+        this.classList.remove('dragging-tab');
 
-        document.querySelectorAll('.grocery-item, .add-item-row, .section-container').forEach(el => {
-            el.classList.remove('over', 'over-section');
+        document.querySelectorAll('.grocery-item, .add-item-row, .section-container, .tab-item').forEach(el => {
+            el.classList.remove('over', 'over-section', 'over-tab');
         });
         dragType = null;
         dragSrcEl = null;
+    }
+
+    // --- TAB DRAG HANDLERS ---
+    function handleTabDragStart(e) {
+        dragSrcEl = this;
+        dragType = 'tab';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.id);
+        this.classList.add('dragging-tab');
+    }
+
+    function handleTabDragOver(e) {
+        if (e.preventDefault) e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleTabDragEnter(e) {
+        if (e.preventDefault) e.preventDefault();
+        if (dragType === 'tab' && this !== dragSrcEl) {
+            this.classList.add('over-tab');
+        }
+    }
+
+    function handleTabDragLeave(e) {
+        this.classList.remove('over-tab');
+    }
+
+    function handleTabDrop(e) {
+        if (e.stopPropagation) e.stopPropagation();
+
+        if (dragType === 'tab' && dragSrcEl !== this) {
+            const draggedId = dragSrcEl.dataset.id;
+            const targetId = this.dataset.id;
+            reorderLists(draggedId, targetId);
+            renderTabs();
+        }
+        return false;
+    }
+
+    function reorderLists(draggedId, targetId) {
+        const draggedIdx = appState.lists.findIndex(l => l.id === draggedId);
+        const targetIdx = appState.lists.findIndex(l => l.id === targetId);
+
+        if (draggedIdx !== -1 && targetIdx !== -1) {
+            const [movedList] = appState.lists.splice(draggedIdx, 1);
+            appState.lists.splice(targetIdx, 0, movedList);
+            saveAppState();
+        }
     }
 
     function reorderItems(draggedId, targetId, targetSectionId, isPlaceholder) {

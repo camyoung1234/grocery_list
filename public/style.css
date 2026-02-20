@@ -203,6 +203,17 @@ input:checked+.slider:before {
     color: white;
 }
 
+.dragging-tab {
+    opacity: 0.5;
+    background: #e9ecef;
+}
+
+.over-tab {
+    border-left: 2px solid var(--primary-color);
+    margin-left: -2px;
+    /* compensate for border to avoid layout shift */
+}
+
 .add-tab-btn {
     width: 30px;
     height: 30px;
