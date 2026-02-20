@@ -665,17 +665,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.className = 'inline-item-input';
                 input.placeholder = '+ Add an item...';
 
-                const btn = document.createElement('button');
-                btn.className = 'inline-add-btn';
-                btn.innerHTML = '<i class="fas fa-plus"></i>';
-
                 const doAdd = () => addItemToSection(section.id, input.value, isHome);
-                btn.addEventListener('click', doAdd);
                 input.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') doAdd();
                 });
                 inputContainer.appendChild(input);
-                inputContainer.appendChild(btn);
                 addRow.appendChild(inputContainer);
 
                 // Allow dropping ONTO the add row so we can drop files into an empty section
@@ -713,23 +707,18 @@ document.addEventListener('DOMContentLoaded', () => {
         addSecInput.placeholder = 'Add a section...';
         addSecInput.className = 'add-section-input';
 
-        const addSecBtn = document.createElement('button');
-        addSecBtn.className = 'add-section-btn inline-add-btn';
-        addSecBtn.innerHTML = '<i class="fas fa-plus"></i>';
-
         const doAddSec = () => {
             if (addSecInput.value.trim()) {
                 addSection(addSecInput.value.trim(), isHome);
                 addSecInput.value = '';
             }
         };
-        addSecBtn.addEventListener('click', doAddSec);
+
         addSecInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') doAddSec();
         });
 
         addSecContainer.appendChild(addSecInput);
-        addSecContainer.appendChild(addSecBtn);
         addSecRow.appendChild(addSecContainer);
         groceryList.appendChild(addSecRow);
     }
