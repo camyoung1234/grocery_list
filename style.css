@@ -397,8 +397,8 @@ input:checked+.slider:before {
 }
 
 .buy-badge.needed {
-    background-color: #ffeaa7;
-    color: #d35400;
+    background-color: color-mix(in srgb, var(--primary-color) 15%, transparent);
+    color: var(--primary-color);
 }
 
 .buy-badge.stocked {
