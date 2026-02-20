@@ -593,20 +593,6 @@ input:checked+.slider:before {
 }
 
 /* --- Sections --- */
-.grocery-item {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: 1rem;
-    margin-bottom: 0.8rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid #eee;
-    transition: var(--transition);
-    cursor: grab;
-    touch-action: none;
-}
 
 /* Prevent CSS animation lag on mobile drag-and-drop polyfill images */
 .dnd-poly-drag-image,
