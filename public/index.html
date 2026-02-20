@@ -78,6 +78,8 @@
             </div>
 
             <div class="modal-actions">
+                <button id="modal-delete-btn" class="modal-btn delete"
+                    style="margin-right: auto; display: none;">Delete</button>
                 <button id="modal-cancel-btn" class="modal-btn cancel">Cancel</button>
                 <button id="modal-save-btn" class="modal-btn save">Save</button>
             </div>
@@ -87,12 +89,12 @@
     <!-- Delete Confirmation Modal -->
     <div id="delete-modal-overlay" class="modal-overlay">
         <div class="modal">
-            <h3 class="text-danger">Delete List?</h3>
-            <p>This action cannot be undone. Please type <strong id="delete-match-name"></strong> to confirm.</p>
-            <input type="text" id="delete-input" placeholder="Type list name here...">
+            <h3 class="text-danger" id="delete-modal-title">Delete?</h3>
+            <p>This action cannot be undone. Are you sure you want to delete <strong id="delete-match-name"></strong>?
+            </p>
             <div class="modal-actions">
                 <button id="delete-cancel-btn" class="modal-btn cancel">Cancel</button>
-                <button id="delete-confirm-btn" class="modal-btn delete" disabled>Delete</button>
+                <button id="delete-confirm-btn" class="modal-btn delete">Confirm Delete</button>
             </div>
         </div>
     </div>
