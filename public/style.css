@@ -14,6 +14,29 @@
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --transition: all 0.3s ease;
     --font-family: 'Inter', sans-serif;
+
+    /* UI Component Backgrounds */
+    --card-bg: #ffffff;
+    --input-bg: transparent;
+    --hover-bg: #f8f9fa;
+    --border-color: #eee;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color: #5da0f2;
+        /* slightly brighter blue for contrast */
+        --secondary-color: #121212;
+        /* Very dark bg */
+        --text-color: #e0e0e0;
+        /* Light text */
+        --text-muted: #888;
+        --card-bg: #1e1e1e;
+        /* Dark card surface */
+        --hover-bg: #2a2a2a;
+        --border-color: #333;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
 }
 
 body {
@@ -34,7 +57,7 @@ body {
 .app-container {
     width: 100%;
     max-width: 500px;
-    background: white;
+    background: var(--card-bg);
     padding: 2rem;
     box-shadow: var(--shadow);
     display: flex;
@@ -191,7 +214,7 @@ input:checked+.slider:before {
 .tab-item {
     padding: 0.4rem 0.8rem;
     border-radius: 20px;
-    background: #f8f9fa;
+    background: var(--hover-bg);
     color: var(--text-muted);
     font-size: 0.9rem;
     font-weight: 500;
@@ -202,7 +225,7 @@ input:checked+.slider:before {
 }
 
 .tab-item:hover {
-    background: #e9ecef;
+    background: color-mix(in srgb, var(--hover-bg) 80%, var(--primary-color) 20%);
 }
 
 .tab-item.active {
@@ -226,7 +249,7 @@ input:checked+.slider:before {
     height: 30px;
     border-radius: 50%;
     border: none;
-    background: #f0f0f0;
+    background: var(--hover-bg);
     color: var(--text-muted);
     cursor: pointer;
     display: flex;
@@ -247,7 +270,7 @@ input:checked+.slider:before {
     gap: 0.5rem;
     width: 100%;
     box-sizing: border-box;
-    background: #f8f9fa;
+    background: var(--hover-bg);
     border-radius: var(--border-radius);
     padding: 0.4rem;
     transition: var(--transition);
@@ -255,7 +278,7 @@ input:checked+.slider:before {
 }
 
 .inline-input-group:focus-within {
-    background: white;
+    background: var(--card-bg);
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
@@ -268,6 +291,7 @@ input:checked+.slider:before {
     font-family: inherit;
     font-size: 1rem;
     outline: none;
+    color: var(--text-color);
 }
 
 /* Grocery List */
@@ -284,8 +308,8 @@ input:checked+.slider:before {
     justify-content: space-between;
     /* Space for delete btn */
     padding: 1rem;
-    background: white;
-    border-bottom: 1px solid #f0f0f0;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
     transition: var(--transition);
     cursor: grab;
     flex-wrap: wrap;
@@ -380,7 +404,7 @@ input:checked+.slider:before {
 .qty-compact-group {
     display: flex;
     align-items: center;
-    background: #f8f9fa;
+    background: var(--hover-bg);
     padding: 0.3rem 0.5rem;
     border-radius: 8px;
     gap: 0.3rem;
@@ -401,8 +425,8 @@ input:checked+.slider:before {
 }
 
 .qty-btn {
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     width: 24px;
     height: 24px;
@@ -465,7 +489,7 @@ input:checked+.slider:before {
 }
 
 .modal {
-    background: white;
+    background: var(--card-bg);
     padding: 2rem;
     border-radius: var(--border-radius);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
@@ -538,7 +562,9 @@ input:checked+.slider:before {
 .modal-select {
     width: 100%;
     padding: 0.8rem;
-    border: 2px solid #eee;
+    border: 2px solid var(--border-color);
+    background: var(--input-bg);
+    color: var(--text-color);
     border-radius: 8px;
     font-size: 1rem;
     box-sizing: border-box;
@@ -577,12 +603,12 @@ input:checked+.slider:before {
 }
 
 .modal-btn.cancel {
-    background: #f0f0f0;
+    background: var(--hover-bg);
     color: var(--text-muted);
 }
 
 .modal-btn.cancel:hover {
-    background: #e0e0e0;
+    background: color-mix(in srgb, var(--hover-bg) 80%, black 20%);
 }
 
 .modal-btn.save {
@@ -627,31 +653,31 @@ input:checked+.slider:before {
 }
 
 .section-container {
-    background: white;
+    background: var(--card-bg);
     border-radius: var(--border-radius);
     padding: 1rem;
     margin-bottom: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    border: 1px solid #eee;
+    border: 1px solid var(--border-color);
     transition: var(--transition);
 }
 
 .section-container.dragging-section {
     opacity: 0.6;
-    background: #f9f9f9;
+    background: var(--hover-bg);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .section-container.over-section {
     border: 2px dashed var(--primary-color);
-    background: #fdfdfd;
+    background: var(--card-bg);
 }
 
 .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #f0f0f0;
+    border-bottom: 2px solid var(--border-color);
     padding-bottom: 0.5rem;
     margin-bottom: 1rem;
     cursor: grab;
@@ -663,7 +689,7 @@ input:checked+.slider:before {
 }
 
 .section-header.over {
-    background-color: #fdfdfd;
+    background-color: var(--card-bg);
     border: 2px dashed var(--primary-color);
     border-radius: var(--border-radius);
     padding: 0.5rem;
@@ -697,8 +723,8 @@ input:checked+.slider:before {
 }
 
 .section-container .grocery-item.dragging {
-    background: #f8f9fa;
-    opacity: 0.5;
+    background: var(--hover-bg);
+    opacity: 0.8;
     border-radius: 8px;
     /* Give it shape when floating */
     padding: 0.8rem;
@@ -726,7 +752,7 @@ input:checked+.slider:before {
 .add-section-row:hover,
 .add-section-row:focus-within {
     border-color: var(--primary-color);
-    background: white;
+    background: var(--card-bg);
 }
 
 .add-section-input {
