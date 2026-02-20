@@ -199,7 +199,6 @@ input:checked+.slider:before {
     white-space: nowrap;
     transition: var(--transition);
     border: 1px solid transparent;
-    touch-action: none;
 }
 
 .tab-item:hover {
@@ -611,7 +610,6 @@ input:checked+.slider:before {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     border: 1px solid #eee;
     transition: var(--transition);
-    touch-action: none;
 }
 
 .section-container.dragging-section {
