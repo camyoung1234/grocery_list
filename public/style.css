@@ -351,6 +351,20 @@ input:checked+.slider:before {
     cursor: pointer;
     user-select: none;
     transition: var(--transition);
+    position: relative;
+    display: inline-block;
+}
+
+.item-text::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 0;
+    height: 2px;
+    background-color: var(--text-muted);
+    transition: width 0.3s ease-out;
+    /* Animate the strikethrough width */
 }
 
 .item-text:hover {
@@ -358,8 +372,12 @@ input:checked+.slider:before {
 }
 
 .grocery-item.completed .item-text {
-    text-decoration: line-through;
     color: var(--text-muted);
+}
+
+.grocery-item.completed .item-text::after {
+    width: 100%;
+    /* Expand line on complete */
 }
 
 .grocery-item.completed .buy-badge {
@@ -383,6 +401,7 @@ input:checked+.slider:before {
 .item-checkbox:checked {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
+    animation: popCheckmark 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .item-checkbox:checked::after {
@@ -395,6 +414,33 @@ input:checked+.slider:before {
     border: solid white;
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
+    animation: dipCheck 0.3s ease;
+}
+
+@keyframes popCheckmark {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes dipCheck {
+    0% {
+        opacity: 0;
+        transform: rotate(45deg) translateY(5px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: rotate(45deg) translateY(0);
+    }
 }
 
 /* Quantity Controls (Home Mode - Compact) */
