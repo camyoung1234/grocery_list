@@ -474,7 +474,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item) {
             item.shopCompleted = !item.shopCompleted;
             saveAppState();
-            renderList();
+
+            // Dynamically update the DOM node so CSS animations can reverse without being destroyed
+            const itemNodes = document.querySelectorAll(`li.grocery-item[data-id="${id}"]`);
+            itemNodes.forEach(node => {
+                if (item.shopCompleted) {
+                    node.classList.add('completed');
+                } else {
+                    node.classList.remove('completed');
+                }
+                const checkbox = node.querySelector('.item-checkbox');
+                if (checkbox) {
+                    checkbox.checked = item.shopCompleted;
+                }
+            });
         }
     }
 
