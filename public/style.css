@@ -222,6 +222,7 @@ input:checked+.slider:before {
     white-space: nowrap;
     transition: var(--transition);
     border: 1px solid transparent;
+    touch-action: pan-y;
 }
 
 .tab-item:hover {
@@ -315,6 +316,7 @@ input:checked+.slider:before {
     flex-wrap: wrap;
     /* Allow wrapping on small screens if needed */
     gap: 1rem;
+    touch-action: pan-y;
 }
 
 .grocery-item:last-child {
@@ -660,6 +662,7 @@ input:checked+.slider:before {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--border-color);
     transition: var(--transition);
+    touch-action: pan-y;
 }
 
 .section-container.dragging-section {
