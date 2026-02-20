@@ -848,6 +848,46 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragSrcEl = null;
     let dragType = null;
 
+    // Auto-Scroll Logic for Dragging Constraints
+    let autoScrollInterval = null;
+    let lastScrollDir = 0; // -1 for up, 1 for down
+
+    function checkAutoScroll(y) {
+        const threshold = 60; // Distance in pixels from top/bottom to start scrolling
+        const viewportHeight = window.innerHeight;
+
+        if (y < threshold) {
+            // Near top, scroll up
+            if (!autoScrollInterval || lastScrollDir !== -1) {
+                clearInterval(autoScrollInterval);
+                lastScrollDir = -1;
+                autoScrollInterval = setInterval(() => {
+                    window.scrollBy(0, -15);
+                }, 16); // roughly 60fps
+            }
+        } else if (y > viewportHeight - threshold) {
+            // Near bottom, scroll down
+            if (!autoScrollInterval || lastScrollDir !== 1) {
+                clearInterval(autoScrollInterval);
+                lastScrollDir = 1;
+                autoScrollInterval = setInterval(() => {
+                    window.scrollBy(0, 15);
+                }, 16);
+            }
+        } else {
+            // Inside safety zone, stop scrolling
+            stopAutoScroll();
+        }
+    }
+
+    function stopAutoScroll() {
+        if (autoScrollInterval) {
+            clearInterval(autoScrollInterval);
+            autoScrollInterval = null;
+            lastScrollDir = 0;
+        }
+    }
+
     // --- ITEM DRAG HANDLERS ---
     function handleItemDragStart(e) {
         e.stopPropagation();
@@ -861,6 +901,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleItemDragOver(e) {
         if (e.preventDefault) e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+        checkAutoScroll(e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0));
         return false;
     }
 
@@ -909,6 +950,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleSectionDragOver(e) {
         if (e.preventDefault) e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+        checkAutoScroll(e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0));
         return false;
     }
 
@@ -938,6 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Shared Drag End ---
     function handleDragEnd(e) {
+        stopAutoScroll();
         this.classList.remove('dragging');
         this.classList.remove('dragging-section');
         this.classList.remove('dragging-tab');
@@ -961,6 +1004,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleTabDragOver(e) {
         if (e.preventDefault) e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+        checkAutoScroll(e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0));
         return false;
     }
 
