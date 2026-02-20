@@ -2,6 +2,7 @@
 // A delayed hold is used (200ms) so users can still scroll their list normally on mobile!
 window.addEventListener('touchmove', function () { }, { passive: false });
 MobileDragDrop.polyfill({
+    dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride,
     holdToDrag: 200
 });
 

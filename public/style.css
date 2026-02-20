@@ -608,6 +608,15 @@ input:checked+.slider:before {
     touch-action: none;
 }
 
+/* Prevent CSS animation lag on mobile drag-and-drop polyfill images */
+.dnd-poly-drag-image,
+.dnd-poly-drag-image *,
+.dragging,
+.dragging-section,
+.dragging-tab {
+    transition: none !important;
+}
+
 .section-container {
     background: white;
     border-radius: var(--border-radius);
