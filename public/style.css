@@ -355,8 +355,8 @@ input:checked+.slider:before {
 }
 
 .item-checkbox:checked {
-    background-color: var(--success-color);
-    border-color: var(--success-color);
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 .item-checkbox:checked::after {
