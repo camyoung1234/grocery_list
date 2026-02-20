@@ -305,7 +305,8 @@ input:checked+.slider:before {
 
 .shop-details {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .item-text {
@@ -334,34 +335,33 @@ input:checked+.slider:before {
     accent-color: var(--success-color);
 }
 
-/* Quantity Controls (Home Mode) */
+/* Quantity Controls (Home Mode - Compact) */
 .quantity-controls {
     display: flex;
-    gap: 1.5rem;
     align-items: center;
 }
 
-.qty-group {
+.qty-compact-group {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
     background: #f8f9fa;
-    padding: 0.3rem 0.6rem;
+    padding: 0.3rem 0.5rem;
     border-radius: 8px;
-}
-
-.qty-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    font-weight: 700;
-    margin-right: 0.3rem;
+    gap: 0.3rem;
 }
 
 .qty-val {
     font-weight: 700;
-    min-width: 1.5rem;
+    min-width: 1.2rem;
     text-align: center;
+    font-size: 0.9rem;
+}
+
+.qty-separator {
+    color: var(--text-muted);
+    font-weight: 400;
+    margin: 0 0.2rem;
+    font-size: 0.9rem;
 }
 
 .qty-btn {
@@ -376,7 +376,9 @@ input:checked+.slider:before {
     cursor: pointer;
     color: var(--primary-color);
     font-weight: bold;
+    font-size: 1rem;
     transition: var(--transition);
+    padding: 0;
 }
 
 .qty-btn:hover {
@@ -391,7 +393,6 @@ input:checked+.slider:before {
     padding: 0.2rem 0.6rem;
     border-radius: 12px;
     font-weight: 600;
-    margin-top: 0.2rem;
     width: fit-content;
 }
 

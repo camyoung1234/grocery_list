@@ -530,13 +530,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const controls = document.createElement('div');
                 controls.className = 'quantity-controls';
 
-                // Have Group
-                const haveGroup = createQtyGroup('Have', item.haveCount, (d) => adjustHave(item.id, d));
-                controls.appendChild(haveGroup);
-
-                // Want Group
-                const wantGroup = createQtyGroup('Want', item.wantCount, (d) => adjustWant(item.id, d));
-                controls.appendChild(wantGroup);
+                const compactGroup = createCompactQtyControl(item);
+                controls.appendChild(compactGroup);
 
                 li.appendChild(controls);
             } else {
@@ -599,31 +594,63 @@ document.addEventListener('DOMContentLoaded', () => {
         updateEmptyState();
     }
 
-    function createQtyGroup(label, val, callback) {
+    function createCompactQtyControl(item) {
         const group = document.createElement('div');
-        group.className = 'qty-group';
+        group.className = 'qty-compact-group';
 
-        const spanLabel = document.createElement('span');
-        spanLabel.className = 'qty-label';
-        spanLabel.textContent = label;
-        group.appendChild(spanLabel);
+        // --- Have Controls ---
+        const btnHaveMinus = document.createElement('button');
+        btnHaveMinus.className = 'qty-btn';
+        btnHaveMinus.textContent = '-';
+        btnHaveMinus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            adjustHave(item.id, -1);
+        });
+        group.appendChild(btnHaveMinus);
 
-        const btnMinus = document.createElement('button');
-        btnMinus.className = 'qty-btn';
-        btnMinus.textContent = '-';
-        btnMinus.addEventListener('click', () => callback(-1));
-        group.appendChild(btnMinus);
+        const spanHaveVal = document.createElement('span');
+        spanHaveVal.className = 'qty-val';
+        spanHaveVal.textContent = item.haveCount;
+        group.appendChild(spanHaveVal);
 
-        const spanVal = document.createElement('span');
-        spanVal.className = 'qty-val';
-        spanVal.textContent = val;
-        group.appendChild(spanVal);
+        const btnHavePlus = document.createElement('button');
+        btnHavePlus.className = 'qty-btn';
+        btnHavePlus.textContent = '+';
+        btnHavePlus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            adjustHave(item.id, 1);
+        });
+        group.appendChild(btnHavePlus);
 
-        const btnPlus = document.createElement('button');
-        btnPlus.className = 'qty-btn';
-        btnPlus.textContent = '+';
-        btnPlus.addEventListener('click', () => callback(1));
-        group.appendChild(btnPlus);
+        // --- Separator ---
+        const separator = document.createElement('span');
+        separator.className = 'qty-separator';
+        separator.textContent = '/';
+        group.appendChild(separator);
+
+        // --- Want Controls ---
+        const btnWantMinus = document.createElement('button');
+        btnWantMinus.className = 'qty-btn';
+        btnWantMinus.textContent = '-';
+        btnWantMinus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            adjustWant(item.id, -1);
+        });
+        group.appendChild(btnWantMinus);
+
+        const spanWantVal = document.createElement('span');
+        spanWantVal.className = 'qty-val';
+        spanWantVal.textContent = item.wantCount;
+        group.appendChild(spanWantVal);
+
+        const btnWantPlus = document.createElement('button');
+        btnWantPlus.className = 'qty-btn';
+        btnWantPlus.textContent = '+';
+        btnWantPlus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            adjustWant(item.id, 1);
+        });
+        group.appendChild(btnWantPlus);
 
         return group;
     }
