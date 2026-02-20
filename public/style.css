@@ -363,8 +363,16 @@ input:checked+.slider:before {
     width: 0;
     height: 2px;
     background-color: var(--text-muted);
-    transition: width 0.3s ease-out;
-    /* Animate the strikethrough width */
+}
+
+@keyframes strikeThrough {
+    0% {
+        width: 0;
+    }
+
+    100% {
+        width: 100%;
+    }
 }
 
 .item-text:hover {
@@ -377,7 +385,7 @@ input:checked+.slider:before {
 
 .grocery-item.completed .item-text::after {
     width: 100%;
-    /* Expand line on complete */
+    animation: strikeThrough 0.3s ease-out forwards;
 }
 
 .grocery-item.completed .buy-badge {
