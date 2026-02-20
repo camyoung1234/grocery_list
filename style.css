@@ -601,3 +601,137 @@ input:checked+.slider:before {
     color: var(--danger-color);
     margin-top: 0;
 }
+
+/* --- Sections --- */
+.section-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eee;
+    transition: var(--transition);
+}
+
+.section-container.dragging-section {
+    opacity: 0.6;
+    background: #f9f9f9;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.section-container.over-section {
+    border: 2px dashed var(--primary-color);
+    background: #fdfdfd;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    cursor: grab;
+    user-select: none;
+}
+
+.section-header:active {
+    cursor: grabbing;
+}
+
+.section-header.over {
+    background-color: #fdfdfd;
+    border: 2px dashed var(--primary-color);
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+}
+
+.section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.section-title:hover {
+    color: var(--primary-color);
+}
+
+.section-items-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    min-height: 20px;
+    /* target for empty lists */
+}
+
+/* Make inner grocery items flush inside the section box */
+.section-container .grocery-item {
+    padding: 0.8rem 0;
+    border-radius: 0;
+}
+
+.section-container .grocery-item.dragging {
+    background: #f8f9fa;
+    opacity: 0.5;
+    border-radius: 8px;
+    /* Give it shape when floating */
+    padding: 0.8rem;
+}
+
+.section-container .add-item-row {
+    padding-top: 1rem;
+    padding-bottom: 0;
+    border-bottom: none;
+    cursor: default;
+    /* not draggable */
+}
+
+/* Add a Section Row */
+.add-section-row {
+    list-style: none;
+    padding: 1rem;
+    background: transparent;
+    border: 2px dashed #ccc;
+    border-radius: var(--border-radius);
+    margin-top: 1rem;
+    transition: var(--transition);
+}
+
+.add-section-row:hover,
+.add-section-row:focus-within {
+    border-color: var(--primary-color);
+    background: white;
+}
+
+.add-section-input {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: 500;
+    outline: none;
+}
+
+.add-section-btn {
+    background: var(--secondary-color);
+    color: var(--primary-color);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.add-section-btn:hover {
+    background: var(--primary-color);
+    color: white;
+}

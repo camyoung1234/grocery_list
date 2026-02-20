@@ -48,13 +48,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function init() {
         if (storedState && storedState.lists && storedState.lists.length > 0) {
             appState = storedState;
+            // Migration for sections
+            appState.lists.forEach(list => {
+                if (!list.homeSections) {
+                    list.homeSections = [{ id: 'sec-h-def', name: 'Uncategorized' }];
+                    list.shopSections = [{ id: 'sec-s-def', name: 'Uncategorized' }];
+                    if (list.items) {
+                        list.items.forEach(item => {
+                            item.homeSectionId = 'sec-h-def';
+                            item.shopSectionId = 'sec-s-def';
+                        });
+                    }
+                }
+            });
         } else if (legacyItems && Array.isArray(legacyItems)) {
             // Migration: Convert legacy items to new structure
             const defaultListId = Date.now().toString();
             appState.lists = [{
                 id: defaultListId,
                 name: 'Grocery List',
-                items: legacyItems
+                homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+                items: legacyItems.map(item => ({
+                    ...item,
+                    homeSectionId: 'sec-h-def',
+                    shopSectionId: 'sec-s-def'
+                }))
             }];
             appState.currentListId = defaultListId;
 
@@ -68,6 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 id: defaultListId,
                 name: 'Grocery List',
                 theme: '#4a90e2', // Default Theme
+                homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
                 items: []
             }];
             appState.currentListId = defaultListId;
@@ -266,6 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
             id: Date.now().toString(),
             name: name,
             theme: theme || '#4a90e2',
+            homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+            shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
             items: []
         };
         appState.lists.push(newList);
@@ -313,6 +336,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function addSection(name, isHome) {
+        const currentList = getCurrentList();
+        const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
+        const newSection = {
+            id: 'sec-' + Date.now().toString(),
+            name: name
+        };
+        sectionArray.push(newSection);
+        saveAppState();
+        renderList();
+    }
+
+    function renameSection(id, isHome) {
+        const currentList = getCurrentList();
+        const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
+        const section = sectionArray.find(s => s.id === id);
+        if (!section) return;
+
+        showModal('Rename Section', section.name, false, null, (newName) => {
+            if (newName && newName.trim() !== '') {
+                section.name = newName.trim();
+                saveAppState();
+                renderList();
+            }
+        });
+    }
+
     function deleteList(id) {
         if (appState.lists.length <= 1) {
             alert("You must have at least one list.");
@@ -336,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Core Functions ---
 
-    function addItem(textValue) {
+    function addItemToSection(sectionId, textValue, isHome) {
         const text = textValue ? textValue.trim() : '';
         if (!text) return;
 
@@ -344,7 +394,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const newItem = {
             id: Date.now().toString(),
             text: text,
-            // Initialize indices for both modes at the end of the list
+            homeSectionId: isHome ? sectionId : currentList.homeSections[0].id,
+            shopSectionId: !isHome ? sectionId : currentList.shopSections[0].id,
             homeIndex: currentList.items.length,
             shopIndex: currentList.items.length,
             haveCount: 0,
@@ -356,8 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveAppState();
         renderList();
 
-        // Restore focus to input dynamically since it gets rebuilt
-        const newInlineInput = document.getElementById('inline-item-input');
+        const newInlineInput = document.querySelector(`.section-items-list[data-section-id="${sectionId}"] .inline-item-input`);
         if (newInlineInput) newInlineInput.focus();
     }
 
@@ -465,139 +515,223 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentList = getCurrentList();
         if (!currentList) return;
 
-        let visibleItems = [...currentList.items];
+        const isHome = currentMode === 'home';
+        const sectionsKey = isHome ? 'homeSections' : 'shopSections';
+        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
 
-        // Filter for Shop Mode: Only show items needed or currently in basket
-        if (currentMode === 'shop') {
-            visibleItems = visibleItems.filter(item => {
-                const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                return toBuy > 0 || item.shopCompleted;
+        const sections = currentList[sectionsKey] || [];
+
+        sections.forEach((section) => {
+            const sectionLi = document.createElement('li');
+            sectionLi.className = 'section-container';
+            sectionLi.dataset.id = section.id;
+            sectionLi.dataset.type = 'section';
+            sectionLi.draggable = true;
+
+            // Section Header
+            const header = document.createElement('div');
+            header.className = 'section-header';
+
+            const titleSpan = document.createElement('h3');
+            titleSpan.className = 'section-title';
+            titleSpan.textContent = section.name;
+            titleSpan.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                renameSection(section.id, isHome);
             });
-        }
+            header.appendChild(titleSpan);
+            sectionLi.appendChild(header);
 
-        // Sort items based on current mode's index
-        const sortedItems = visibleItems.sort((a, b) => {
-            const indexKey = currentMode === 'home' ? 'homeIndex' : 'shopIndex';
-            return a[indexKey] - b[indexKey];
-        });
+            // Nested UL for items
+            const itemsUl = document.createElement('ul');
+            itemsUl.className = 'section-items-list';
+            itemsUl.dataset.sectionId = section.id;
+            itemsUl.dataset.type = 'item-placeholder'; // Allow empty UL to receive drops
 
-        sortedItems.forEach(item => {
-            const li = document.createElement('li');
-            li.className = `grocery-item ${item.shopCompleted && currentMode === 'shop' ? 'completed' : ''}`;
-            li.draggable = true;
-            li.dataset.id = item.id;
+            itemsUl.addEventListener('dragover', handleItemDragOver);
+            itemsUl.addEventListener('drop', handleItemDrop);
+            itemsUl.addEventListener('dragenter', handleItemDragEnter);
+            itemsUl.addEventListener('dragleave', handleItemDragLeave);
 
-            // Clear for safe DOM creation
-            li.innerHTML = '';
+            // items for this section 
+            let sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
 
-            if (currentMode === 'home') {
-                const info = document.createElement('div');
-                info.className = 'item-info';
-
-                const textSpan = document.createElement('span');
-                textSpan.className = 'item-text';
-                textSpan.textContent = item.text;
-                textSpan.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    renameItem(item.id);
+            if (!isHome) {
+                // filter shop items
+                sectionItems = sectionItems.filter(item => {
+                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                    return toBuy > 0 || item.shopCompleted;
                 });
-                info.appendChild(textSpan);
-                li.appendChild(info);
-
-                const controls = document.createElement('div');
-                controls.className = 'quantity-controls';
-
-                const compactGroup = createCompactQtyControl(item);
-                controls.appendChild(compactGroup);
-
-                li.appendChild(controls);
-            } else {
-                const content = document.createElement('div');
-                content.className = 'item-content-shop';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.className = 'item-checkbox';
-                checkbox.checked = item.shopCompleted;
-                checkbox.addEventListener('change', () => toggleShopCompleted(item.id));
-                content.appendChild(checkbox);
-
-                const details = document.createElement('div');
-                details.className = 'shop-details';
-
-                const textSpan = document.createElement('span');
-                textSpan.className = 'item-text';
-                textSpan.textContent = item.text;
-                textSpan.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    renameItem(item.id);
-                });
-                details.appendChild(textSpan);
-
-                const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                const badge = document.createElement('span');
-                badge.className = `buy-badge ${toBuy > 0 ? 'needed' : 'stocked'}`;
-                badge.textContent = `Buy: ${toBuy}`;
-                details.appendChild(badge);
-
-                content.appendChild(details);
-                li.appendChild(content);
             }
 
-            // Only show delete button in Home mode
-            if (currentMode === 'home') {
-                const delBtn = document.createElement('button');
-                delBtn.className = 'delete-btn';
-                delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-                delBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteItem(item.id);
-                });
-                li.appendChild(delBtn);
-            }
+            sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
 
+            sectionItems.forEach(item => {
+                const li = document.createElement('li');
+                li.className = `grocery-item ${item.shopCompleted && !isHome ? 'completed' : ''}`;
+                li.draggable = true;
+                li.dataset.id = item.id;
+                li.dataset.type = 'item';
+                li.dataset.sectionId = section.id;
 
-            // Drag events
-            li.addEventListener('dragstart', handleDragStart);
-            li.addEventListener('dragover', handleDragOver);
-            li.addEventListener('drop', handleDrop);
-            li.addEventListener('dragenter', handleDragEnter);
-            li.addEventListener('dragleave', handleDragLeave);
-            li.addEventListener('dragend', handleDragEnd);
+                li.innerHTML = '';
 
-            groceryList.appendChild(li);
-        });
+                if (isHome) {
+                    const info = document.createElement('div');
+                    info.className = 'item-info';
 
-        // Add inline input row at the very bottom strictly for Home mode
-        if (currentMode === 'home') {
-            const addRow = document.createElement('li');
-            addRow.className = 'grocery-item add-item-row';
-            // Do NOT add drag events to this row so it stays pinned
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'item-text';
+                    textSpan.textContent = item.text;
+                    textSpan.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        renameItem(item.id);
+                    });
+                    info.appendChild(textSpan);
+                    li.appendChild(info);
 
-            const inputContainer = document.createElement('div');
-            inputContainer.className = 'input-group inline-input-group';
+                    const controls = document.createElement('div');
+                    controls.className = 'quantity-controls';
 
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.id = 'inline-item-input';
-            input.placeholder = 'Add an item...';
+                    const compactGroup = createCompactQtyControl(item);
+                    controls.appendChild(compactGroup);
 
-            const btn = document.createElement('button');
-            btn.id = 'inline-add-btn';
-            btn.className = 'inline-add-btn';
-            btn.innerHTML = '<i class="fas fa-plus"></i>';
+                    li.appendChild(controls);
+                } else {
+                    const content = document.createElement('div');
+                    content.className = 'item-content-shop';
 
-            inputContainer.appendChild(input);
-            inputContainer.appendChild(btn);
-            addRow.appendChild(inputContainer);
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'item-checkbox';
+                    checkbox.checked = item.shopCompleted;
+                    checkbox.addEventListener('change', () => toggleShopCompleted(item.id));
+                    content.appendChild(checkbox);
 
-            btn.addEventListener('click', () => addItem(input.value));
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') addItem(input.value);
+                    const details = document.createElement('div');
+                    details.className = 'shop-details';
+
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'item-text';
+                    textSpan.textContent = item.text;
+                    textSpan.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        renameItem(item.id);
+                    });
+                    details.appendChild(textSpan);
+
+                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                    const badge = document.createElement('span');
+                    badge.className = `buy-badge ${toBuy > 0 ? 'needed' : 'stocked'}`;
+                    badge.textContent = `Buy: ${toBuy}`;
+                    details.appendChild(badge);
+
+                    content.appendChild(details);
+                    li.appendChild(content);
+                }
+
+                if (isHome) {
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-btn';
+                    delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deleteItem(item.id);
+                    });
+                    li.appendChild(delBtn);
+                }
+
+                // Drag events for items
+                li.addEventListener('dragstart', handleItemDragStart);
+                li.addEventListener('dragover', handleItemDragOver);
+                li.addEventListener('drop', handleItemDrop);
+                li.addEventListener('dragenter', handleItemDragEnter);
+                li.addEventListener('dragleave', handleItemDragLeave);
+                li.addEventListener('dragend', handleDragEnd);
+
+                itemsUl.appendChild(li);
             });
 
-            groceryList.appendChild(addRow);
-        }
+            // Add "Add item" row for this section
+            if (isHome) {
+                const addRow = document.createElement('li');
+                addRow.className = 'grocery-item add-item-row';
+                const inputContainer = document.createElement('div');
+                inputContainer.className = 'input-group inline-input-group';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'inline-item-input';
+                input.placeholder = '+ Add an item...';
+
+                const btn = document.createElement('button');
+                btn.className = 'inline-add-btn';
+                btn.innerHTML = '<i class="fas fa-plus"></i>';
+
+                const doAdd = () => addItemToSection(section.id, input.value, isHome);
+                btn.addEventListener('click', doAdd);
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') doAdd();
+                });
+                inputContainer.appendChild(input);
+                inputContainer.appendChild(btn);
+                addRow.appendChild(inputContainer);
+
+                // Allow dropping ONTO the add row so we can drop files into an empty section
+                addRow.dataset.type = 'item-placeholder';
+                addRow.dataset.sectionId = section.id;
+                addRow.addEventListener('dragover', handleItemDragOver);
+                addRow.addEventListener('drop', handleItemDrop);
+                addRow.addEventListener('dragenter', handleItemDragEnter);
+                addRow.addEventListener('dragleave', handleItemDragLeave);
+
+                itemsUl.appendChild(addRow);
+            }
+            sectionLi.appendChild(itemsUl);
+
+            // Drag events for section
+            sectionLi.addEventListener('dragstart', handleSectionDragStart);
+            sectionLi.addEventListener('dragover', handleSectionDragOver);
+            sectionLi.addEventListener('drop', handleSectionDrop);
+            sectionLi.addEventListener('dragenter', handleSectionDragEnter);
+            sectionLi.addEventListener('dragleave', handleSectionDragLeave);
+            sectionLi.addEventListener('dragend', handleDragEnd);
+
+            groceryList.appendChild(sectionLi);
+        });
+
+        // Add "Add a section..." element at the bottom
+        const addSecRow = document.createElement('li');
+        addSecRow.className = 'add-section-row';
+
+        const addSecContainer = document.createElement('div');
+        addSecContainer.className = 'inline-input-group';
+
+        const addSecInput = document.createElement('input');
+        addSecInput.type = 'text';
+        addSecInput.placeholder = 'Add a section...';
+        addSecInput.className = 'add-section-input';
+
+        const addSecBtn = document.createElement('button');
+        addSecBtn.className = 'add-section-btn inline-add-btn';
+        addSecBtn.innerHTML = '<i class="fas fa-plus"></i>';
+
+        const doAddSec = () => {
+            if (addSecInput.value.trim()) {
+                addSection(addSecInput.value.trim(), isHome);
+                addSecInput.value = '';
+            }
+        };
+        addSecBtn.addEventListener('click', doAddSec);
+        addSecInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') doAddSec();
+        });
+
+        addSecContainer.appendChild(addSecInput);
+        addSecContainer.appendChild(addSecBtn);
+        addSecRow.appendChild(addSecContainer);
+        groceryList.appendChild(addSecRow);
     }
 
     function createCompactQtyControl(item) {
@@ -663,88 +797,195 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Drag and Drop Logic ---
     let dragSrcEl = null;
+    let dragType = null;
 
-    function handleDragStart(e) {
+    // --- ITEM DRAG HANDLERS ---
+    function handleItemDragStart(e) {
+        e.stopPropagation();
         dragSrcEl = this;
+        dragType = 'item';
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', this.innerHTML);
+        e.dataTransfer.setData('text/plain', this.dataset.id);
         this.classList.add('dragging');
     }
 
-    function handleDragOver(e) {
-        if (e.preventDefault) {
-            e.preventDefault(); // Necessary. Allows us to drop.
-        }
+    function handleItemDragOver(e) {
+        if (e.preventDefault) e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         return false;
     }
 
-    function handleDragEnter(e) {
-        this.classList.add('over');
+    function handleItemDragEnter(e) {
+        if (dragType === 'item') this.classList.add('over');
     }
 
-    function handleDragLeave(e) {
+    function handleItemDragLeave(e) {
         this.classList.remove('over');
     }
 
-    function handleDrop(e) {
-        if (e.stopPropagation) {
-            e.stopPropagation(); // stops the browser from redirecting.
-        }
+    function handleItemDrop(e) {
+        if (e.stopPropagation) e.stopPropagation();
 
-        if (dragSrcEl !== this) {
-            // Get IDs
+        if (dragType === 'item' && dragSrcEl !== this) {
             const draggedId = dragSrcEl.dataset.id;
             const targetId = this.dataset.id;
+            const targetSectionId = this.dataset.sectionId;
+            const isPlaceholder = this.dataset.type === 'item-placeholder' || this.dataset.type === 'section-header';
 
-            // Reorder in array
-            reorderItems(draggedId, targetId);
-
-            // Re-render
+            reorderItems(draggedId, targetId, targetSectionId, isPlaceholder);
             renderList();
         }
-
         return false;
     }
 
-    function handleDragEnd(e) {
-        this.classList.remove('dragging');
-        // Clean up classes
-        [].forEach.call(groceryList.querySelectorAll('.grocery-item'), function (col) {
-            col.classList.remove('over');
-        });
+    // --- SECTION DRAG HANDLERS ---
+    function handleSectionDragStart(e) {
+        if (dragType === 'item') return;
+
+        // Prevent child items from triggering section drag (bubbling)
+        if (e.target !== this && e.target.classList && !e.target.classList.contains('section-header') && !e.target.classList.contains('section-title')) {
+            e.preventDefault();
+            return;
+        }
+
+        e.stopPropagation();
+        dragSrcEl = this;
+        dragType = 'section';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.id);
+        this.classList.add('dragging-section');
     }
 
-    function reorderItems(draggedId, targetId) {
-        const currentList = getCurrentList();
-        // Find current indices in the *sorted* list we are viewing
-        const indexKey = currentMode === 'home' ? 'homeIndex' : 'shopIndex';
+    function handleSectionDragOver(e) {
+        if (e.preventDefault) e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
 
-        // We need to work with the sorted array to know "visual" positions
-        let sortedItems = [...currentList.items].sort((a, b) => a[indexKey] - b[indexKey]);
+    function handleSectionDragEnter(e) {
+        // Only highlight if dragging a section
+        if (dragType === 'section' && this !== dragSrcEl) {
+            this.classList.add('over-section');
+        }
+    }
 
-        const fromIndex = sortedItems.findIndex(i => i.id === draggedId);
-        const toIndex = sortedItems.findIndex(i => i.id === targetId);
+    function handleSectionDragLeave(e) {
+        this.classList.remove('over-section');
+    }
 
-        if (fromIndex < 0 || toIndex < 0) return;
+    function handleSectionDrop(e) {
+        if (e.stopPropagation) e.stopPropagation();
 
-        // Create a new array with the move applied
-        const itemToMove = sortedItems[fromIndex];
-        sortedItems.splice(fromIndex, 1);
-        sortedItems.splice(toIndex, 0, itemToMove);
+        if (dragType === 'section' && dragSrcEl !== this) {
+            const draggedId = dragSrcEl.dataset.id;
+            const targetId = this.dataset.id;
+            reorderSections(draggedId, targetId);
+            renderList();
+        }
+        return false;
+    }
 
-        // Now update the actual 'homeIndex' or 'shopIndex' on ALL items 
-        // to reflect their new visual order.
-        // This effectively "saves" the new order.
-        sortedItems.forEach((item, index) => {
-            // Find the original item reference in the main 'items' array and update it
-            const originalItem = currentList.items.find(i => i.id === item.id);
-            if (originalItem) {
-                originalItem[indexKey] = index;
-            }
+    // --- Shared Drag End ---
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        this.classList.remove('dragging-section');
+
+        document.querySelectorAll('.grocery-item, .add-item-row, .section-container').forEach(el => {
+            el.classList.remove('over', 'over-section');
         });
+        dragType = null;
+        dragSrcEl = null;
+    }
+
+    function reorderItems(draggedId, targetId, targetSectionId, isPlaceholder) {
+        const currentList = getCurrentList();
+        const isHome = currentMode === 'home';
+        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
+
+        const draggedItem = currentList.items.find(i => i.id === draggedId);
+        if (!draggedItem) return;
+
+        const oldSectionId = draggedItem[sectionIdKey];
+
+        // Ensure indices exist and sort old section
+        let oldSectionItems = currentList.items.filter(i => i[sectionIdKey] === oldSectionId);
+        oldSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
+
+        if (isPlaceholder) {
+            draggedItem[sectionIdKey] = targetSectionId;
+            let sectionItems = currentList.items.filter(i => i[sectionIdKey] === targetSectionId && i.id !== draggedId);
+            sectionItems.push(draggedItem);
+            sectionItems.forEach((item, idx) => { item[indexKey] = idx; });
+
+            if (oldSectionId !== targetSectionId) {
+                oldSectionItems = oldSectionItems.filter(i => i.id !== draggedId);
+                oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
+            }
+            saveAppState();
+            return;
+        }
+
+        const targetItem = currentList.items.find(i => i.id === targetId);
+        if (!targetItem) return;
+
+        const newSectionId = targetItem[sectionIdKey];
+        draggedItem[sectionIdKey] = newSectionId;
+
+        if (oldSectionId === newSectionId) {
+            // Dragging within the SAME section
+            const oldIdx = oldSectionItems.findIndex(i => i.id === draggedId);
+            const newIdx = oldSectionItems.findIndex(i => i.id === targetId);
+
+            if (oldIdx !== -1 && newIdx !== -1) {
+                const [moved] = oldSectionItems.splice(oldIdx, 1);
+                oldSectionItems.splice(newIdx, 0, moved);
+                oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
+            }
+        } else {
+            // Dragging ACROSS sections
+            oldSectionItems = oldSectionItems.filter(i => i.id !== draggedId);
+            oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
+
+            let newSectionItems = currentList.items.filter(i => i[sectionIdKey] === newSectionId && i.id !== draggedId);
+            newSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
+
+            const insertIdx = newSectionItems.findIndex(i => i.id === targetId);
+            if (insertIdx !== -1) {
+                newSectionItems.splice(insertIdx, 0, draggedItem);
+            } else {
+                newSectionItems.push(draggedItem);
+            }
+            newSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
+        }
 
         saveAppState();
+    }
+
+    function reorderSections(draggedId, targetId) {
+        const currentList = getCurrentList();
+        const isHome = currentMode === 'home';
+        const sectionArrayKey = isHome ? 'homeSections' : 'shopSections';
+        const sections = currentList[sectionArrayKey];
+
+        const oldIdx = sections.findIndex(s => s.id === draggedId);
+        const newIdx = sections.findIndex(s => s.id === targetId);
+
+        if (oldIdx === -1 || newIdx === -1) return;
+
+        const [draggedSec] = sections.splice(oldIdx, 1);
+        sections.splice(newIdx, 0, draggedSec);
+
+        saveAppState();
+    }
+
+    // Initialize application mode based on DOM
+    if (modeToggle) {
+        if (modeToggle.checked) {
+            currentMode = 'shop';
+        } else {
+            currentMode = 'home';
+        }
     }
 
     init();
