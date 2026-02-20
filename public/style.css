@@ -774,7 +774,7 @@ input:checked+.slider:before {
     list-style: none;
     padding: 1rem;
     background: transparent;
-    border: 2px dashed #ccc;
+    border: none;
     border-radius: var(--border-radius);
     margin-top: 1rem;
     transition: var(--transition);

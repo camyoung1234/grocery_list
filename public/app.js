@@ -737,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.className = 'inline-item-input';
-                input.placeholder = '+ Add an item...';
+                input.placeholder = '+ Add item';
 
                 const doAdd = (e) => {
                     e.preventDefault();
@@ -779,7 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const addSecInput = document.createElement('input');
         addSecInput.type = 'text';
-        addSecInput.placeholder = 'Add a section...';
+        addSecInput.placeholder = '+ Add section';
         addSecInput.className = 'add-section-input';
 
         const doAddSec = (e) => {
