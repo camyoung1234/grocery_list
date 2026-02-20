@@ -272,6 +272,29 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteCancelBtn.addEventListener('click', hideDeleteModal);
 
     // --- Helper ---
+    function onDoubleTap(element, callback) {
+        let lastTapTime = 0;
+
+        element.addEventListener('click', (e) => {
+            const currentTime = Date.now();
+            const timeDiff = currentTime - lastTapTime;
+
+            if (timeDiff < 400 && timeDiff > 0) {
+                e.preventDefault();
+                callback(e);
+                lastTapTime = 0; // reset
+            } else {
+                lastTapTime = currentTime;
+            }
+        });
+
+        // Prevent native dblclick to avoid duplicate triggers if browser fires it natively
+        element.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    }
+
     function getCurrentList() {
         return appState.lists.find(l => l.id === appState.currentListId);
     }
@@ -506,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.addEventListener('click', () => switchList(list.id));
 
             // Double click to rename
-            tab.addEventListener('dblclick', (e) => {
+            onDoubleTap(tab, (e) => {
                 e.stopPropagation();
                 renameList(list.id);
             });
@@ -560,7 +583,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const titleSpan = document.createElement('h3');
             titleSpan.className = 'section-title';
             titleSpan.textContent = section.name;
-            titleSpan.addEventListener('dblclick', (e) => {
+            // Double tap to rename section
+            onDoubleTap(titleSpan, (e) => {
                 e.stopPropagation();
                 renameSection(section.id, isHome);
             });
@@ -608,7 +632,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const textSpan = document.createElement('span');
                     textSpan.className = 'item-text';
                     textSpan.textContent = item.text;
-                    textSpan.addEventListener('dblclick', (e) => {
+                    // Double tap item to rename
+                    onDoubleTap(textSpan, (e) => {
                         e.stopPropagation();
                         renameItem(item.id);
                     });
@@ -639,7 +664,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const textSpan = document.createElement('span');
                     textSpan.className = 'item-text';
                     textSpan.textContent = item.text;
-                    textSpan.addEventListener('dblclick', (e) => {
+                    // Double tap item to rename
+                    onDoubleTap(textSpan, (e) => {
                         e.stopPropagation();
                         renameItem(item.id);
                     });
