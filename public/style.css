@@ -341,10 +341,34 @@ input:checked+.slider:before {
 }
 
 .item-checkbox {
-    width: 20px;
-    height: 20px;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
     cursor: pointer;
-    accent-color: var(--success-color);
+    position: relative;
+    transition: var(--transition);
+    background-color: white;
+    flex-shrink: 0;
+}
+
+.item-checkbox:checked {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.item-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 3px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 
 /* Quantity Controls (Home Mode - Compact) */
