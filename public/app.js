@@ -854,6 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleItemDragEnter(e) {
+        if (e.preventDefault) e.preventDefault();
         if (dragType === 'item') this.classList.add('over');
     }
 
@@ -901,6 +902,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleSectionDragEnter(e) {
+        if (e.preventDefault) e.preventDefault();
         // Only highlight if dragging a section
         if (dragType === 'section' && this !== dragSrcEl) {
             this.classList.add('over-section');
