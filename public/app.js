@@ -1,8 +1,8 @@
 // Initialize Mobile Drag and Drop Polyfill
-// A delayed hold is used (300ms) so users can still scroll their list normally on mobile!
+// A delayed hold is used (200ms) so users can still scroll their list normally on mobile!
 window.addEventListener('touchmove', function () { }, { passive: false });
 MobileDragDrop.polyfill({
-    holdToDrag: 0
+    holdToDrag: 200
 });
 
 document.addEventListener('DOMContentLoaded', () => {
