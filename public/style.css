@@ -291,7 +291,7 @@ input:checked+.slider .icon-shop {
     gap: 0.5rem;
     width: 100%;
     box-sizing: border-box;
-    background: var(--hover-bg);
+    background: color-mix(in srgb, var(--primary-color) 6%, var(--card-bg));
     border-radius: var(--border-radius);
     padding: 0.4rem;
     transition: var(--transition);
@@ -299,20 +299,26 @@ input:checked+.slider .icon-shop {
 }
 
 .inline-input-group:focus-within {
-    background: var(--card-bg);
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--card-bg));
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 .inline-item-input {
     flex: 1;
-    padding: 0.6rem 0.8rem;
+    padding: 0.8rem 1rem;
     border: none;
     background: transparent;
     font-family: inherit;
     font-size: 1rem;
+    font-weight: 500;
     outline: none;
-    color: var(--text-color);
+    color: var(--primary-color);
+}
+
+.inline-item-input::placeholder {
+    color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
+    font-weight: 500;
 }
 
 /* Grocery List */
