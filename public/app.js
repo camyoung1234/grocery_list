@@ -21,8 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
     const modeToggle = document.getElementById('mode-toggle');
-    const modeLabelHome = document.getElementById('mode-label-home');
-    const modeLabelShop = document.getElementById('mode-label-shop');
     const tabsList = document.getElementById('tabs-list');
     // const addTabBtn = document.getElementById('add-tab-btn'); // Removed static ref
 
@@ -524,12 +522,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const themeColor = currentList && currentList.theme ? currentList.theme : '#4a90e2';
 
         if (currentMode === 'home') {
-            modeLabelHome.classList.add('active');
-            modeLabelShop.classList.remove('active');
             document.documentElement.style.setProperty('--primary-color', themeColor);
         } else {
-            modeLabelHome.classList.remove('active');
-            modeLabelShop.classList.add('active');
             document.documentElement.style.setProperty('--primary-color', themeColor);
         }
     }
