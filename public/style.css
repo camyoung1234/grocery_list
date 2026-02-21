@@ -793,30 +793,6 @@ input:checked+.slider .icon-shop {
 .add-section-row {
     list-style: none;
     padding: 0;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    transition: var(--transition);
-    display: flex;
-}
-
-.add-section-row:hover,
-.add-section-row:focus-within {
-    border-color: var(--primary-color);
-}
-
-.add-section-input {
-    flex: 1;
-    padding: 1rem;
-    border: none;
-    background: transparent;
-    font-family: inherit;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--text-color);
-    outline: none;
-    box-sizing: border-box;
 }
