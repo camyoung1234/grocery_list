@@ -544,6 +544,9 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.textContent = list.name;
             tab.dataset.id = list.id;
             tab.draggable = true;
+            if (list.theme) {
+                tab.style.setProperty('--list-color', list.theme);
+            }
 
             tab.addEventListener('click', () => switchList(list.id));
 

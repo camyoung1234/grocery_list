@@ -234,8 +234,8 @@ input:checked+.slider .icon-shop {
 .tab-item {
     padding: 0.4rem 0.8rem;
     border-radius: 20px;
-    background: var(--hover-bg);
-    color: var(--text-muted);
+    background: color-mix(in srgb, var(--list-color, var(--text-muted)) 15%, var(--hover-bg));
+    color: var(--text-color);
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
@@ -246,11 +246,11 @@ input:checked+.slider .icon-shop {
 }
 
 .tab-item:hover {
-    background: color-mix(in srgb, var(--hover-bg) 80%, var(--primary-color) 20%);
+    background: color-mix(in srgb, var(--list-color, var(--text-muted)) 25%, var(--hover-bg));
 }
 
 .tab-item.active {
-    background: var(--primary-color);
+    background: var(--list-color, var(--primary-color));
     color: white;
 }
 
