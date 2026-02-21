@@ -364,6 +364,7 @@ input:checked+.slider .icon-shop {
     display: flex;
     align-items: center;
     gap: 0.8rem;
+    cursor: pointer;
 }
 
 .shop-details {

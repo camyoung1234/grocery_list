@@ -694,11 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const textSpan = document.createElement('span');
                     textSpan.className = 'item-text';
                     textSpan.textContent = item.text;
-                    // Double tap item to rename
-                    onDoubleTap(textSpan, (e) => {
-                        e.stopPropagation();
-                        renameItem(item.id);
-                    });
+                    // Double-tap renaming intentionally disabled here for Shop UX
                     details.appendChild(textSpan);
 
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
@@ -708,6 +704,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     details.appendChild(badge);
 
                     content.appendChild(details);
+
+                    // Full-row click toggle for Shop Mode
+                    content.addEventListener('click', (e) => {
+                        // Ignore click if the user was dragging the row
+                        if (li.classList.contains('dragging')) return;
+                        // Prevent double-toggling if they actually clicked the raw checkbox input
+                        if (e.target.tagName.toLowerCase() === 'input') return;
+
+                        toggleShopCompleted(item.id);
+                    });
+
                     li.appendChild(content);
                 }
 
