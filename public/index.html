@@ -29,6 +29,12 @@
 <body>
 
     <div class="app-container">
+        <div class="tabs-container">
+            <div class="tabs-scroll" id="tabs-list">
+                <!-- Tabs injected by JS -->
+            </div>
+        </div>
+
         <header>
             <div class="header-right">
                 <div class="header-actions">
@@ -51,17 +57,11 @@
                 </div>
             </div>
         </header>
-
-        <div class="tabs-container">
-            <div class="tabs-scroll" id="tabs-list">
-                <!-- Tabs injected by JS -->
-            </div>
-        </div>
-
-        <ul id="grocery-list" class="grocery-list">
-            <!-- Items will be added here dynamically -->
-        </ul>
     </div>
+
+    <ul id="grocery-list" class="grocery-list">
+        <!-- Items will be added here dynamically -->
+    </ul>
 
     <!-- Custom Modal -->
     <div id="modal-overlay" class="modal-overlay">
