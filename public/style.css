@@ -550,7 +550,8 @@ input:checked+.slider .icon-shop {
     border-radius: var(--border-radius);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     width: 90%;
-    max-width: 400px;
+    max-width: 340px;
+    box-sizing: border-box;
     animation: slideUp 0.3s;
 }
 

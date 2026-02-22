@@ -33,6 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalDeleteBtn = document.getElementById('modal-delete-btn');
     const modalThemeGroup = document.getElementById('modal-theme-group');
     const modalThemeSelect = document.getElementById('modal-theme');
+    const modalHomeSectionGroup = document.getElementById('modal-home-section-group');
+    const modalShopSectionGroup = document.getElementById('modal-shop-section-group');
+    const modalHomeSectionSelect = document.getElementById('modal-home-section');
+    const modalShopSectionSelect = document.getElementById('modal-shop-section');
 
     // Import / Export Elements
     const importBtn = document.getElementById('import-btn');
@@ -213,10 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
             currentDeleteActionCallback = null;
         }
 
+        modalHomeSectionGroup.classList.add('hidden');
+        modalShopSectionGroup.classList.add('hidden');
+
         currentModalCallback = callback;
         modalOverlay.classList.add('visible');
-        modalInput.focus();
-        modalInput.select();
     }
 
     function hideModal() {
@@ -241,6 +246,19 @@ document.addEventListener('DOMContentLoaded', () => {
             currentModalCallback(val, theme);
         }
         hideModal();
+    });
+
+    // Save when clicking outside the modal
+    modalOverlay.addEventListener('mousedown', (e) => {
+        // Only trigger if clicking exactly on the overlay (not its children)
+        if (e.target === modalOverlay) {
+            const val = modalInput.value.trim();
+            const theme = !modalThemeGroup.classList.contains('hidden') ? modalThemeSelect.value : null;
+            if (currentModalCallback) {
+                currentModalCallback(val, theme);
+            }
+            hideModal();
+        }
     });
 
     modalInput.addEventListener('keypress', (e) => {
@@ -353,13 +371,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        showModal('Rename Item', item.text, false, null, (newName) => {
+        modalHomeSectionSelect.innerHTML = '';
+        currentList.homeSections.forEach(sec => {
+            const opt = document.createElement('option');
+            opt.value = sec.id;
+            opt.textContent = sec.name;
+            modalHomeSectionSelect.appendChild(opt);
+        });
+        modalHomeSectionSelect.value = item.homeSectionId;
+
+        modalShopSectionSelect.innerHTML = '';
+        currentList.shopSections.forEach(sec => {
+            const opt = document.createElement('option');
+            opt.value = sec.id;
+            opt.textContent = sec.name;
+            modalShopSectionSelect.appendChild(opt);
+        });
+        modalShopSectionSelect.value = item.shopSectionId;
+
+        showModal('Edit Item', item.text, false, null, (newName) => {
             if (newName && newName.trim() !== '') {
                 item.text = newName.trim();
+                item.homeSectionId = modalHomeSectionSelect.value;
+                item.shopSectionId = modalShopSectionSelect.value;
                 saveAppState();
                 renderList();
             }
         }, () => deleteItemWithConfirmation(id, item.text));
+
+        modalHomeSectionGroup.classList.remove('hidden');
+        modalShopSectionGroup.classList.remove('hidden');
     }
 
     function addSection(name, isHome) {
@@ -380,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const section = sectionArray.find(s => s.id === id);
         if (!section) return;
 
-        showModal('Rename Section', section.name, false, null, (newName) => {
+        showModal('Edit Section', section.name, false, null, (newName) => {
             if (newName && newName.trim() !== '') {
                 section.name = newName.trim();
                 saveAppState();
