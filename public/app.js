@@ -686,9 +686,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
 
+            if (!isHome) {
+                itemsUl.classList.add('shop-mode');
+            }
+
             sectionItems.forEach(item => {
                 const li = document.createElement('li');
-                li.className = `grocery-item ${item.shopCompleted && !isHome ? 'completed' : ''}`;
+                li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${item.shopCompleted && !isHome ? 'completed' : ''}`;
                 li.draggable = true;
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
@@ -719,44 +723,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     li.appendChild(controls);
                 } else {
-                    const content = document.createElement('div');
-                    content.className = 'item-content-shop';
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.className = 'item-checkbox';
-                    checkbox.checked = item.shopCompleted;
-                    checkbox.addEventListener('change', () => toggleShopCompleted(item.id));
-                    content.appendChild(checkbox);
-
-                    const details = document.createElement('div');
-                    details.className = 'shop-details';
+                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
                     const textSpan = document.createElement('span');
                     textSpan.className = 'item-text';
-                    textSpan.textContent = item.text;
-                    // Double-tap renaming intentionally disabled here for Shop UX
-                    details.appendChild(textSpan);
+                    textSpan.textContent = `${item.text}: ${toBuy}`;
 
-                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    const badge = document.createElement('span');
-                    badge.className = `buy-badge ${toBuy > 0 ? 'needed' : 'stocked'}`;
-                    badge.textContent = `Buy: ${toBuy}`;
-                    details.appendChild(badge);
+                    li.appendChild(textSpan);
 
-                    content.appendChild(details);
-
-                    // Full-row click toggle for Shop Mode
-                    content.addEventListener('click', (e) => {
-                        // Ignore click if the user was dragging the row
+                    // Full-chip click toggle for Shop Mode
+                    li.addEventListener('click', (e) => {
+                        // Ignore click if the user was dragging the chip
                         if (li.classList.contains('dragging')) return;
-                        // Prevent double-toggling if they actually clicked the raw checkbox input
-                        if (e.target.tagName.toLowerCase() === 'input') return;
-
                         toggleShopCompleted(item.id);
                     });
-
-                    li.appendChild(content);
                 }
 
                 // Delete button removed since double tap covers deletion

@@ -393,18 +393,33 @@ input:checked+.slider .icon-shop {
 }
 
 /* Shop Mode Content */
-.item-content-shop {
-    flex: 1;
+.section-items-list.shop-mode {
     display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    cursor: pointer;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding-top: 0.5rem;
 }
 
-.shop-details {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.section-container .grocery-item.shop-chip {
+    padding: 0.4rem 0.8rem;
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+    border: none;
+    border-radius: 9999px;
+    width: auto;
+    flex: 0 0 auto;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.section-container .grocery-item.shop-chip:active {
+    transform: scale(0.95);
+}
+
+.section-container .grocery-item.shop-chip.completed {
+    opacity: 0.5;
+    background: var(--hover-bg);
 }
 
 .item-text {
@@ -413,6 +428,13 @@ input:checked+.slider .icon-shop {
     transition: var(--transition);
     position: relative;
     display: inline-block;
+    font-size: 1rem;
+}
+
+.section-container .grocery-item.shop-chip .item-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary-color);
 }
 
 .item-text::after {
@@ -436,52 +458,6 @@ input:checked+.slider .icon-shop {
 
 .grocery-item.completed .item-text::after {
     width: 100%;
-}
-
-.grocery-item.completed .buy-badge {
-    opacity: 0.5;
-}
-
-.item-checkbox {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 24px;
-    height: 24px;
-    border: 2px solid #cbd5e1;
-    border-radius: 6px;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    background-color: white;
-    flex-shrink: 0;
-}
-
-.item-checkbox:active {
-    transform: scale(0.9);
-}
-
-.item-checkbox:checked {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.item-checkbox::after {
-    content: '';
-    position: absolute;
-    left: 7px;
-    top: 3px;
-    width: 5px;
-    height: 10px;
-    border: solid white;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg) scale(0);
-    opacity: 0;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.item-checkbox:checked::after {
-    transform: rotate(45deg) scale(1);
-    opacity: 1;
 }
 
 /* Quantity Controls (Home Mode - Compact) */
