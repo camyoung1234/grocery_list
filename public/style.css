@@ -523,56 +523,144 @@ input:checked+.slider .icon-shop {
     width: 100%;
 }
 
-/* Quantity Controls (Home Mode - Compact) */
+/* Inline Editing Styles */
+.inline-edit-input {
+    flex: 1;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-color);
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    padding: 2px 6px;
+    outline: none;
+    margin-right: 0.5rem;
+    width: 150px;
+    /* Base width */
+}
+
+.item-shop-badge {
+    font-size: 0.7rem;
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color: var(--primary-color);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: auto;
+    margin-left: 0.5rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition);
+}
+
+.item-shop-badge:hover {
+    background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.inline-shop-select {
+    font-size: 0.7rem;
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color: var(--primary-color);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: auto;
+    margin-left: 0.5rem;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+/* Quantity Controls (Home Mode - Combined Expandable) */
 .quantity-controls {
     display: flex;
     align-items: center;
 }
 
-.qty-compact-group {
+.qty-combined-pill {
     display: flex;
     align-items: center;
-    background: var(--hover-bg);
-    padding: 0.3rem 0.5rem;
-    border-radius: 8px;
-    gap: 0.3rem;
+    background: color-mix(in srgb, var(--primary-color) 5%, var(--hover-bg));
+    border-radius: 14px;
+    overflow: hidden;
+    transition: var(--transition);
 }
 
-.qty-val {
-    font-weight: 700;
-    min-width: 1.2rem;
-    text-align: center;
-    font-size: 0.9rem;
+.qty-combined-pill:hover,
+.qty-combined-pill.active {
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--hover-bg));
 }
 
-.qty-separator {
+.qty-divider {
     color: var(--text-muted);
-    font-weight: 400;
-    margin: 0 0.2rem;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0 0.2rem;
+    user-select: none;
 }
 
-.qty-btn {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    width: 24px;
-    height: 24px;
+.qty-part {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: var(--transition);
+    border-radius: 14px;
+}
+
+.qty-part .qty-val {
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    color: var(--text-color);
+    white-space: nowrap;
+    user-select: none;
+    min-width: 1rem;
+    text-align: center;
+}
+
+.qty-part .qty-btn {
+    background: transparent;
+    border: none;
+    color: var(--primary-color);
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.5);
+    padding: 0;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: var(--primary-color);
-    font-weight: bold;
-    font-size: 1rem;
-    transition: var(--transition);
-    padding: 0;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.qty-btn:hover {
+/* Expanded State */
+.qty-part.expanded {
+    background: var(--card-bg);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    cursor: default;
+}
+
+.qty-part.expanded .qty-btn {
+    width: 26px;
+    height: 26px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+}
+
+.qty-part.expanded .qty-btn:hover {
     background: var(--primary-color);
     color: white;
-    border-color: var(--primary-color);
+    border-radius: 4px;
 }
 
 /* Buy Badge (Shop Mode) */

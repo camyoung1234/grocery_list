@@ -704,22 +704,87 @@ document.addEventListener('DOMContentLoaded', () => {
                     const info = document.createElement('div');
                     info.className = 'item-info';
 
-                    const textSpan = document.createElement('span');
-                    textSpan.className = 'item-text';
-                    textSpan.textContent = item.text;
-                    // Double tap item to rename
-                    onDoubleTap(textSpan, (e) => {
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'item-text';
+                    nameSpan.textContent = item.text;
+
+                    onDoubleTap(nameSpan, (e) => {
                         e.stopPropagation();
-                        renameItem(item.id);
+                        // Turn into text input
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = item.text;
+                        input.className = 'inline-edit-input';
+
+                        const saveName = () => {
+                            const newName = input.value.trim();
+                            if (newName && newName !== item.text) {
+                                item.text = newName;
+                                saveAppState();
+                            }
+                            renderList();
+                        };
+
+                        input.addEventListener('blur', saveName);
+                        input.addEventListener('keydown', (ke) => {
+                            if (ke.key === 'Enter') {
+                                input.blur();
+                            } else if (ke.key === 'Escape') {
+                                renderList();
+                            }
+                        });
+
+                        info.replaceChild(input, nameSpan);
+                        input.focus();
+                        input.setSelectionRange(0, input.value.length);
                     });
-                    info.appendChild(textSpan);
+
+                    info.appendChild(nameSpan);
+
+                    const badgeSpan = document.createElement('span');
+                    badgeSpan.className = 'item-shop-badge';
+                    const currentList = getCurrentList();
+                    const shopSec = currentList.shopSections.find(s => s.id === item.shopSectionId) || currentList.shopSections[0];
+                    badgeSpan.textContent = shopSec ? shopSec.name : 'Unknown';
+
+                    onDoubleTap(badgeSpan, (e) => {
+                        e.stopPropagation();
+                        const select = document.createElement('select');
+                        select.className = 'inline-shop-select';
+
+                        currentList.shopSections.forEach(sec => {
+                            const option = document.createElement('option');
+                            option.value = sec.id;
+                            option.textContent = sec.name;
+                            if (sec.id === item.shopSectionId) {
+                                option.selected = true;
+                            }
+                            select.appendChild(option);
+                        });
+
+                        const saveShopSec = () => {
+                            if (select.value !== item.shopSectionId) {
+                                item.shopSectionId = select.value;
+                                saveAppState();
+                            }
+                            renderList();
+                        };
+
+                        select.addEventListener('blur', saveShopSec);
+                        select.addEventListener('change', saveShopSec);
+
+                        info.replaceChild(select, badgeSpan);
+                        select.focus();
+                        try { select.showPicker(); } catch (err) { }
+                    });
+
+                    info.appendChild(badgeSpan);
                     li.appendChild(info);
 
                     const controls = document.createElement('div');
                     controls.className = 'quantity-controls';
 
-                    const compactGroup = createCompactQtyControl(item);
-                    controls.appendChild(compactGroup);
+                    controls.appendChild(createCombinedQtyControl(item));
 
                     li.appendChild(controls);
                 } else {
@@ -836,63 +901,63 @@ document.addEventListener('DOMContentLoaded', () => {
         groceryList.appendChild(addSecRow);
     }
 
-    function createCompactQtyControl(item) {
+    function createQtyPart(group, value, type) {
+        const part = document.createElement('div');
+        part.className = `qty-part ${type}-part`;
+
+        const btnMinus = document.createElement('button');
+        btnMinus.className = 'qty-btn minus';
+        btnMinus.innerHTML = '<i class="fas fa-minus"></i>';
+
+        const valSpan = document.createElement('span');
+        valSpan.className = 'qty-val';
+        valSpan.textContent = value;
+
+        const btnPlus = document.createElement('button');
+        btnPlus.className = 'qty-btn plus';
+        btnPlus.innerHTML = '<i class="fas fa-plus"></i>';
+
+        part.appendChild(btnMinus);
+        part.appendChild(valSpan);
+        part.appendChild(btnPlus);
+
+        part.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.qty-part.expanded').forEach(p => {
+                if (p !== part) p.classList.remove('expanded');
+            });
+            part.classList.add('expanded');
+            group.classList.add('active'); // For overall styling if needed
+        });
+
+        return { part, valSpan, btnMinus, btnPlus };
+    }
+
+    function createCombinedQtyControl(item) {
         const group = document.createElement('div');
-        group.className = 'qty-compact-group';
+        group.className = 'qty-combined-pill';
 
-        // --- Have Controls ---
-        const btnHaveMinus = document.createElement('button');
-        btnHaveMinus.className = 'qty-btn';
-        btnHaveMinus.textContent = '-';
-        btnHaveMinus.addEventListener('click', (e) => {
-            e.stopPropagation();
-            adjustHave(item.id, -1);
-        });
-        group.appendChild(btnHaveMinus);
+        const have = createQtyPart(group, item.haveCount, 'have');
+        const want = createQtyPart(group, item.wantCount, 'want');
 
-        const spanHaveVal = document.createElement('span');
-        spanHaveVal.className = 'qty-val';
-        spanHaveVal.textContent = item.haveCount;
-        group.appendChild(spanHaveVal);
-
-        const btnHavePlus = document.createElement('button');
-        btnHavePlus.className = 'qty-btn';
-        btnHavePlus.textContent = '+';
-        btnHavePlus.addEventListener('click', (e) => {
-            e.stopPropagation();
-            adjustHave(item.id, 1);
-        });
-        group.appendChild(btnHavePlus);
-
-        // --- Separator ---
         const separator = document.createElement('span');
-        separator.className = 'qty-separator';
+        separator.className = 'qty-divider';
         separator.textContent = '/';
+
+        group.appendChild(have.part);
         group.appendChild(separator);
+        group.appendChild(want.part);
 
-        // --- Want Controls ---
-        const btnWantMinus = document.createElement('button');
-        btnWantMinus.className = 'qty-btn';
-        btnWantMinus.textContent = '-';
-        btnWantMinus.addEventListener('click', (e) => {
-            e.stopPropagation();
-            adjustWant(item.id, -1);
-        });
-        group.appendChild(btnWantMinus);
+        const updateUI = () => {
+            have.valSpan.textContent = item.haveCount;
+            want.valSpan.textContent = item.wantCount;
+            saveAppState();
+        };
 
-        const spanWantVal = document.createElement('span');
-        spanWantVal.className = 'qty-val';
-        spanWantVal.textContent = item.wantCount;
-        group.appendChild(spanWantVal);
-
-        const btnWantPlus = document.createElement('button');
-        btnWantPlus.className = 'qty-btn';
-        btnWantPlus.textContent = '+';
-        btnWantPlus.addEventListener('click', (e) => {
-            e.stopPropagation();
-            adjustWant(item.id, 1);
-        });
-        group.appendChild(btnWantPlus);
+        have.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount = Math.max(0, item.haveCount - 1); updateUI(); });
+        have.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount++; updateUI(); });
+        want.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); item.wantCount = Math.max(0, item.wantCount - 1); updateUI(); });
+        want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.wantCount++; updateUI(); });
 
         return group;
     }
@@ -1176,6 +1241,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         saveAppState();
     }
+
+    // Close steppers on outside click
+    document.addEventListener('click', (e) => {
+        document.querySelectorAll('.qty-part.expanded').forEach(part => {
+            if (!part.contains(e.target)) {
+                part.classList.remove('expanded');
+            }
+        });
+        document.querySelectorAll('.qty-combined-pill.active').forEach(pill => {
+            if (!pill.contains(e.target)) {
+                pill.classList.remove('active');
+            }
+        });
+    });
 
     init();
 });
