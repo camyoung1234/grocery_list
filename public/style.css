@@ -1,15 +1,32 @@
 :root {
-    --primary-color: #4a90e2;
-    /* Nice blue */
+    /* Theme Colors (Light Mode) - Material 500 */
+    --theme-red: #f44336;
+    --theme-pink: #e91e63;
+    --theme-purple: #9c27b0;
+    --theme-deep-purple: #673ab7;
+    --theme-indigo: #3f51b5;
+    --theme-blue: #2196f3;
+    --theme-light-blue: #03a9f4;
+    --theme-cyan: #00bcd4;
+    --theme-teal: #009688;
+    --theme-green: #4caf50;
+    --theme-light-green: #8bc34a;
+    --theme-lime: #cddc39;
+    --theme-yellow: #ffeb3b;
+    --theme-amber: #ffc107;
+    --theme-orange: #ff9800;
+    --theme-deep-orange: #ff5722;
+    --theme-brown: #795548;
+    --theme-grey: #9e9e9e;
+    --theme-blue-grey: #607d8b;
+
+    --primary-color: var(--theme-blue);
     --secondary-color: #f5f6fa;
-    /* Light background */
     --text-color: #2f3640;
-    /* Dark text */
     --text-muted: #7f8fa6;
-    --accent-color: #eebb4d;
-    /* Yellow for 'shop' mode maybe? */
-    --danger-color: #e74c3c;
-    --success-color: #2ecc71;
+    --accent-color: var(--theme-amber);
+    --danger-color: var(--theme-red);
+    --success-color: var(--theme-green);
     --border-radius: 12px;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --transition: all 0.3s ease;
@@ -24,15 +41,32 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --primary-color: #5da0f2;
-        /* slightly brighter blue for contrast */
+        /* Theme Colors (Dark Mode) - Material 300 for better contrast on dark bg */
+        --theme-red: #e57373;
+        --theme-pink: #f06292;
+        --theme-purple: #ba68c8;
+        --theme-deep-purple: #9575cd;
+        --theme-indigo: #7986cb;
+        --theme-blue: #64b5f6;
+        --theme-light-blue: #4fc3f7;
+        --theme-cyan: #4dd0e1;
+        --theme-teal: #4db6ac;
+        --theme-green: #81c784;
+        --theme-light-green: #aed581;
+        --theme-lime: #dce775;
+        --theme-yellow: #fff176;
+        --theme-amber: #ffd54f;
+        --theme-orange: #ffb74d;
+        --theme-deep-orange: #ff8a65;
+        --theme-brown: #a1887f;
+        --theme-grey: #e0e0e0;
+        --theme-blue-grey: #90a4ae;
+
+        --primary-color: var(--theme-blue);
         --secondary-color: #121212;
-        /* Very dark bg */
         --text-color: #e0e0e0;
-        /* Light text */
         --text-muted: #888;
         --card-bg: #1e1e1e;
-        /* Dark card surface */
         --hover-bg: #2a2a2a;
         --border-color: #333;
         --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);

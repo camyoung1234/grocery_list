@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appState.lists = [{
                 id: defaultListId,
                 name: 'Grocery List',
-                theme: '#4a90e2', // Default Theme
+                theme: 'var(--theme-blue)', // Default Theme
                 homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
                 shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
                 items: []
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (showTheme) {
             modalThemeGroup.classList.remove('hidden');
-            modalThemeSelect.value = initialTheme || '#4a90e2';
+            modalThemeSelect.value = initialTheme || 'var(--theme-blue)';
         } else {
             modalThemeGroup.classList.add('hidden');
         }
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newList = {
             id: Date.now().toString(),
             name: name,
-            theme: theme || '#4a90e2',
+            theme: theme || 'var(--theme-blue)',
             homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
             shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
             items: []
@@ -560,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateModeUI() {
         const currentList = getCurrentList();
         // Fallback color if something goes wrong or no list
-        const themeColor = currentList && currentList.theme ? currentList.theme : '#4a90e2';
+        const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
 
         if (currentMode === 'home') {
             document.documentElement.style.setProperty('--primary-color', themeColor);
@@ -621,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addBtn.innerHTML = '<i class="fas fa-plus"></i>';
         addBtn.title = "Create New List";
         addBtn.addEventListener('click', () => {
-            showModal('Create New List', 'New List', true, '#4a90e2', (name, theme) => {
+            showModal('Create New List', 'New List', true, 'var(--theme-blue)', (name, theme) => {
                 if (name) addNewList(name, theme);
             });
         });
