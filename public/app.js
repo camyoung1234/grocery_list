@@ -727,9 +727,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const textSpan = document.createElement('span');
                     textSpan.className = 'item-text';
-                    textSpan.textContent = `${item.text}: ${toBuy}`;
+                    textSpan.textContent = item.text;
+
+                    const qtyCircle = document.createElement('div');
+                    qtyCircle.className = 'shop-qty-circle';
+
+                    const qtyNumber = document.createElement('span');
+                    qtyNumber.className = 'qty-number';
+                    qtyNumber.textContent = toBuy;
+
+                    const checkIcon = document.createElement('i');
+                    checkIcon.className = 'fas fa-check check-icon';
+
+                    qtyCircle.appendChild(qtyNumber);
+                    qtyCircle.appendChild(checkIcon);
 
                     li.appendChild(textSpan);
+                    li.appendChild(qtyCircle);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {

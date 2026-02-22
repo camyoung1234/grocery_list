@@ -401,7 +401,7 @@ input:checked+.slider .icon-shop {
 }
 
 .section-container .grocery-item.shop-chip {
-    padding: 0.4rem 0.8rem;
+    padding: 0.35rem 0.4rem 0.35rem 0.8rem;
     background: color-mix(in srgb, var(--primary-color) 15%, transparent);
     border: none;
     border-radius: 9999px;
@@ -411,6 +411,7 @@ input:checked+.slider .icon-shop {
     transition: all 0.2s ease;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    gap: 0.5rem;
 }
 
 .section-container .grocery-item.shop-chip:active {
@@ -419,7 +420,49 @@ input:checked+.slider .icon-shop {
 
 .section-container .grocery-item.shop-chip.completed {
     opacity: 0.5;
-    background: var(--hover-bg);
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+.shop-qty-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--primary-color) 25%, transparent);
+    color: var(--primary-color);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    position: relative;
+    overflow: hidden;
+}
+
+.shop-qty-circle .qty-number,
+.shop-qty-circle .check-icon {
+    position: absolute;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shop-qty-circle .qty-number {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+.shop-qty-circle .check-icon {
+    transform: scale(0.5) translateY(10px);
+    opacity: 0;
+    font-size: 0.7rem;
+}
+
+.section-container .grocery-item.shop-chip.completed .qty-number {
+    transform: scale(0.5) translateY(-10px);
+    opacity: 0;
+}
+
+.section-container .grocery-item.shop-chip.completed .check-icon {
+    transform: scale(1) translateY(0);
+    opacity: 1;
 }
 
 .item-text {
