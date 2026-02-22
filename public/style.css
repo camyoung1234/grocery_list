@@ -927,6 +927,20 @@ input:checked+.slider .icon-shop {
     color: var(--primary-color);
 }
 
+.inline-section-input {
+    font-family: inherit;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-color);
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    padding: 2px 6px;
+    outline: none;
+    width: 80%;
+    margin: 0;
+}
+
 .section-items-list {
     list-style: none;
     padding: 0;

@@ -657,7 +657,33 @@ document.addEventListener('DOMContentLoaded', () => {
             // Double tap to rename section
             onDoubleTap(titleSpan, (e) => {
                 e.stopPropagation();
-                renameSection(section.id, isHome);
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = section.name;
+                input.className = 'inline-section-input';
+
+                const saveSectionName = () => {
+                    const newName = input.value.trim();
+                    if (newName && newName !== section.name) {
+                        section.name = newName;
+                        saveAppState();
+                    }
+                    renderList();
+                };
+
+                input.addEventListener('blur', saveSectionName);
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') {
+                        input.blur();
+                    } else if (ke.key === 'Escape') {
+                        renderList();
+                    }
+                });
+
+                header.replaceChild(input, titleSpan);
+                input.focus();
+                input.setSelectionRange(0, input.value.length);
             });
             header.appendChild(titleSpan);
             sectionLi.appendChild(header);
