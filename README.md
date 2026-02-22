@@ -20,3 +20,9 @@ The settings allow the user to define the aisles and categories for the store mo
 
 ### Notes
 All data is stored in the browser's local storage. The app works offline as a progressive web app.
+
+### Testing
+Open the local public/index.html file in your browser.
+
+### Hosting
+npx wrangler pages deploy public
