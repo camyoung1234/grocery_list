@@ -1120,9 +1120,25 @@ document.addEventListener('DOMContentLoaded', () => {
         group.appendChild(separator);
         group.appendChild(want.part);
 
-        const updateUI = () => {
+        const updateUI = (isInit = false) => {
+            const oldHave = have.valSpan.textContent;
+            const oldWant = want.valSpan.textContent;
+
             have.valSpan.textContent = item.haveCount;
             want.valSpan.textContent = item.wantCount;
+
+            if (!isInit) {
+                if (oldHave !== String(item.haveCount)) {
+                    have.valSpan.classList.remove('pop-animate');
+                    void have.valSpan.offsetWidth; // Trigger reflow
+                    have.valSpan.classList.add('pop-animate');
+                }
+                if (oldWant !== String(item.wantCount)) {
+                    want.valSpan.classList.remove('pop-animate');
+                    void want.valSpan.offsetWidth; // Trigger reflow
+                    want.valSpan.classList.add('pop-animate');
+                }
+            }
 
             if (item.wantCount === 0) {
                 want.part.classList.add('delete-mode');
@@ -1134,7 +1150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Initialize UI state
-        updateUI();
+        updateUI(true);
 
         have.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount = Math.max(0, item.haveCount - 1); updateUI(); });
         have.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount++; updateUI(); });
