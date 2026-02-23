@@ -509,6 +509,9 @@ input:checked+.slider .icon-shop {
 .item-info {
     flex: 1;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    min-height: 0;
 }
 
 /* Shop Mode Content */
@@ -611,6 +614,8 @@ input:checked+.slider .icon-shop {
     font-size: 1rem;
     line-height: 1.5rem;
     padding: 3px 0;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .section-container .grocery-item.shop-chip .item-text {
@@ -707,11 +712,8 @@ input:checked+.slider .icon-shop {
 .item-edit-container {
     margin-right: 0.5rem;
     margin-left: -7px;
-}
-
-.item-edit-container {
-    margin-right: 0.5rem;
-    margin-left: -7px;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .item-edit-container>.inline-mirror-span {
