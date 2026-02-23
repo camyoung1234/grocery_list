@@ -154,8 +154,15 @@ h1 {
     justify-content: center;
 }
 
-.icon-btn:hover {
-    background-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
+@media (hover: hover) {
+    .icon-btn:hover {
+        background-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
+    }
+}
+
+.icon-btn:active {
+    background-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
+    transform: scale(0.95);
 }
 
 .hidden-input {
@@ -284,8 +291,14 @@ input:checked+.slider .icon-shop {
     position: relative;
 }
 
-.tab-item:hover {
-    background: color-mix(in srgb, var(--list-color, var(--text-muted)) 25%, var(--hover-bg));
+@media (hover: hover) {
+    .tab-item:hover {
+        background: color-mix(in srgb, var(--list-color, var(--text-muted)) 25%, var(--hover-bg));
+    }
+}
+
+.tab-item:active {
+    transform: scale(0.98);
 }
 
 .tab-item.active {
@@ -319,9 +332,15 @@ input:checked+.slider .icon-shop {
     opacity: 0.8;
 }
 
-.tab-item.reorder-active .tab-reorder-btn:hover:not(:disabled) {
-    opacity: 1;
-    transform: scale(1.2);
+@media (hover: hover) {
+    .tab-item.reorder-active .tab-reorder-btn:hover:not(:disabled) {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+.tab-item.reorder-active .tab-reorder-btn:active:not(:disabled) {
+    transform: scale(0.9);
 }
 
 .tab-item .tab-text {
@@ -442,9 +461,16 @@ input:checked+.slider .icon-shop {
     border-radius: 6px;
 }
 
-.item-reorder-btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-    color: var(--primary-color);
+@media (hover: hover) {
+    .item-reorder-btn:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+        color: var(--primary-color);
+    }
+}
+
+.item-reorder-btn:active:not(:disabled) {
+    background: color-mix(in srgb, var(--primary-color) 30%, transparent);
+    transform: scale(0.9);
 }
 
 .item-reorder-btn:disabled {
@@ -492,6 +518,11 @@ input:checked+.slider .icon-shop {
     gap: 0.5rem;
 }
 
+@media (hover: hover) {
+    .section-container .grocery-item.shop-chip:hover {
+        background: color-mix(in srgb, var(--primary-color) 25%, transparent);
+    }
+}
 
 .section-container .grocery-item.shop-chip:active {
     transform: scale(0.95);
@@ -572,8 +603,10 @@ input:checked+.slider .icon-shop {
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.item-text:hover {
-    color: var(--primary-color);
+@media (hover: hover) {
+    .item-text:hover {
+        color: var(--primary-color);
+    }
 }
 
 .grocery-item.completed .item-text {
@@ -620,8 +653,10 @@ input:checked+.slider .icon-shop {
     transition: var(--transition);
 }
 
-.item-shop-badge:hover {
-    background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+@media (hover: hover) {
+    .item-shop-badge:hover {
+        background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+    }
 }
 
 /* Custom Dropdown Styling */
@@ -690,9 +725,11 @@ input:checked+.slider .icon-shop {
     transition: var(--transition);
 }
 
-.custom-dropdown-item:hover {
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-    color: var(--primary-color);
+@media (hover: hover) {
+    .custom-dropdown-item:hover {
+        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+        color: var(--primary-color);
+    }
 }
 
 .custom-dropdown-item.selected {
@@ -718,12 +755,14 @@ input:checked+.slider .icon-shop {
     margin-left: 0;
 }
 
-.qty-combined-pill:hover,
-.qty-combined-pill.active {
-    background: color-mix(in srgb, var(--primary-color) 12%, var(--hover-bg));
+@media (hover: hover) {
+    .qty-combined-pill:hover {
+        background: color-mix(in srgb, var(--primary-color) 12%, var(--hover-bg));
+    }
 }
 
 .qty-combined-pill.active {
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--hover-bg));
     /* Offset the exact width added by the two 26px buttons so the layout width is unchanged */
     margin-left: -52px;
 }
@@ -790,10 +829,17 @@ input:checked+.slider .icon-shop {
     transform: scale(1);
 }
 
-.qty-part.expanded .qty-btn:hover {
-    background: var(--primary-color);
-    color: white;
-    border-radius: 4px;
+@media (hover: hover) {
+    .qty-part.expanded .qty-btn:hover {
+        background: var(--primary-color);
+        color: white;
+        border-radius: 44px;
+    }
+}
+
+.qty-part.expanded .qty-btn:active {
+    background: color-mix(in srgb, var(--primary-color) 40%, transparent);
+    transform: scale(0.85);
 }
 
 /* Delete Mode for Want Count - Icon Transition */
@@ -837,9 +883,16 @@ input:checked+.slider .icon-shop {
     color: var(--danger-color);
 }
 
-.qty-part.delete-mode.expanded .qty-btn.minus:hover {
-    background: var(--danger-color);
-    color: white;
+@media (hover: hover) {
+    .qty-part.delete-mode.expanded .qty-btn.minus:hover {
+        background: var(--danger-color);
+        color: white;
+    }
+}
+
+.qty-part.delete-mode.expanded .qty-btn.minus:active {
+    background: color-mix(in srgb, var(--danger-color) 40%, transparent);
+    transform: scale(0.85);
 }
 
 /* Buy Badge (Shop Mode) */
@@ -1033,8 +1086,14 @@ input:checked+.slider .icon-shop {
     color: var(--text-muted);
 }
 
-.modal-btn.cancel:hover {
-    background: color-mix(in srgb, var(--hover-bg) 80%, black 20%);
+@media (hover: hover) {
+    .modal-btn.cancel:hover {
+        background: color-mix(in srgb, var(--hover-bg) 80%, black 20%);
+    }
+}
+
+.modal-btn.cancel:active {
+    transform: scale(0.98);
 }
 
 .modal-btn.save {
@@ -1042,8 +1101,14 @@ input:checked+.slider .icon-shop {
     color: white;
 }
 
-.modal-btn.save:hover {
-    background: #357abd;
+@media (hover: hover) {
+    .modal-btn.save:hover {
+        background: #357abd;
+    }
+}
+
+.modal-btn.save:active {
+    transform: scale(0.98);
 }
 
 .modal-btn.delete {
@@ -1051,8 +1116,14 @@ input:checked+.slider .icon-shop {
     color: white;
 }
 
-.modal-btn.delete:hover {
-    background: #c0392b;
+@media (hover: hover) {
+    .modal-btn.delete:hover {
+        background: #c0392b;
+    }
+}
+
+.modal-btn.delete:active {
+    transform: scale(0.98);
 }
 
 .modal-btn:disabled {
@@ -1109,8 +1180,10 @@ input:checked+.slider .icon-shop {
     /* Add matching vertical space to compensate for input border/padding */
 }
 
-.section-title:hover {
-    color: var(--primary-color);
+@media (hover: hover) {
+    .section-title:hover {
+        color: var(--primary-color);
+    }
 }
 
 .inline-section-input {
@@ -1154,9 +1227,11 @@ input:checked+.slider .icon-shop {
     transition: var(--transition);
 }
 
-.section-reorder-btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-    color: var(--primary-color);
+@media (hover: hover) {
+    .section-reorder-btn:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+        color: var(--primary-color);
+    }
 }
 
 .section-reorder-btn:disabled {
