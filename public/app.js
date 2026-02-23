@@ -1232,14 +1232,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     onLongPress(li, (e) => {
                         const isActive = li.classList.contains('reorder-active');
-                        document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
-                        if (!isActive) {
-                            li.classList.add('reorder-active');
-                            activeReorderId = item.id;
-                        } else {
-                            activeReorderId = null;
-                        }
-                        renderList();
+                        const sectionUl = li.closest('.section-items-list');
+
+                        animateShopChipReorder(sectionUl, () => {
+                            document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
+                            document.querySelectorAll('.section-items-list.reorder-active-list').forEach(ul => ul.classList.remove('reorder-active-list'));
+                            if (!isActive) {
+                                li.classList.add('reorder-active');
+                                sectionUl.classList.add('reorder-active-list');
+                                activeReorderId = item.id;
+                            } else {
+                                activeReorderId = null;
+                            }
+                        });
                     });
                 }
 
@@ -1528,6 +1533,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function animateShopChipReorder(sectionUl, callback) {
+        // FLIP animation for shop chip reorder mode transitions
+        const chips = Array.from(sectionUl.querySelectorAll('.shop-chip'));
+
+        // First: capture current positions and sizes
+        const firstRects = new Map();
+        chips.forEach(chip => {
+            firstRects.set(chip.dataset.id, chip.getBoundingClientRect());
+        });
+
+        // Execute the layout change
+        callback();
+
+        // Last: read new positions
+        const updatedChips = Array.from(sectionUl.querySelectorAll('.shop-chip'));
+
+        // Invert + Play
+        updatedChips.forEach(chip => {
+            const id = chip.dataset.id;
+            const first = firstRects.get(id);
+            if (!first) return;
+
+            const last = chip.getBoundingClientRect();
+            const deltaX = first.left - last.left;
+            const deltaY = first.top - last.top;
+            const scaleX = first.width / last.width;
+            const scaleY = first.height / last.height;
+
+            if (deltaX === 0 && deltaY === 0 && Math.abs(scaleX - 1) < 0.01 && Math.abs(scaleY - 1) < 0.01) return;
+
+            chip.style.transformOrigin = 'left center';
+            chip.style.transform = `translate(${deltaX}px, ${deltaY}px) scaleX(${scaleX})`;
+            chip.style.transition = 'none';
+        });
+
+        requestAnimationFrame(() => {
+            updatedChips.forEach(chip => {
+                if (chip.style.transform) {
+                    chip.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+                    chip.style.transform = '';
+
+                    chip.addEventListener('transitionend', function cleanup(e) {
+                        if (e.propertyName !== 'transform') return;
+                        chip.removeEventListener('transitionend', cleanup);
+                        chip.style.transition = '';
+                        chip.style.transformOrigin = '';
+                    });
+                }
+            });
+        });
+    }
+
     function swapItemsAndAnimate(node, offset) {
         const isHome = currentMode === 'home';
         const sectionKey = isHome ? 'homeSectionId' : 'shopSectionId';
@@ -1708,18 +1765,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.grocery-item.reorder-active').forEach(node => {
             if (!node.contains(e.target) && !e.target.closest('.item-reorder-btn')) {
-                // Apply dismissing class for animation
-                node.classList.add('dismissing');
                 if (node.dataset.id === activeReorderId) activeReorderId = null;
 
-                // Keep the reorder-active-list class until animation finishes
-                const list = node.closest('.section-items-list');
-
-                setTimeout(() => {
-                    node.classList.remove('reorder-active', 'dismissing');
-                    if (list) list.classList.remove('reorder-active-list');
-                    renderList();
-                }, 320);
+                const sectionUl = node.closest('.section-items-list');
+                if (sectionUl && currentMode === 'shop') {
+                    // Use FLIP animation for shop chips
+                    animateShopChipReorder(sectionUl, () => {
+                        node.classList.remove('reorder-active');
+                        sectionUl.classList.remove('reorder-active-list');
+                    });
+                } else {
+                    // Home mode: use existing dismissing animation
+                    node.classList.add('dismissing');
+                    const list = node.closest('.section-items-list');
+                    setTimeout(() => {
+                        node.classList.remove('reorder-active', 'dismissing');
+                        if (list) list.classList.remove('reorder-active-list');
+                        renderList();
+                    }, 320);
+                }
             }
         });
 
