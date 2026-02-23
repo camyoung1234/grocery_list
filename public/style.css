@@ -326,7 +326,8 @@ input:checked+.slider .icon-shop {
     box-sizing: border-box;
     background: color-mix(in srgb, var(--primary-color) 6%, var(--card-bg));
     border-radius: var(--border-radius);
-    padding: 0.4rem;
+    padding: 0.2rem;
+    /* Reduced from 0.4rem */
     transition: var(--transition);
     border: 1px solid transparent;
 }
@@ -339,7 +340,8 @@ input:checked+.slider .icon-shop {
 
 .inline-item-input {
     flex: 1;
-    padding: 0.8rem 1rem;
+    padding: 0.6rem 1rem;
+    /* Reduced from 0.8rem 1rem */
     border: none;
     background: transparent;
     font-family: inherit;
@@ -347,6 +349,11 @@ input:checked+.slider .icon-shop {
     font-weight: 500;
     outline: none;
     color: var(--primary-color);
+}
+
+.add-item-row {
+    padding: 0.5rem 0;
+    /* Override the 1rem padding of standard grocery items */
 }
 
 .inline-item-input::placeholder {
