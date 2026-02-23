@@ -781,6 +781,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         const dropdownList = document.createElement('ul');
                         dropdownList.className = 'custom-dropdown-list';
 
+                        const closeDropdown = (e) => {
+                            if (!dropdownContainer.contains(e.target)) {
+                                document.removeEventListener('mousedown', closeDropdown);
+                                renderList();
+                            }
+                        };
+
                         currentList.shopSections.forEach(sec => {
                             const option = document.createElement('li');
                             option.className = 'custom-dropdown-item';
@@ -790,11 +797,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
 
                             option.addEventListener('mousedown', (clickEvent) => {
+                                clickEvent.preventDefault(); // Prevent default focus changes
                                 clickEvent.stopPropagation();
                                 if (sec.id !== item.shopSectionId) {
                                     item.shopSectionId = sec.id;
                                     saveAppState();
                                 }
+                                document.removeEventListener('mousedown', closeDropdown);
                                 renderList();
                             });
 
@@ -802,14 +811,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
 
                         dropdownContainer.appendChild(dropdownList);
-
-                        // Handle clicking outside to close
-                        const closeDropdown = (e) => {
-                            if (!dropdownContainer.contains(e.target)) {
-                                renderList();
-                                document.removeEventListener('mousedown', closeDropdown);
-                            }
-                        };
 
                         // Small delay to prevent immediate close if double click propagates
                         setTimeout(() => {
