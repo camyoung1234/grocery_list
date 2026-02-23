@@ -499,6 +499,8 @@ input:checked+.slider .icon-shop {
     position: relative;
     display: inline-block;
     font-size: 1rem;
+    line-height: 1.5rem;
+    padding: 3px 0;
 }
 
 .section-container .grocery-item.shop-chip .item-text {
@@ -543,8 +545,12 @@ input:checked+.slider .icon-shop {
     padding: 2px 6px;
     outline: none;
     margin-right: 0.5rem;
+    margin-left: -7px;
     width: 150px;
     /* Base width */
+    line-height: 1.5rem;
+    box-sizing: border-box;
+    height: calc(1.5rem + 6px);
 }
 
 .item-shop-badge {
