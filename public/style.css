@@ -650,28 +650,30 @@ input:checked+.slider .icon-shop {
 
 /* Dynamic Resizing Container */
 .dynamic-edit-container {
-    display: inline-flex;
+    display: inline-grid;
     align-items: center;
     position: relative;
     vertical-align: middle;
 }
 
-.dynamic-edit-container>.inline-mirror-span {
+.dynamic-edit-container>.inline-mirror-span,
+.dynamic-edit-container>input {
+    grid-area: 1 / 1;
     font-family: inherit;
     font-size: 0.9rem;
     font-weight: 500;
-    white-space: pre;
     padding: 0;
     margin: 0;
     box-sizing: border-box;
+}
+
+.dynamic-edit-container>.inline-mirror-span {
+    white-space: pre;
     visibility: hidden;
     pointer-events: none;
 }
 
 .dynamic-edit-container>input {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
     background: rgba(255, 255, 255, 0.2);
@@ -679,12 +681,6 @@ input:checked+.slider .icon-shop {
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
     border-radius: 4px;
     color: inherit;
-    font-family: inherit;
-    font-size: 0.9rem;
-    font-weight: 500;
-    padding: 0;
-    margin: 0;
-    box-sizing: border-box;
 }
 
 .tab-item.active .dynamic-edit-container>input {
@@ -708,21 +704,35 @@ input:checked+.slider .icon-shop {
 }
 
 /* Inline Editing Styles */
-.inline-edit-input {
-    flex: 1;
+.item-edit-container {
+    margin-right: 0.5rem;
+    margin-left: -7px;
+}
+
+.item-edit-container {
+    margin-right: 0.5rem;
+    margin-left: -7px;
+}
+
+.item-edit-container>.inline-mirror-span {
     font-family: inherit;
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: normal;
+    padding: 2px 6px;
+    border: 1px solid transparent;
+    line-height: 1.5rem;
+}
+
+.item-edit-container>.inline-edit-input {
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: normal;
     color: var(--text-color);
     background: transparent;
     border: 1px solid var(--primary-color);
     border-radius: 4px;
     padding: 2px 6px;
     outline: none;
-    margin-right: 0.5rem;
-    margin-left: -7px;
-    width: 150px;
-    /* Base width */
     line-height: 1.5rem;
     box-sizing: border-box;
     height: calc(1.5rem + 6px);

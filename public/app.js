@@ -706,6 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.value = list.name;
+                input.size = 1;
                 input.className = 'inline-edit-input tab-edit-input';
 
                 container.appendChild(mirror);
@@ -1051,10 +1052,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         li.classList.remove('reorder-active');
 
                         // Turn into text input
+                        const container = document.createElement('div');
+                        container.className = 'dynamic-edit-container item-edit-container';
+
+                        const mirror = document.createElement('span');
+                        mirror.className = 'inline-mirror-span item-mirror';
+
                         const input = document.createElement('input');
                         input.type = 'text';
                         input.value = item.text;
+                        input.size = 1;
                         input.className = 'inline-edit-input';
+
+                        const syncMirror = () => {
+                            mirror.textContent = input.value || ' ';
+                        };
+                        input.addEventListener('input', syncMirror);
+                        syncMirror(); // Initial sync
 
                         const saveName = () => {
                             const newName = input.value.trim();
@@ -1074,7 +1088,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         });
 
-                        info.replaceChild(input, nameSpan);
+                        container.appendChild(mirror);
+                        container.appendChild(input);
+                        info.replaceChild(container, nameSpan);
                         input.focus();
                         input.setSelectionRange(0, input.value.length);
                     });
