@@ -627,6 +627,59 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         tabsList.appendChild(addBtn);
     }
+    function swapSectionsAndAnimate(arr, idx1, idx2) {
+        // First: Record current positions
+        const listContainer = document.getElementById('grocery-list');
+        const sections = Array.from(listContainer.querySelectorAll('.section-container'));
+        const firstPositions = {};
+        sections.forEach(node => {
+            firstPositions[node.dataset.id] = node.getBoundingClientRect();
+        });
+
+        // Swap state
+        const temp = arr[idx1];
+        arr[idx1] = arr[idx2];
+        arr[idx2] = temp;
+        saveAppState();
+
+        // Re-render
+        renderList();
+
+        // Last: Get new nodes and positions
+        const newSections = Array.from(listContainer.querySelectorAll('.section-container'));
+
+        // Invert
+        newSections.forEach(node => {
+            const id = node.dataset.id;
+            const first = firstPositions[id];
+            if (first) {
+                const last = node.getBoundingClientRect();
+                const deltaY = first.top - last.top;
+
+                if (deltaY !== 0) {
+                    node.style.transform = `translateY(${deltaY}px)`;
+                    node.style.transition = 'none';
+                }
+            }
+        });
+
+        // Play
+        requestAnimationFrame(() => {
+            newSections.forEach(node => {
+                if (node.style.transform) {
+                    node.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                    node.style.transform = 'translateY(0)';
+
+                    // Cleanup after transition
+                    node.addEventListener('transitionend', function cleanup() {
+                        node.style.transition = '';
+                        node.style.transform = '';
+                        node.removeEventListener('transitionend', cleanup);
+                    });
+                }
+            });
+        });
+    }
 
     function renderList() {
         groceryList.innerHTML = '';
@@ -703,12 +756,7 @@ document.addEventListener('DOMContentLoaded', () => {
             upBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (idx > 0) {
-                    // Swap with previous
-                    const temp = arr[idx];
-                    arr[idx] = arr[idx - 1];
-                    arr[idx - 1] = temp;
-                    saveAppState();
-                    renderList();
+                    swapSectionsAndAnimate(arr, idx, idx - 1);
                 }
             });
 
@@ -721,12 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
             downBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (idx < arr.length - 1 && idx !== -1) {
-                    // Swap with next
-                    const temp = arr[idx];
-                    arr[idx] = arr[idx + 1];
-                    arr[idx + 1] = temp;
-                    saveAppState();
-                    renderList();
+                    swapSectionsAndAnimate(arr, idx, idx + 1);
                 }
             });
 
