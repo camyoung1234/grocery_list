@@ -636,6 +636,10 @@ document.addEventListener('DOMContentLoaded', () => {
             firstPositions[node.dataset.id] = node.getBoundingClientRect();
         });
 
+        // Track the element that the user clicked on
+        const targetSectionId = arr[idx1].id;
+        const targetInitialTop = firstPositions[targetSectionId] ? firstPositions[targetSectionId].top : 0;
+
         // Swap state
         const temp = arr[idx1];
         arr[idx1] = arr[idx2];
@@ -648,13 +652,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // Last: Get new nodes and positions
         const newSections = Array.from(listContainer.querySelectorAll('.section-container'));
 
+        // Adjust scroll position to keep the target section in exactly the same place on screen
+        const targetNewSection = newSections.find(n => n.dataset.id === targetSectionId);
+        if (targetNewSection) {
+            const targetNewTop = targetNewSection.getBoundingClientRect().top;
+            const scrollDelta = targetNewTop - targetInitialTop;
+            window.scrollBy(0, scrollDelta);
+        }
+
+        // We need to re-fetch positions after scrolling because getBoundingClientRect is relative to viewport
+        const finalPositions = {};
+        newSections.forEach(node => {
+            finalPositions[node.dataset.id] = node.getBoundingClientRect();
+        });
+
         // Invert
         newSections.forEach(node => {
             const id = node.dataset.id;
             const first = firstPositions[id];
-            if (first) {
-                const last = node.getBoundingClientRect();
-                const deltaY = first.top - last.top;
+            const final = finalPositions[id];
+            if (first && final) {
+                const deltaY = first.top - final.top;
 
                 if (deltaY !== 0) {
                     node.style.transform = `translateY(${deltaY}px)`;
