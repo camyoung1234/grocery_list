@@ -686,6 +686,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.setSelectionRange(0, input.value.length);
             });
             header.appendChild(titleSpan);
+
+            // Reorder Controls
+            const reorderControls = document.createElement('div');
+            reorderControls.className = 'section-reorder-controls';
+
+            const arr = isHome ? currentList.homeSections : currentList.shopSections;
+            const idx = arr.findIndex(s => s.id === section.id);
+
+            const upBtn = document.createElement('button');
+            upBtn.className = 'section-reorder-btn';
+            upBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+            if (idx === 0) {
+                upBtn.style.visibility = 'hidden';
+            }
+            upBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (idx > 0) {
+                    // Swap with previous
+                    const temp = arr[idx];
+                    arr[idx] = arr[idx - 1];
+                    arr[idx - 1] = temp;
+                    saveAppState();
+                    renderList();
+                }
+            });
+
+            const downBtn = document.createElement('button');
+            downBtn.className = 'section-reorder-btn';
+            downBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+            if (idx === arr.length - 1) {
+                downBtn.style.display = 'none';
+            }
+            downBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (idx < arr.length - 1 && idx !== -1) {
+                    // Swap with next
+                    const temp = arr[idx];
+                    arr[idx] = arr[idx + 1];
+                    arr[idx + 1] = temp;
+                    saveAppState();
+                    renderList();
+                }
+            });
+
+            reorderControls.appendChild(upBtn);
+            reorderControls.appendChild(downBtn);
+            header.appendChild(reorderControls);
+
             sectionLi.appendChild(header);
 
             // Nested UL for items

@@ -1001,6 +1001,32 @@ input:checked+.slider .icon-shop {
     margin: 0;
 }
 
+.section-reorder-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-left: auto;
+}
+
+.section-reorder-btn {
+    background: transparent;
+    border: none;
+    color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.4rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.section-reorder-btn:hover {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color: var(--primary-color);
+}
+
 .section-items-list {
     list-style: none;
     padding: 0;
