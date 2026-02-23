@@ -1022,9 +1022,14 @@ input:checked+.slider .icon-shop {
     transition: var(--transition);
 }
 
-.section-reorder-btn:hover {
+.section-reorder-btn:hover:not(:disabled) {
     background: color-mix(in srgb, var(--primary-color) 10%, transparent);
     color: var(--primary-color);
+}
+
+.section-reorder-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
 }
 
 .section-items-list {

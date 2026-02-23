@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
             upBtn.className = 'section-reorder-btn';
             upBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
             if (idx === 0) {
-                upBtn.style.visibility = 'hidden';
+                upBtn.disabled = true;
             }
             upBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -716,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
             downBtn.className = 'section-reorder-btn';
             downBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
             if (idx === arr.length - 1) {
-                downBtn.style.display = 'none';
+                downBtn.disabled = true;
             }
             downBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
