@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
     const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
     let currentMode = localStorage.getItem('grocery-mode') || 'home'; // 'home' or 'shop'
+    let activeReorderId = null;
+    let currentShopFilter = 'unbought'; // 'unbought' or 'all'
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -317,6 +319,51 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             e.stopPropagation();
         });
+    }
+
+    function onLongPress(element, callback, duration = 300) {
+        let pressTimer;
+        let isPressing = false;
+        let startX, startY;
+
+        const startPress = (e) => {
+            if (e.type === 'mousedown' && e.button !== 0) return;
+            if (e.target.closest('button') || e.target.closest('input')) return;
+
+            isPressing = true;
+            if (e.touches && e.touches.length > 0) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }
+
+            pressTimer = setTimeout(() => {
+                if (isPressing) {
+                    isPressing = false;
+                    callback(e);
+                }
+            }, duration);
+        };
+
+        const cancelPress = () => {
+            isPressing = false;
+            clearTimeout(pressTimer);
+        };
+
+        const checkScrollCancel = (e) => {
+            if (!isPressing) return;
+            if (e.touches && e.touches.length > 0) {
+                const curX = e.touches[0].clientX;
+                const curY = e.touches[0].clientY;
+                if (Math.abs(curX - startX) + Math.abs(curY - startY) > 10) cancelPress();
+            }
+        };
+
+        element.addEventListener('mousedown', startPress);
+        element.addEventListener('touchstart', startPress, { passive: true });
+        element.addEventListener('mouseup', cancelPress);
+        element.addEventListener('mouseleave', cancelPress);
+        element.addEventListener('touchend', cancelPress);
+        element.addEventListener('touchmove', checkScrollCancel, { passive: true });
     }
 
     function getCurrentList() {
@@ -809,10 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
             itemsUl.dataset.sectionId = section.id;
             itemsUl.dataset.type = 'item-placeholder'; // Allow empty UL to receive drops
 
-            itemsUl.addEventListener('dragover', handleItemDragOver);
-            itemsUl.addEventListener('drop', handleItemDrop);
-            itemsUl.addEventListener('dragenter', handleItemDragEnter);
-            itemsUl.addEventListener('dragleave', handleItemDragLeave);
+
 
             // items for this section 
             let sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
@@ -834,10 +878,13 @@ document.addEventListener('DOMContentLoaded', () => {
             sectionItems.forEach(item => {
                 const li = document.createElement('li');
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${item.shopCompleted && !isHome ? 'completed' : ''}`;
-                li.draggable = true;
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
+
+                if (item.id === activeReorderId && isHome) {
+                    li.classList.add('reorder-active');
+                }
 
                 li.innerHTML = '';
 
@@ -860,18 +907,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         swapItemsAndAnimate(li, 1);
                     });
 
-                    li.addEventListener('click', (e) => {
-                        if (li.classList.contains('dragging')) return;
-
-                        // Only trigger if clicking the empty space of the row, not the text or steppers
-                        if (e.target.closest('.item-info') || e.target.closest('.quantity-controls')) {
-                            return;
-                        }
+                    onLongPress(li, (e) => {
+                        // Close steppers
+                        document.querySelectorAll('.qty-part.expanded').forEach(part => {
+                            part.classList.remove('expanded');
+                            part.closest('.qty-combined-pill')?.classList.remove('active');
+                        });
 
                         const isActive = li.classList.contains('reorder-active');
                         document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
                         if (!isActive) {
                             li.classList.add('reorder-active');
+                            activeReorderId = item.id;
+                        } else {
+                            activeReorderId = null;
                         }
                     });
 
@@ -884,6 +933,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     onDoubleTap(nameSpan, (e) => {
                         e.stopPropagation();
+
+                        // Close reordering
+                        activeReorderId = null;
+                        li.classList.remove('reorder-active');
+
                         // Turn into text input
                         const input = document.createElement('input');
                         input.type = 'text';
@@ -923,6 +977,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     onDoubleTap(badgeSpan, (e) => {
                         e.stopPropagation();
+
+                        // Close reordering
+                        activeReorderId = null;
+                        li.classList.remove('reorder-active');
+
                         const dropdownContainer = document.createElement('div');
                         dropdownContainer.className = 'custom-dropdown-container';
 
@@ -1023,14 +1082,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Delete button removed since double tap covers deletion
 
-                // Drag events for items
-                li.addEventListener('dragstart', handleItemDragStart);
-                li.addEventListener('dragover', handleItemDragOver);
-                li.addEventListener('drop', handleItemDrop);
-                li.addEventListener('dragenter', handleItemDragEnter);
-                li.addEventListener('dragleave', handleItemDragLeave);
-                li.addEventListener('dragend', handleDragEnd);
-
                 itemsUl.appendChild(li);
             });
 
@@ -1057,22 +1108,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Allow dropping ONTO the add row so we can drop files into an empty section
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
-                addRow.addEventListener('dragover', handleItemDragOver);
-                addRow.addEventListener('drop', handleItemDrop);
-                addRow.addEventListener('dragenter', handleItemDragEnter);
-                addRow.addEventListener('dragleave', handleItemDragLeave);
 
                 itemsUl.appendChild(addRow);
             }
             sectionLi.appendChild(itemsUl);
-
-            // Drag events for section
-            sectionLi.addEventListener('dragstart', handleSectionDragStart);
-            sectionLi.addEventListener('dragover', handleSectionDragOver);
-            sectionLi.addEventListener('drop', handleSectionDrop);
-            sectionLi.addEventListener('dragenter', handleSectionDragEnter);
-            sectionLi.addEventListener('dragleave', handleSectionDragLeave);
-            sectionLi.addEventListener('dragend', handleDragEnd);
 
             groceryList.appendChild(sectionLi);
         });
@@ -1157,6 +1196,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         part.addEventListener('click', (e) => {
             e.stopPropagation();
+
+            // Close reordering if active
+            if (activeReorderId) {
+                const activeNode = document.querySelector('.grocery-item.reorder-active');
+                if (activeNode) activeNode.classList.remove('reorder-active');
+                activeReorderId = null;
+            }
+
             document.querySelectorAll('.qty-part.expanded').forEach(p => {
                 if (p !== part) p.classList.remove('expanded');
             });
@@ -1170,6 +1217,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function createCombinedQtyControl(item) {
         const group = document.createElement('div');
         group.className = 'qty-combined-pill';
+
+        // Combined pill triggers expansion to clear reordering if clicked as a whole
+        group.addEventListener('click', (e) => {
+            if (activeReorderId) {
+                const activeNode = document.querySelector('.grocery-item.reorder-active');
+                if (activeNode) activeNode.classList.remove('reorder-active');
+                activeReorderId = null;
+            }
+        });
 
         const have = createQtyPart(group, item.haveCount, 'have');
         const want = createQtyPart(group, item.wantCount, 'want');
@@ -1236,145 +1292,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragSrcEl = null;
     let dragType = null;
 
-    // Auto-Scroll Logic for Dragging Constraints
-    let autoScrollInterval = null;
-    let lastScrollDir = 0; // -1 for up, 1 for down
-
-    function checkAutoScroll(y) {
-        const threshold = 60; // Distance in pixels from top/bottom to start scrolling
-        const viewportHeight = window.innerHeight;
-
-        if (y < threshold) {
-            // Near top, scroll up
-            if (!autoScrollInterval || lastScrollDir !== -1) {
-                clearInterval(autoScrollInterval);
-                lastScrollDir = -1;
-                autoScrollInterval = setInterval(() => {
-                    window.scrollBy(0, -15);
-                }, 16); // roughly 60fps
-            }
-        } else if (y > viewportHeight - threshold) {
-            // Near bottom, scroll down
-            if (!autoScrollInterval || lastScrollDir !== 1) {
-                clearInterval(autoScrollInterval);
-                lastScrollDir = 1;
-                autoScrollInterval = setInterval(() => {
-                    window.scrollBy(0, 15);
-                }, 16);
-            }
-        } else {
-            // Inside safety zone, stop scrolling
-            stopAutoScroll();
-        }
-    }
-
-    function stopAutoScroll() {
-        if (autoScrollInterval) {
-            clearInterval(autoScrollInterval);
-            autoScrollInterval = null;
-            lastScrollDir = 0;
-        }
-    }
-
-    // --- ITEM DRAG HANDLERS ---
-    function handleItemDragStart(e) {
-        e.stopPropagation();
-        dragSrcEl = this;
-        dragType = 'item';
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', this.dataset.id);
-        this.classList.add('dragging');
-    }
-
-    function handleItemDragOver(e) {
-        if (e.preventDefault) e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        checkAutoScroll(e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0));
-        return false;
-    }
-
-    function handleItemDragEnter(e) {
-        if (e.preventDefault) e.preventDefault();
-        if (dragType === 'item') this.classList.add('over');
-    }
-
-    function handleItemDragLeave(e) {
-        this.classList.remove('over');
-    }
-
-    function handleItemDrop(e) {
-        if (e.stopPropagation) e.stopPropagation();
-
-        if (dragType === 'item' && dragSrcEl !== this) {
-            const draggedId = dragSrcEl.dataset.id;
-            const targetId = this.dataset.id;
-            const targetSectionId = this.dataset.sectionId;
-            const isPlaceholder = this.dataset.type === 'item-placeholder' || this.dataset.type === 'section-header';
-
-            reorderItems(draggedId, targetId, targetSectionId, isPlaceholder);
-            renderList();
-        }
-        return false;
-    }
-
-    // --- SECTION DRAG HANDLERS ---
-    function handleSectionDragStart(e) {
-        if (dragType === 'item') return;
-
-        // Prevent child items from triggering section drag (bubbling)
-        if (e.target !== this && e.target.classList && !e.target.classList.contains('section-header') && !e.target.classList.contains('section-title')) {
-            e.preventDefault();
-            return;
-        }
-
-        e.stopPropagation();
-        dragSrcEl = this;
-        dragType = 'section';
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', this.dataset.id);
-        this.classList.add('dragging-section');
-    }
-
-    function handleSectionDragOver(e) {
-        if (e.preventDefault) e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        checkAutoScroll(e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0));
-        return false;
-    }
-
-    function handleSectionDragEnter(e) {
-        if (e.preventDefault) e.preventDefault();
-        // Only highlight if dragging a section
-        if (dragType === 'section' && this !== dragSrcEl) {
-            this.classList.add('over-section');
-        }
-    }
-
-    function handleSectionDragLeave(e) {
-        this.classList.remove('over-section');
-    }
-
-    function handleSectionDrop(e) {
-        if (e.stopPropagation) e.stopPropagation();
-
-        if (dragType === 'section' && dragSrcEl !== this) {
-            const draggedId = dragSrcEl.dataset.id;
-            const targetId = this.dataset.id;
-            reorderSections(draggedId, targetId);
-            renderList();
-        }
-        return false;
-    }
+    // --- Drag and Drop Logic ---
 
     // --- Shared Drag End ---
     function handleDragEnd(e) {
         stopAutoScroll();
-        this.classList.remove('dragging');
-        this.classList.remove('dragging-section');
         this.classList.remove('dragging-tab');
 
-        document.querySelectorAll('.grocery-item, .add-item-row, .section-container, .tab-item').forEach(el => {
-            el.classList.remove('over', 'over-section', 'over-tab');
+        document.querySelectorAll('.tab-item').forEach(el => {
+            el.classList.remove('over-tab');
         });
         dragType = null;
         dragSrcEl = null;
@@ -1498,10 +1424,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.scrollBy(0, scrollDelta);
         }
 
-        // Ensure moved node stays active
-        const movedNode = postNodes.find(n => n.dataset.id === draggedId);
-        if (movedNode) movedNode.classList.add('reorder-active');
-
         // Apply FLIP animation
         postNodes.forEach(n => {
             const id = n.dataset.id;
@@ -1603,23 +1525,6 @@ document.addEventListener('DOMContentLoaded', () => {
         saveAppState();
     }
 
-    function reorderSections(draggedId, targetId) {
-        const currentList = getCurrentList();
-        const isHome = currentMode === 'home';
-        const sectionArrayKey = isHome ? 'homeSections' : 'shopSections';
-        const sections = currentList[sectionArrayKey];
-
-        const oldIdx = sections.findIndex(s => s.id === draggedId);
-        const newIdx = sections.findIndex(s => s.id === targetId);
-
-        if (oldIdx === -1 || newIdx === -1) return;
-
-        const [draggedSec] = sections.splice(oldIdx, 1);
-        sections.splice(newIdx, 0, draggedSec);
-
-        saveAppState();
-    }
-
     // Close steppers on outside click
     document.addEventListener('click', (e) => {
         document.querySelectorAll('.qty-part.expanded').forEach(part => {
@@ -1630,8 +1535,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.querySelectorAll('.grocery-item.reorder-active').forEach(node => {
-            if (!node.contains(e.target)) {
+            if (!node.contains(e.target) && !e.target.closest('.item-reorder-btn')) {
                 node.classList.remove('reorder-active');
+                if (node.dataset.id === activeReorderId) activeReorderId = null;
             }
         });
     });

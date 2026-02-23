@@ -378,7 +378,6 @@ input:checked+.slider .icon-shop {
     background: transparent;
     border-bottom: 1px solid var(--border-color);
     transition: var(--transition);
-    cursor: grab;
     flex-wrap: wrap;
     /* Allow wrapping on small screens if needed */
     gap: 1rem;
@@ -387,11 +386,6 @@ input:checked+.slider .icon-shop {
 
 .grocery-item:last-child {
     border-bottom: none;
-}
-
-.grocery-item.dragging {
-    opacity: 0.5;
-    background: color-mix(in srgb, var(--primary-color) 10%, var(--card-bg));
 }
 
 /* Item Reorder Buttons */
@@ -461,25 +455,6 @@ input:checked+.slider .icon-shop {
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     gap: 0.5rem;
-}
-
-.section-container .grocery-item.shop-chip.dragging {
-    opacity: 0.7;
-    background: color-mix(in srgb, var(--primary-color) 25%, transparent);
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border-radius: 9999px !important;
-    padding: 0.35rem 0.4rem 0.35rem 0.8rem !important;
-}
-
-.section-container .grocery-item.shop-chip.ghost {
-    opacity: 0.3;
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-    transform: scale(1);
-    box-shadow: none;
-    border: 1px dashed var(--primary-color);
-    border-radius: 9999px !important;
-    padding: 0.35rem 0.4rem 0.35rem 0.8rem !important;
 }
 
 
@@ -1062,8 +1037,6 @@ input:checked+.slider .icon-shop {
 /* Prevent CSS animation lag on mobile drag-and-drop polyfill images */
 .dnd-poly-drag-image,
 .dnd-poly-drag-image *,
-.dragging,
-.dragging-section,
 .dragging-tab {
     transition: none !important;
 }
@@ -1079,17 +1052,6 @@ input:checked+.slider .icon-shop {
     touch-action: pan-y;
 }
 
-.section-container.dragging-section {
-    opacity: 0.6;
-    background: var(--hover-bg);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.section-container.over-section {
-    border: 2px dashed var(--primary-color);
-    background: var(--card-bg);
-}
-
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -1097,19 +1059,7 @@ input:checked+.slider .icon-shop {
     border-bottom: none;
     padding-bottom: 0;
     margin-bottom: 0.5rem;
-    cursor: grab;
     user-select: none;
-}
-
-.section-header:active {
-    cursor: grabbing;
-}
-
-.section-header.over {
-    background-color: var(--card-bg);
-    border: 2px dashed var(--primary-color);
-    border-radius: var(--border-radius);
-    padding: 0.5rem;
 }
 
 .section-title {
@@ -1191,14 +1141,6 @@ input:checked+.slider .icon-shop {
 .section-container .grocery-item {
     padding: 0.8rem 0;
     border-radius: 0;
-}
-
-.section-container .grocery-item.dragging {
-    background: var(--hover-bg);
-    opacity: 0.8;
-    border-radius: 8px;
-    /* Give it shape when floating */
-    padding: 0.8rem;
 }
 
 .section-container .add-item-row {
