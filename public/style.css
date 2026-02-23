@@ -559,22 +559,80 @@ input:checked+.slider .icon-shop {
     background: color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
-.inline-shop-select {
-    font-size: 0.7rem;
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-    color: var(--primary-color);
-    padding: 0.2rem 0.5rem;
-    border-radius: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
+/* Custom Dropdown Styling */
+.custom-dropdown-container {
+    position: relative;
     margin-right: auto;
     margin-left: 0.5rem;
-    border: none;
-    outline: none;
-    font-family: inherit;
-    appearance: none;
-    -webkit-appearance: none;
+}
+
+.custom-dropdown-list {
+    position: absolute;
+    top: 50%;
+    /* Center relative to container */
+    left: 0;
+    transform: translateY(-50%);
+    /* Start centered, animation will override */
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    list-style: none;
+    padding: 0.25rem 0;
+    margin: 0;
+    min-width: 120px;
+    max-height: 150px;
+    overflow-y: auto;
+    z-index: 100;
+    /* Ensure it appears above other elements */
+    animation: dropdownPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    transform-origin: center center;
+}
+
+/* Custom scrollbar for the dropdown */
+.custom-dropdown-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-dropdown-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-dropdown-list::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
+    border-radius: 10px;
+}
+
+@keyframes dropdownPop {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+}
+
+.custom-dropdown-item {
+    font-size: 0.75rem;
+    color: var(--text-color);
+    padding: 0.4rem 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
     cursor: pointer;
+    transition: var(--transition);
+}
+
+.custom-dropdown-item:hover {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color: var(--primary-color);
+}
+
+.custom-dropdown-item.selected {
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+    color: var(--primary-color);
 }
 
 /* Quantity Controls (Home Mode - Combined Expandable) */

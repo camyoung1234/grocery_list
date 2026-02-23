@@ -775,33 +775,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     onDoubleTap(badgeSpan, (e) => {
                         e.stopPropagation();
-                        const select = document.createElement('select');
-                        select.className = 'inline-shop-select';
+                        const dropdownContainer = document.createElement('div');
+                        dropdownContainer.className = 'custom-dropdown-container';
+
+                        const dropdownList = document.createElement('ul');
+                        dropdownList.className = 'custom-dropdown-list';
 
                         currentList.shopSections.forEach(sec => {
-                            const option = document.createElement('option');
-                            option.value = sec.id;
+                            const option = document.createElement('li');
+                            option.className = 'custom-dropdown-item';
                             option.textContent = sec.name;
                             if (sec.id === item.shopSectionId) {
-                                option.selected = true;
+                                option.classList.add('selected');
                             }
-                            select.appendChild(option);
+
+                            option.addEventListener('mousedown', (clickEvent) => {
+                                clickEvent.stopPropagation();
+                                if (sec.id !== item.shopSectionId) {
+                                    item.shopSectionId = sec.id;
+                                    saveAppState();
+                                }
+                                renderList();
+                            });
+
+                            dropdownList.appendChild(option);
                         });
 
-                        const saveShopSec = () => {
-                            if (select.value !== item.shopSectionId) {
-                                item.shopSectionId = select.value;
-                                saveAppState();
+                        dropdownContainer.appendChild(dropdownList);
+
+                        // Handle clicking outside to close
+                        const closeDropdown = (e) => {
+                            if (!dropdownContainer.contains(e.target)) {
+                                renderList();
+                                document.removeEventListener('mousedown', closeDropdown);
                             }
-                            renderList();
                         };
 
-                        select.addEventListener('blur', saveShopSec);
-                        select.addEventListener('change', saveShopSec);
+                        // Small delay to prevent immediate close if double click propagates
+                        setTimeout(() => {
+                            document.addEventListener('mousedown', closeDropdown);
+                        }, 50);
 
-                        info.replaceChild(select, badgeSpan);
-                        select.focus();
-                        try { select.showPicker(); } catch (err) { }
+                        info.replaceChild(dropdownContainer, badgeSpan);
+
+                        // Center the selected item within the scrollable area
+                        const selectedOption = dropdownList.querySelector('.selected');
+                        if (selectedOption) {
+                            // Scroll so the element is vertically centered in the dropdown view
+                            const dropdownHeight = dropdownList.offsetHeight;
+                            const optionTop = selectedOption.offsetTop;
+                            const optionHeight = selectedOption.offsetHeight;
+                            dropdownList.scrollTop = optionTop - (dropdownHeight / 2) + (optionHeight / 2);
+                        }
                     });
 
                     info.appendChild(badgeSpan);
