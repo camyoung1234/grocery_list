@@ -1034,6 +1034,9 @@ input:checked+.slider .icon-shop {
     color: var(--text-color);
     cursor: pointer;
     transition: var(--transition);
+    line-height: 1.5rem;
+    padding: 3px 0;
+    /* Add matching vertical space to compensate for input border/padding */
 }
 
 .section-title:hover {
@@ -1052,6 +1055,12 @@ input:checked+.slider .icon-shop {
     outline: none;
     width: 80%;
     margin: 0;
+    margin-left: -7px;
+    /* Offset the horizontal padding so text aligns */
+    line-height: 1.5rem;
+    box-sizing: border-box;
+    height: calc(1.5rem + 6px);
+    /* line-height + padding/border to ensure exact match */
 }
 
 .section-reorder-controls {
