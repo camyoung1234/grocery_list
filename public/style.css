@@ -599,7 +599,7 @@ input:checked+.slider .icon-shop {
     top: 50%;
     width: 0;
     height: 2px;
-    background-color: var(--text-muted);
+    background-color: var(--primary-color);
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
