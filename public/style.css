@@ -276,6 +276,12 @@ input:checked+.slider .icon-shop {
     transition: var(--transition);
     border: 1px solid transparent;
     touch-action: pan-y;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
 }
 
 .tab-item:hover {
@@ -287,15 +293,44 @@ input:checked+.slider .icon-shop {
     color: white;
 }
 
-.dragging-tab {
-    opacity: 0.5;
-    background: #e9ecef;
+.tab-reorder-btn {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: currentColor;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    font-size: 0.9rem;
 }
 
-.over-tab {
-    border-left: 2px solid var(--primary-color);
-    margin-left: -2px;
-    /* compensate for border to avoid layout shift */
+.tab-reorder-btn:disabled {
+    opacity: 0.3 !important;
+    cursor: not-allowed;
+}
+
+.tab-item.reorder-active .tab-reorder-btn {
+    width: 20px;
+    opacity: 0.8;
+}
+
+.tab-item.reorder-active .tab-reorder-btn:hover:not(:disabled) {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+.tab-item .tab-text {
+    white-space: nowrap;
+    transition: padding 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.tab-item.reorder-active .tab-text {
+    padding: 0 0.4rem;
 }
 
 .add-tab-btn {

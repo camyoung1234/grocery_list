@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
     let currentMode = localStorage.getItem('grocery-mode') || 'home'; // 'home' or 'shop'
     let activeReorderId = null;
+    let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
 
     // --- DOM Elements ---
@@ -331,7 +332,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.closest('button') || e.target.closest('input')) return;
 
             isPressing = true;
-            if (e.touches && e.touches.length > 0) {
+            if (e.type === 'mousedown') {
+                startX = e.clientX;
+                startY = e.clientY;
+            } else if (e.touches && e.touches.length > 0) {
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
             }
@@ -355,6 +359,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const curX = e.touches[0].clientX;
                 const curY = e.touches[0].clientY;
                 if (Math.abs(curX - startX) + Math.abs(curY - startY) > 10) cancelPress();
+            } else if (e.type === 'mousemove') {
+                if (Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) > 10) cancelPress();
             }
         };
 
@@ -362,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         element.addEventListener('touchstart', startPress, { passive: true });
         element.addEventListener('mouseup', cancelPress);
         element.addEventListener('mouseleave', cancelPress);
+        element.addEventListener('mousemove', checkScrollCancel, { passive: true });
         element.addEventListener('touchend', cancelPress);
         element.addEventListener('touchmove', checkScrollCancel, { passive: true });
     }
@@ -626,31 +633,76 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTabs() {
         tabsList.innerHTML = '';
-        appState.lists.forEach(list => {
+
+        appState.lists.forEach((list, index) => {
             const tab = document.createElement('div');
             tab.className = `tab-item ${list.id === appState.currentListId ? 'active' : ''}`;
-            tab.textContent = list.name;
+            if (activeTabReorderId === list.id) {
+                tab.classList.add('reorder-active');
+            }
             tab.dataset.id = list.id;
-            tab.draggable = true;
+
             if (list.theme) {
                 tab.style.setProperty('--list-color', list.theme);
             }
 
-            tab.addEventListener('click', () => switchList(list.id));
+            const btnLeft = document.createElement('button');
+            btnLeft.className = 'tab-reorder-btn tab-left';
+            btnLeft.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            btnLeft.disabled = index === 0;
+
+            const btnRight = document.createElement('button');
+            btnRight.className = 'tab-reorder-btn tab-right';
+            btnRight.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            btnRight.disabled = index === appState.lists.length - 1;
+
+            btnLeft.addEventListener('click', (e) => {
+                e.stopPropagation();
+                swapTabsAndAnimate(tab, -1);
+            });
+
+            btnRight.addEventListener('click', (e) => {
+                e.stopPropagation();
+                swapTabsAndAnimate(tab, 1);
+            });
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'tab-text';
+            nameSpan.textContent = list.name;
+
+            tab.appendChild(btnLeft);
+            tab.appendChild(nameSpan);
+            tab.appendChild(btnRight);
+
+            tab.addEventListener('click', (e) => {
+                if (e.target.closest('.tab-reorder-btn')) return;
+
+                if (activeTabReorderId) {
+                    activeTabReorderId = null;
+                    renderTabs();
+                    return;
+                }
+                switchList(list.id);
+            });
 
             // Double click to rename
-            onDoubleTap(tab, (e) => {
+            onDoubleTap(nameSpan, (e) => {
                 e.stopPropagation();
+                activeTabReorderId = null;
+                tab.classList.remove('reorder-active');
                 renameList(list.id);
             });
 
-            // Drag and drop events for list reordering
-            tab.addEventListener('dragstart', handleTabDragStart);
-            tab.addEventListener('dragover', handleTabDragOver);
-            tab.addEventListener('drop', handleTabDrop);
-            tab.addEventListener('dragenter', handleTabDragEnter);
-            tab.addEventListener('dragleave', handleTabDragLeave);
-            tab.addEventListener('dragend', handleDragEnd);
+            onLongPress(tab, (e) => {
+                const isActive = tab.classList.contains('reorder-active');
+                document.querySelectorAll('.tab-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
+                if (!isActive) {
+                    tab.classList.add('reorder-active');
+                    activeTabReorderId = list.id;
+                } else {
+                    activeTabReorderId = null;
+                }
+            });
 
             // Remove context menu listener, using edit modal delete now.
             // tab.addEventListener('contextmenu', (e) => {
@@ -1288,72 +1340,81 @@ document.addEventListener('DOMContentLoaded', () => {
         return group;
     }
 
-    // --- Drag and Drop Logic ---
-    let dragSrcEl = null;
-    let dragType = null;
+    function swapTabsAndAnimate(tabNode, directionOffset) {
+        const allTabs = Array.from(document.querySelectorAll('.tab-item'));
+        const draggedIdx = allTabs.indexOf(tabNode);
 
-    // --- Drag and Drop Logic ---
+        if (draggedIdx === -1) return;
 
-    // --- Shared Drag End ---
-    function handleDragEnd(e) {
-        stopAutoScroll();
-        this.classList.remove('dragging-tab');
+        let targetIdx = draggedIdx + directionOffset;
+        if (targetIdx < 0 || targetIdx >= allTabs.length) return;
 
-        document.querySelectorAll('.tab-item').forEach(el => {
-            el.classList.remove('over-tab');
+        const targetNode = allTabs[targetIdx];
+        const draggedId = tabNode.dataset.id;
+        const targetId = targetNode.dataset.id;
+
+        // Capture bounding boxes internally
+        const preNodes = Array.from(document.querySelectorAll('.tab-item'));
+        const firstPositions = {};
+        preNodes.forEach(n => {
+            firstPositions[n.dataset.id] = n.getBoundingClientRect().left;
         });
-        dragType = null;
-        dragSrcEl = null;
-    }
 
-    // --- TAB DRAG HANDLERS ---
-    function handleTabDragStart(e) {
-        dragSrcEl = this;
-        dragType = 'tab';
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', this.dataset.id);
-        this.classList.add('dragging-tab');
-    }
+        const targetInitialLeft = firstPositions[draggedId] || 0;
 
-    function handleTabDragOver(e) {
-        if (e.preventDefault) e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        checkAutoScroll(e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0));
-        return false;
-    }
-
-    function handleTabDragEnter(e) {
-        if (e.preventDefault) e.preventDefault();
-        if (dragType === 'tab' && this !== dragSrcEl) {
-            this.classList.add('over-tab');
-        }
-    }
-
-    function handleTabDragLeave(e) {
-        this.classList.remove('over-tab');
-    }
-
-    function handleTabDrop(e) {
-        if (e.stopPropagation) e.stopPropagation();
-
-        if (dragType === 'tab' && dragSrcEl !== this) {
-            const draggedId = dragSrcEl.dataset.id;
-            const targetId = this.dataset.id;
-            reorderLists(draggedId, targetId);
-            renderTabs();
-        }
-        return false;
-    }
-
-    function reorderLists(draggedId, targetId) {
-        const draggedIdx = appState.lists.findIndex(l => l.id === draggedId);
-        const targetIdx = appState.lists.findIndex(l => l.id === targetId);
-
-        if (draggedIdx !== -1 && targetIdx !== -1) {
-            const [movedList] = appState.lists.splice(draggedIdx, 1);
-            appState.lists.splice(targetIdx, 0, movedList);
+        // Reorder state
+        const oldIdx = appState.lists.findIndex(l => l.id === draggedId);
+        const newIdx = appState.lists.findIndex(l => l.id === targetId);
+        if (oldIdx !== -1 && newIdx !== -1) {
+            const [moved] = appState.lists.splice(oldIdx, 1);
+            appState.lists.splice(newIdx, 0, moved);
             saveAppState();
         }
+
+        renderTabs();
+
+        const postNodes = Array.from(document.querySelectorAll('.tab-item'));
+
+        // Adjust scroll position horizontally
+        const targetNewNode = postNodes.find(n => n.dataset.id === draggedId);
+        if (targetNewNode) {
+            const targetNewLeft = targetNewNode.getBoundingClientRect().left;
+            const scrollDelta = targetNewLeft - targetInitialLeft;
+            tabsList.scrollBy(scrollDelta, 0);
+        }
+
+        // Apply FLIP animation
+        postNodes.forEach(n => {
+            const id = n.dataset.id;
+            if (firstPositions[id] !== undefined) {
+                const newLeft = n.getBoundingClientRect().left;
+                const deltaX = firstPositions[id] - newLeft;
+
+                if (deltaX !== 0) {
+                    if (id === draggedId) {
+                        n.style.position = 'relative';
+                        n.style.zIndex = '20';
+                    } else {
+                        n.style.position = 'relative';
+                        n.style.zIndex = '10';
+                    }
+
+                    n.style.transform = `translateX(${deltaX}px)`;
+                    n.style.transition = 'none';
+
+                    requestAnimationFrame(() => {
+                        n.style.transform = '';
+                        n.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                    });
+
+                    setTimeout(() => {
+                        n.style.position = '';
+                        n.style.zIndex = '';
+                        n.style.transition = '';
+                    }, 400);
+                }
+            }
+        });
     }
 
     function swapItemsAndAnimate(node, offset) {
@@ -1538,6 +1599,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!node.contains(e.target) && !e.target.closest('.item-reorder-btn')) {
                 node.classList.remove('reorder-active');
                 if (node.dataset.id === activeReorderId) activeReorderId = null;
+            }
+        });
+
+        document.querySelectorAll('.tab-item.reorder-active').forEach(node => {
+            if (!node.contains(e.target) && !e.target.closest('.tab-reorder-btn')) {
+                node.classList.remove('reorder-active');
+                if (node.dataset.id === activeTabReorderId) {
+                    activeTabReorderId = null;
+                    renderTabs();
+                }
             }
         });
     });
