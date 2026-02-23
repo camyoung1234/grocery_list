@@ -1007,7 +1007,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btnMinus = document.createElement('button');
         btnMinus.className = 'qty-btn minus';
-        btnMinus.innerHTML = '<i class="fas fa-minus"></i>';
+        const minusIcon = document.createElement('i');
+        minusIcon.className = 'fas fa-minus icon-default';
+        const trashIcon = document.createElement('i');
+        trashIcon.className = 'fas fa-trash icon-delete';
+        btnMinus.appendChild(minusIcon);
+        btnMinus.appendChild(trashIcon);
 
         const valSpan = document.createElement('span');
         valSpan.className = 'qty-val';
@@ -1051,12 +1056,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const updateUI = () => {
             have.valSpan.textContent = item.haveCount;
             want.valSpan.textContent = item.wantCount;
+
+            if (item.wantCount === 0) {
+                want.part.classList.add('delete-mode');
+            } else {
+                want.part.classList.remove('delete-mode');
+            }
+
             saveAppState();
         };
 
+        // Initialize UI state
+        updateUI();
+
         have.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount = Math.max(0, item.haveCount - 1); updateUI(); });
         have.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount++; updateUI(); });
-        want.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); item.wantCount = Math.max(0, item.wantCount - 1); updateUI(); });
+
+        want.btnMinus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (item.wantCount === 0) {
+                deleteItem(item.id);
+                renderList();
+            } else {
+                item.wantCount = Math.max(0, item.wantCount - 1);
+                updateUI();
+            }
+        });
         want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.wantCount++; updateUI(); });
 
         return group;

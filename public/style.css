@@ -730,6 +730,52 @@ input:checked+.slider .icon-shop {
     border-radius: 4px;
 }
 
+/* Delete Mode for Want Count - Icon Transition */
+.qty-part.expanded .qty-btn.minus {
+    position: relative;
+    /* For absolute positioning of icons */
+    overflow: hidden;
+    /* To keep scaling contained */
+}
+
+.qty-btn.minus .icon-default,
+.qty-btn.minus .icon-delete {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.qty-btn.minus .icon-default {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
+.qty-btn.minus .icon-delete {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5) rotate(-90deg);
+}
+
+.qty-part.delete-mode.expanded .qty-btn.minus .icon-default {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5) rotate(90deg);
+}
+
+.qty-part.delete-mode.expanded .qty-btn.minus .icon-delete {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
+.qty-part.delete-mode.expanded .qty-btn.minus {
+    color: var(--danger-color);
+}
+
+.qty-part.delete-mode.expanded .qty-btn.minus:hover {
+    background: var(--danger-color);
+    color: white;
+}
+
 /* Buy Badge (Shop Mode) */
 .buy-badge {
     font-size: 0.8rem;
