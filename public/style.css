@@ -472,6 +472,10 @@ input:checked+.slider .icon-shop {
     margin: 0 !important;
 }
 
+.tab-item.dismissing .tab-text {
+    padding: 0 !important;
+}
+
 @media (hover: hover) {
     .item-reorder-btn:hover:not(:disabled) {
         background: color-mix(in srgb, var(--primary-color) 20%, transparent);

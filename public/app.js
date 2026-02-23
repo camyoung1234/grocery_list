@@ -669,7 +669,17 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.addEventListener('click', (e) => {
                 if (e.target.closest('.tab-reorder-btn')) return;
 
-                if (activeTabReorderId) {
+                if (activeTabReorderId === list.id) {
+                    // Start dismissing animation for the current tab
+                    tab.classList.add('dismissing');
+                    activeTabReorderId = null;
+                    setTimeout(() => {
+                        tab.classList.remove('reorder-active', 'dismissing');
+                        renderTabs();
+                    }, 320);
+                    return;
+                } else if (activeTabReorderId) {
+                    // Immediately switch or clear if clicking another tab
                     activeTabReorderId = null;
                     renderTabs();
                     return;
@@ -715,12 +725,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             onLongPress(tab, (e) => {
                 const isActive = tab.classList.contains('reorder-active');
-                document.querySelectorAll('.tab-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
-                if (!isActive) {
+                if (isActive) {
+                    // Dismiss
+                    tab.classList.add('dismissing');
+                    activeTabReorderId = null;
+                    setTimeout(() => {
+                        tab.classList.remove('reorder-active', 'dismissing');
+                        renderTabs();
+                    }, 320);
+                } else {
+                    // Close any other active tab reorder first (without animation for simplicity/speed)
+                    document.querySelectorAll('.tab-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
                     tab.classList.add('reorder-active');
                     activeTabReorderId = list.id;
-                } else {
-                    activeTabReorderId = null;
                 }
             });
 
@@ -1667,7 +1684,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     node.classList.remove('reorder-active', 'dismissing');
                     if (list) list.classList.remove('reorder-active-list');
                     renderList();
-                }, 300);
+                }, 320);
             }
         });
 
@@ -1679,7 +1696,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     node.classList.remove('reorder-active', 'dismissing');
                     renderTabs();
-                }, 300);
+                }, 320);
             }
         });
     });
