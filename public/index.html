@@ -126,6 +126,21 @@
         </div>
     </div>
 
+    <!-- Section Delete Confirmation Modal -->
+    <div id="section-delete-modal-overlay" class="modal-overlay">
+        <div class="modal">
+            <h3 class="text-danger" id="section-delete-modal-title">Delete Section?</h3>
+            <p id="section-delete-modal-text"></p>
+            <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
+                <button id="section-delete-only-btn" class="modal-btn delete" style="width: 100%;">Delete Section
+                    Only</button>
+                <button id="section-delete-all-btn" class="modal-btn delete" style="width: 100%;">Delete Section &
+                    Items</button>
+                <button id="section-delete-cancel-btn" class="modal-btn cancel" style="width: 100%;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 

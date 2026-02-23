@@ -45,8 +45,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteCancelBtn = document.getElementById('delete-cancel-btn');
     const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
 
+    // Section Delete Modal Elements
+    const sectionDeleteModalOverlay = document.getElementById('section-delete-modal-overlay');
+    const sectionDeleteModalTitle = document.getElementById('section-delete-modal-title');
+    const sectionDeleteModalText = document.getElementById('section-delete-modal-text');
+    const sectionDeleteOnlyBtn = document.getElementById('section-delete-only-btn');
+    const sectionDeleteAllBtn = document.getElementById('section-delete-all-btn');
+    const sectionDeleteCancelBtn = document.getElementById('section-delete-cancel-btn');
+
     // Modal State
     let currentDeleteCallback = null;
+    let currentSectionDeleteOnlyCallback = null;
+    let currentSectionDeleteAllCallback = null;
 
     // --- Initialization ---
     function init() {
@@ -290,6 +300,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     deleteCancelBtn.addEventListener('click', hideDeleteModal);
 
+    // --- Section Delete Modal Logic ---
+    function showSectionDeleteModal(sectionName, isHome, onDeleteOnly, onDeleteAll) {
+        currentSectionDeleteOnlyCallback = onDeleteOnly;
+        currentSectionDeleteAllCallback = onDeleteAll;
+
+        sectionDeleteModalTitle.textContent = 'Delete Section?';
+        if (isHome) {
+            sectionDeleteModalText.innerHTML = `This action cannot be undone. How would you like to delete <strong>${sectionName}</strong>?`;
+            sectionDeleteOnlyBtn.style.display = '';
+            sectionDeleteAllBtn.style.display = '';
+        } else {
+            sectionDeleteModalText.innerHTML = `This action cannot be undone. All items in <strong>${sectionName}</strong> will be moved to Uncategorized.`;
+            sectionDeleteOnlyBtn.textContent = 'Delete Section';
+            sectionDeleteOnlyBtn.style.display = '';
+            sectionDeleteAllBtn.style.display = 'none';
+        }
+
+        sectionDeleteModalOverlay.classList.add('visible');
+    }
+
+    function hideSectionDeleteModal() {
+        sectionDeleteModalOverlay.classList.remove('visible');
+        currentSectionDeleteOnlyCallback = null;
+        currentSectionDeleteAllCallback = null;
+        // Reset button text for next use
+        sectionDeleteOnlyBtn.textContent = 'Delete Section Only';
+    }
+
+    sectionDeleteOnlyBtn.addEventListener('click', () => {
+        if (currentSectionDeleteOnlyCallback) {
+            currentSectionDeleteOnlyCallback();
+        }
+        hideSectionDeleteModal();
+    });
+
+    sectionDeleteAllBtn.addEventListener('click', () => {
+        if (currentSectionDeleteAllCallback) {
+            currentSectionDeleteAllCallback();
+        }
+        hideSectionDeleteModal();
+    });
+
+    sectionDeleteCancelBtn.addEventListener('click', hideSectionDeleteModal);
+
     // --- Helper ---
     function onDoubleTap(element, callback) {
         let lastTapTime = 0;
@@ -500,17 +554,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function deleteSectionWithConfirmation(id, isHome, name) {
-        showDeleteModal('Delete Section?', name, () => {
-            const currentList = getCurrentList();
-            const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
-            const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-            const defaultSectionId = sectionArray[0].id; // Fallback to first section (Uncategorized)
+    function getOrCreateUncategorizedSection(isHome) {
+        const currentList = getCurrentList();
+        const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
+        let uncategorized = sectionArray.find(s => s.name === 'Uncategorized');
+        if (!uncategorized) {
+            uncategorized = {
+                id: 'sec-' + Date.now().toString(),
+                name: 'Uncategorized'
+            };
+            sectionArray.unshift(uncategorized);
+        }
+        return uncategorized;
+    }
 
-            // Re-assign items
+    function deleteSectionWithConfirmation(id, isHome, name) {
+        const onDeleteOnly = () => {
+            const currentList = getCurrentList();
+            const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+            const uncategorized = getOrCreateUncategorizedSection(isHome);
+
+            // Re-assign items to Uncategorized
             currentList.items.forEach(item => {
                 if (item[sectionIdKey] === id) {
-                    item[sectionIdKey] = defaultSectionId;
+                    item[sectionIdKey] = uncategorized.id;
                 }
             });
 
@@ -523,7 +590,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
             saveAppState();
             renderList();
-        });
+        };
+
+        const onDeleteAll = () => {
+            const currentList = getCurrentList();
+            const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+
+            // Delete all items in this section
+            currentList.items = currentList.items.filter(item => item[sectionIdKey] !== id);
+
+            // Remove section
+            if (isHome) {
+                currentList.homeSections = currentList.homeSections.filter(s => s.id !== id);
+            } else {
+                currentList.shopSections = currentList.shopSections.filter(s => s.id !== id);
+            }
+
+            saveAppState();
+            renderList();
+        };
+
+        showSectionDeleteModal(name, isHome, onDeleteOnly, onDeleteAll);
     }
 
     // --- Core Functions ---
@@ -919,6 +1006,29 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             header.appendChild(titleSpan);
 
+            // Delete Button (revealed on long-press)
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'section-delete-btn';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                header.classList.remove('delete-active');
+                deleteSectionWithConfirmation(section.id, isHome, section.name);
+            });
+            header.appendChild(deleteBtn);
+
+            // Long-press to reveal delete icon
+            onLongPress(header, (e) => {
+                const isActive = header.classList.contains('delete-active');
+                // Close any other active section delete buttons
+                document.querySelectorAll('.section-header.delete-active').forEach(h => h.classList.remove('delete-active'));
+                if (!isActive) {
+                    header.classList.add('delete-active');
+                } else {
+                    header.classList.remove('delete-active');
+                }
+            });
+
             // Reorder Controls
             const reorderControls = document.createElement('div');
             reorderControls.className = 'section-reorder-controls';
@@ -970,11 +1080,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
 
             if (!isHome) {
-                // filter shop items
-                sectionItems = sectionItems.filter(item => {
-                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    return toBuy > 0 || item.shopCompleted;
-                });
+                // filter shop items (but show all during reorder so layout stays stable)
+                if (!activeReorderId) {
+                    sectionItems = sectionItems.filter(item => {
+                        const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                        return toBuy > 0 || item.shopCompleted;
+                    });
+                }
             }
 
             sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
@@ -983,8 +1095,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 itemsUl.classList.add('shop-mode');
             }
 
-            // Check if any item in this section is currently being reordered
-            if (sectionItems.some(i => i.id === activeReorderId)) {
+            // In shop mode, mark all sections as reorder-active when any reorder is happening
+            if (!isHome && activeReorderId) {
+                itemsUl.classList.add('reorder-active-list');
+            } else if (sectionItems.some(i => i.id === activeReorderId)) {
                 itemsUl.classList.add('reorder-active-list');
             }
 
@@ -994,6 +1108,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
+
+                // Tag 0-qty items shown during shop mode reorder
+                if (!isHome && activeReorderId) {
+                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                    if (toBuy <= 0 && !item.shopCompleted) {
+                        li.classList.add('zero-qty-reorder');
+                    }
+                }
 
                 if (item.id === activeReorderId && isHome) {
                     li.classList.add('reorder-active');
@@ -1234,17 +1356,100 @@ document.addEventListener('DOMContentLoaded', () => {
                         const isActive = li.classList.contains('reorder-active');
                         const sectionUl = li.closest('.section-items-list');
 
-                        animateShopChipReorder(sectionUl, () => {
+                        if (!isActive) {
+                            // Entering reorder mode
+                            // First: capture current chip positions for FLIP animation
+                            const existingChips = Array.from(sectionUl.querySelectorAll('.shop-chip'));
+                            const firstRects = new Map();
+                            existingChips.forEach(chip => {
+                                firstRects.set(chip.dataset.id, chip.getBoundingClientRect());
+                            });
+
+                            // Capture the selected item's viewport position before re-render
+                            const itemRectBefore = li.getBoundingClientRect();
+                            const itemViewportTop = itemRectBefore.top;
+
+                            // Set state so re-render includes 0-qty items
                             document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
                             document.querySelectorAll('.section-items-list.reorder-active-list').forEach(ul => ul.classList.remove('reorder-active-list'));
-                            if (!isActive) {
-                                li.classList.add('reorder-active');
-                                sectionUl.classList.add('reorder-active-list');
-                                activeReorderId = item.id;
-                            } else {
-                                activeReorderId = null;
+                            activeReorderId = item.id;
+                            renderList();
+
+                            // Re-query the section UL and the new item node since renderList() rebuilt the DOM
+                            const newSectionUl = document.querySelector(`.section-items-list[data-section-id="${section.id}"]`);
+                            if (!newSectionUl) return;
+
+                            // Scroll to keep the item at the same viewport position
+                            const newItemNode = newSectionUl.querySelector(`.shop-chip[data-id="${item.id}"]`);
+                            if (newItemNode) {
+                                const newItemTop = newItemNode.getBoundingClientRect().top;
+                                window.scrollBy(0, newItemTop - itemViewportTop);
                             }
-                        });
+
+                            // Last: animate existing chips with FLIP, fade in new 0-qty ones
+                            const allNewChips = Array.from(newSectionUl.querySelectorAll('.shop-chip'));
+                            allNewChips.forEach(chip => {
+                                if (chip.classList.contains('zero-qty-reorder')) {
+                                    // New 0-qty items: add entering class for fade-in animation
+                                    chip.classList.add('zero-qty-entering');
+                                }
+                            });
+
+                            const newChips = Array.from(newSectionUl.querySelectorAll('.shop-chip:not(.zero-qty-reorder)'));
+                            newChips.forEach(chip => {
+                                const id = chip.dataset.id;
+                                const first = firstRects.get(id);
+                                if (first) {
+                                    // Existing chip: FLIP animate
+                                    const last = chip.getBoundingClientRect();
+                                    const deltaX = first.left - last.left;
+                                    const deltaY = first.top - last.top;
+                                    const scaleX = first.width / last.width;
+                                    if (deltaX !== 0 || deltaY !== 0 || Math.abs(scaleX - 1) > 0.01) {
+                                        chip.style.transformOrigin = 'left center';
+                                        chip.style.transform = `translate(${deltaX}px, ${deltaY}px) scaleX(${scaleX})`;
+                                        chip.style.transition = 'none';
+                                    }
+                                }
+                                // New 0-qty items get the fade-in class (set during render)
+                            });
+
+                            requestAnimationFrame(() => {
+                                newChips.forEach(chip => {
+                                    if (chip.style.transform) {
+                                        chip.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+                                        chip.style.transform = '';
+                                        chip.addEventListener('transitionend', function cleanup(ev) {
+                                            if (ev.propertyName !== 'transform') return;
+                                            chip.removeEventListener('transitionend', cleanup);
+                                            chip.style.transition = '';
+                                            chip.style.transformOrigin = '';
+                                        });
+                                    }
+                                });
+                            });
+                        } else {
+                            // Exiting reorder mode
+                            // Fade out 0-qty items first, then FLIP animate remaining
+                            const zeroQtyChips = sectionUl.querySelectorAll('.shop-chip.zero-qty-reorder');
+                            activeReorderId = null;
+
+                            if (zeroQtyChips.length > 0) {
+                                zeroQtyChips.forEach(chip => {
+                                    chip.classList.remove('zero-qty-reorder');
+                                    chip.classList.add('zero-qty-leaving');
+                                });
+                                // Wait for fade-out animation, then re-render
+                                setTimeout(() => {
+                                    renderList();
+                                }, 300);
+                            } else {
+                                animateShopChipReorder(sectionUl, () => {
+                                    li.classList.remove('reorder-active');
+                                    sectionUl.classList.remove('reorder-active-list');
+                                });
+                            }
+                        }
                     });
                 }
 
@@ -1252,6 +1457,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 itemsUl.appendChild(li);
             });
+
+            // Add placeholder for shop mode reorder (allows dropping into empty sections)
+            if (!isHome && activeReorderId) {
+                const placeholder = document.createElement('li');
+                placeholder.className = 'grocery-item shop-reorder-placeholder';
+                placeholder.dataset.type = 'item-placeholder';
+                placeholder.dataset.sectionId = section.id;
+                placeholder.style.padding = '0';
+                placeholder.style.margin = '0';
+                placeholder.style.border = 'none';
+                placeholder.style.minHeight = '0';
+                placeholder.style.height = '0';
+                placeholder.style.overflow = 'hidden';
+                itemsUl.appendChild(placeholder);
+            }
 
             // Add "Add item" row for this section
             if (isHome) {
@@ -1444,8 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
         want.btnMinus.addEventListener('click', (e) => {
             e.stopPropagation();
             if (item.wantCount === 0) {
-                deleteItem(item.id);
-                renderList();
+                deleteItemWithConfirmation(item.id, item.text);
             } else {
                 item.wantCount = Math.max(0, item.wantCount - 1);
                 updateUI();
@@ -1645,17 +1864,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const postNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"]'));
 
-        // Adjust scroll position
+        // Adjust scroll position to keep moved item at same viewport position
         const targetNewNode = postNodes.find(n => n.dataset.id === movedId);
         if (targetNewNode) {
             const targetNewTop = targetNewNode.getBoundingClientRect().top;
             const scrollDelta = targetNewTop - targetInitialTop;
             window.scrollBy(0, scrollDelta);
+
+            // Adjust firstPositions to account for the scroll we just did,
+            // so FLIP animation deltas are computed correctly
+            Object.keys(firstPositions).forEach(id => {
+                firstPositions[id] -= scrollDelta;
+            });
         }
 
-        // Apply FLIP animation
+        // Apply FLIP animation (skip the moved item — scroll already keeps it static)
         postNodes.forEach(n => {
             const id = n.dataset.id;
+            if (id === movedId) return;
             if (firstPositions[id] !== undefined) {
                 const newTop = n.getBoundingClientRect().top;
                 const deltaY = firstPositions[id] - newTop;
@@ -1763,17 +1989,36 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Close section delete buttons on outside click
+        document.querySelectorAll('.section-header.delete-active').forEach(header => {
+            if (!header.contains(e.target)) {
+                header.classList.remove('delete-active');
+            }
+        });
+
         document.querySelectorAll('.grocery-item.reorder-active').forEach(node => {
             if (!node.contains(e.target) && !e.target.closest('.item-reorder-btn')) {
                 if (node.dataset.id === activeReorderId) activeReorderId = null;
 
                 const sectionUl = node.closest('.section-items-list');
                 if (sectionUl && currentMode === 'shop') {
-                    // Use FLIP animation for shop chips
-                    animateShopChipReorder(sectionUl, () => {
-                        node.classList.remove('reorder-active');
-                        sectionUl.classList.remove('reorder-active-list');
-                    });
+                    // Fade out 0-qty items first, then re-render
+                    const zeroQtyChips = sectionUl.querySelectorAll('.shop-chip.zero-qty-reorder');
+                    if (zeroQtyChips.length > 0) {
+                        zeroQtyChips.forEach(chip => {
+                            chip.classList.remove('zero-qty-reorder');
+                            chip.classList.add('zero-qty-leaving');
+                        });
+                        setTimeout(() => {
+                            renderList();
+                        }, 300);
+                    } else {
+                        // Use FLIP animation for shop chips
+                        animateShopChipReorder(sectionUl, () => {
+                            node.classList.remove('reorder-active');
+                            sectionUl.classList.remove('reorder-active-list');
+                        });
+                    }
                 } else {
                     // Home mode: use existing dismissing animation
                     node.classList.add('dismissing');
