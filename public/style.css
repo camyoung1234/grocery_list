@@ -505,7 +505,7 @@ input:checked+.slider .icon-shop {
 }
 
 .section-container .grocery-item.shop-chip {
-    padding: 0.35rem 0.4rem 0.35rem 0.8rem;
+    padding: 0.2rem 0.4rem 0.2rem 0.8rem;
     background: color-mix(in srgb, var(--primary-color) 15%, transparent);
     border: none;
     border-radius: 9999px;
