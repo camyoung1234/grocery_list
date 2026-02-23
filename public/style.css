@@ -669,6 +669,8 @@ input:checked+.slider .icon-shop {
     cursor: pointer;
     transition: var(--transition);
     border-radius: 14px;
+    border: 1px solid transparent;
+    /* Prevent layout shift when expanded adds border */
 }
 
 .qty-part .qty-val {
