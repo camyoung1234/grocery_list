@@ -722,7 +722,6 @@ document.addEventListener('DOMContentLoaded', () => {
             sectionLi.className = 'section-container';
             sectionLi.dataset.id = section.id;
             sectionLi.dataset.type = 'section';
-            sectionLi.draggable = true;
 
             // Section Header
             const header = document.createElement('div');
@@ -1030,14 +1029,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             sectionLi.appendChild(itemsUl);
 
-            // Drag events for section
-            sectionLi.addEventListener('dragstart', handleSectionDragStart);
-            sectionLi.addEventListener('dragover', handleSectionDragOver);
-            sectionLi.addEventListener('drop', handleSectionDrop);
-            sectionLi.addEventListener('dragenter', handleSectionDragEnter);
-            sectionLi.addEventListener('dragleave', handleSectionDragLeave);
-            sectionLi.addEventListener('dragend', handleDragEnd);
-
             groceryList.appendChild(sectionLi);
         });
 
@@ -1239,64 +1230,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
-    // --- SECTION DRAG HANDLERS ---
-    function handleSectionDragStart(e) {
-        if (dragType === 'item') return;
-
-        // Prevent child items from triggering section drag (bubbling)
-        if (e.target !== this && e.target.classList && !e.target.classList.contains('section-header') && !e.target.classList.contains('section-title')) {
-            e.preventDefault();
-            return;
-        }
-
-        e.stopPropagation();
-        dragSrcEl = this;
-        dragType = 'section';
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', this.dataset.id);
-        this.classList.add('dragging-section');
-    }
-
-    function handleSectionDragOver(e) {
-        if (e.preventDefault) e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        checkAutoScroll(e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0));
-        return false;
-    }
-
-    function handleSectionDragEnter(e) {
-        if (e.preventDefault) e.preventDefault();
-        // Only highlight if dragging a section
-        if (dragType === 'section' && this !== dragSrcEl) {
-            this.classList.add('over-section');
-        }
-    }
-
-    function handleSectionDragLeave(e) {
-        this.classList.remove('over-section');
-    }
-
-    function handleSectionDrop(e) {
-        if (e.stopPropagation) e.stopPropagation();
-
-        if (dragType === 'section' && dragSrcEl !== this) {
-            const draggedId = dragSrcEl.dataset.id;
-            const targetId = this.dataset.id;
-            reorderSections(draggedId, targetId);
-            renderList();
-        }
-        return false;
-    }
-
     // --- Shared Drag End ---
     function handleDragEnd(e) {
         stopAutoScroll();
         this.classList.remove('dragging');
-        this.classList.remove('dragging-section');
         this.classList.remove('dragging-tab');
 
         document.querySelectorAll('.grocery-item, .add-item-row, .section-container, .tab-item').forEach(el => {
-            el.classList.remove('over', 'over-section', 'over-tab');
+            el.classList.remove('over', 'over-tab');
         });
         dragType = null;
         dragSrcEl = null;
@@ -1413,23 +1354,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             newSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
         }
-
-        saveAppState();
-    }
-
-    function reorderSections(draggedId, targetId) {
-        const currentList = getCurrentList();
-        const isHome = currentMode === 'home';
-        const sectionArrayKey = isHome ? 'homeSections' : 'shopSections';
-        const sections = currentList[sectionArrayKey];
-
-        const oldIdx = sections.findIndex(s => s.id === draggedId);
-        const newIdx = sections.findIndex(s => s.id === targetId);
-
-        if (oldIdx === -1 || newIdx === -1) return;
-
-        const [draggedSec] = sections.splice(oldIdx, 1);
-        sections.splice(newIdx, 0, draggedSec);
 
         saveAppState();
     }
