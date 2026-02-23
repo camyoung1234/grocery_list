@@ -394,6 +394,48 @@ input:checked+.slider .icon-shop {
     background: color-mix(in srgb, var(--primary-color) 10%, var(--card-bg));
 }
 
+/* Item Reorder Buttons */
+.item-reorder-btn {
+    background: transparent;
+    border: none;
+    color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.item-reorder-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color: var(--primary-color);
+}
+
+.item-reorder-btn:disabled {
+    opacity: 0.2 !important;
+    cursor: default;
+}
+
+.grocery-item.reorder-active .item-reorder-btn {
+    width: 30px;
+    opacity: 1;
+}
+
+.grocery-item.reorder-active .item-up {
+    margin-right: 0.5rem;
+}
+
+.grocery-item.reorder-active .item-down {
+    margin-left: 0.5rem;
+}
+
 .item-info {
     flex: 1;
     font-weight: 500;

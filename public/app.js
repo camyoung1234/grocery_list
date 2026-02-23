@@ -842,6 +842,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.innerHTML = '';
 
                 if (isHome) {
+                    const btnUp = document.createElement('button');
+                    btnUp.className = 'item-reorder-btn item-up';
+                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
+
+                    const btnDown = document.createElement('button');
+                    btnDown.className = 'item-reorder-btn item-down';
+                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
+
+                    btnUp.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        swapItemsAndAnimate(li, -1);
+                    });
+
+                    btnDown.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        swapItemsAndAnimate(li, 1);
+                    });
+
+                    li.addEventListener('click', (e) => {
+                        if (li.classList.contains('dragging')) return;
+
+                        // Only trigger if clicking the empty space of the row, not the text or steppers
+                        if (e.target.closest('.item-info') || e.target.closest('.quantity-controls')) {
+                            return;
+                        }
+
+                        const isActive = li.classList.contains('reorder-active');
+                        document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
+                        if (!isActive) {
+                            li.classList.add('reorder-active');
+                        }
+                    });
+
                     const info = document.createElement('div');
                     info.className = 'item-info';
 
@@ -946,6 +979,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     info.appendChild(badgeSpan);
+
+                    li.appendChild(btnUp); // Arrow Up on the left
                     li.appendChild(info);
 
                     const controls = document.createElement('div');
@@ -954,6 +989,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     controls.appendChild(createCombinedQtyControl(item));
 
                     li.appendChild(controls);
+                    li.appendChild(btnDown); // Arrow Down on the right
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
@@ -1039,6 +1075,32 @@ document.addEventListener('DOMContentLoaded', () => {
             sectionLi.addEventListener('dragend', handleDragEnd);
 
             groceryList.appendChild(sectionLi);
+        });
+
+        // Handle disabling of first up/last down globally
+        const allReorderableNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"], .grocery-item[data-type="item-placeholder"]'));
+        const activeItems = document.querySelectorAll('.grocery-item[data-type="item"]');
+
+        activeItems.forEach(item => {
+            const itemIdx = allReorderableNodes.indexOf(item);
+            const upBtn = item.querySelector('.item-up');
+            const downBtn = item.querySelector('.item-down');
+
+            if (upBtn) {
+                // Disabled if there's no valid node above it (index 0 implies it's entirely first)
+                // Wait, even if it's index 1 and index 0 is its OWN placeholder, it can't move up.
+                const hasValidNodeAbove = allReorderableNodes.slice(0, itemIdx).some(n =>
+                    n.dataset.type === 'item' || (n.dataset.type === 'item-placeholder' && n.dataset.sectionId !== item.dataset.sectionId)
+                );
+                upBtn.disabled = !hasValidNodeAbove;
+            }
+
+            if (downBtn) {
+                const hasValidNodeBelow = allReorderableNodes.slice(itemIdx + 1).some(n =>
+                    n.dataset.type === 'item' || (n.dataset.type === 'item-placeholder' && n.dataset.sectionId !== item.dataset.sectionId)
+                );
+                downBtn.disabled = !hasValidNodeBelow;
+            }
         });
 
         // Add "Add a section..." element at the bottom
@@ -1368,6 +1430,114 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function swapItemsAndAnimate(node, offset) {
+        const isHome = currentMode === 'home';
+        const sectionKey = isHome ? 'homeSectionId' : 'shopSectionId';
+
+        // Include both items and placeholders (for empty sections) to establish strict linear vertical order
+        const allNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"], .grocery-item[data-type="item-placeholder"]'));
+        const nodeIdx = allNodes.indexOf(node);
+
+        if (nodeIdx === -1) return;
+
+        // Find the valid target swap index, skipping over our own section's placeholder if dragging down
+        let targetIdx = nodeIdx + offset;
+        while (targetIdx >= 0 && targetIdx < allNodes.length) {
+            const potentialTarget = allNodes[targetIdx];
+            // If we are moving down and hit the placeholder for the section we are currently in, skip it (it's conceptually after all items in the section)
+            if (offset > 0 && potentialTarget.dataset.type === 'item-placeholder' && potentialTarget.dataset.sectionId === node.dataset.sectionId) {
+                targetIdx += offset;
+                continue;
+            }
+            // If we are moving up and hit the placeholder for the section we are currently in, skip it
+            if (offset < 0 && potentialTarget.dataset.type === 'item-placeholder' && potentialTarget.dataset.sectionId === node.dataset.sectionId) {
+                targetIdx += offset;
+                continue;
+            }
+            break; // Found valid target
+        }
+
+        if (targetIdx < 0 || targetIdx >= allNodes.length) return;
+
+        const targetNode = allNodes[targetIdx];
+        const draggedId = node.dataset.id;
+
+        let targetId = null;
+        let targetSectionId = null;
+        let isPlaceholder = false;
+
+        if (targetNode.dataset.type === 'item-placeholder') {
+            targetSectionId = targetNode.dataset.sectionId;
+            isPlaceholder = true;
+        } else {
+            targetId = targetNode.dataset.id;
+        }
+
+        // We need to capture bounding boxes for ALL rendered item nodes before the change
+        const preNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"]'));
+        const firstPositions = {};
+        preNodes.forEach(n => {
+            firstPositions[n.dataset.id] = n.getBoundingClientRect().top;
+        });
+
+        const targetInitialTop = firstPositions[draggedId] || 0;
+
+        // Use standard reorder items logic
+        reorderItems(draggedId, targetId, targetSectionId, isPlaceholder);
+
+        // State is saved inside reorderItems, now rerender to get new DOM
+        renderList();
+
+        const postNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"]'));
+
+        // Adjust scroll position
+        const targetNewNode = postNodes.find(n => n.dataset.id === draggedId);
+        if (targetNewNode) {
+            const targetNewTop = targetNewNode.getBoundingClientRect().top;
+            const scrollDelta = targetNewTop - targetInitialTop;
+            window.scrollBy(0, scrollDelta);
+        }
+
+        // Ensure moved node stays active
+        const movedNode = postNodes.find(n => n.dataset.id === draggedId);
+        if (movedNode) movedNode.classList.add('reorder-active');
+
+        // Apply FLIP animation
+        postNodes.forEach(n => {
+            const id = n.dataset.id;
+            if (firstPositions[id] !== undefined) {
+                const newTop = n.getBoundingClientRect().top;
+                const deltaY = firstPositions[id] - newTop;
+
+                if (deltaY !== 0) {
+                    if (id === draggedId) {
+                        n.style.position = 'relative';
+                        n.style.zIndex = '20';
+                    } else {
+                        n.style.position = 'relative';
+                        n.style.zIndex = '10';
+                    }
+
+                    n.style.transform = `translateY(${deltaY}px)`;
+                    n.style.transition = 'none';
+
+                    requestAnimationFrame(() => {
+                        n.style.transform = '';
+                        n.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                    });
+
+                    n.addEventListener('transitionend', function cleanup() {
+                        n.removeEventListener('transitionend', cleanup);
+                        n.style.transform = '';
+                        n.style.transition = '';
+                        n.style.position = '';
+                        n.style.zIndex = '';
+                    });
+                }
+            }
+        });
+    }
+
     function reorderItems(draggedId, targetId, targetSectionId, isPlaceholder) {
         const currentList = getCurrentList();
         const isHome = currentMode === 'home';
@@ -1455,11 +1625,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.qty-part.expanded').forEach(part => {
             if (!part.contains(e.target)) {
                 part.classList.remove('expanded');
+                part.closest('.qty-combined-pill')?.classList.remove('active');
             }
         });
-        document.querySelectorAll('.qty-combined-pill.active').forEach(pill => {
-            if (!pill.contains(e.target)) {
-                pill.classList.remove('active');
+
+        document.querySelectorAll('.grocery-item.reorder-active').forEach(node => {
+            if (!node.contains(e.target)) {
+                node.classList.remove('reorder-active');
             }
         });
     });
