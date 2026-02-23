@@ -92,7 +92,7 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 2rem;
+    padding: 1rem;
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
@@ -493,6 +493,7 @@ input:checked+.slider .icon-shop {
     cursor: default;
 }
 
+
 .grocery-item.reorder-active .item-reorder-btn {
     width: 30px;
     opacity: 1;
@@ -511,7 +512,8 @@ input:checked+.slider .icon-shop {
     font-weight: 500;
     display: flex;
     align-items: center;
-    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
 }
 
 /* Shop Mode Content */
