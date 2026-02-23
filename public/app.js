@@ -1,11 +1,3 @@
-// Initialize Mobile Drag and Drop Polyfill
-// A delayed hold is used (200ms) so users can still scroll their list normally on mobile!
-window.addEventListener('touchmove', function () { }, { passive: false });
-MobileDragDrop.polyfill({
-    dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride,
-    holdToDrag: 200
-});
-
 document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let appState = {
@@ -821,7 +813,6 @@ document.addEventListener('DOMContentLoaded', () => {
             sectionLi.className = 'section-container';
             sectionLi.dataset.id = section.id;
             sectionLi.dataset.type = 'section';
-            sectionLi.draggable = true;
 
             // Section Header
             const header = document.createElement('div');
@@ -1126,8 +1117,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
-                        // Ignore click if the user was dragging the chip
-                        if (li.classList.contains('dragging')) return;
                         toggleShopCompleted(item.id);
                     });
                 }
@@ -1350,8 +1339,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetIdx < 0 || targetIdx >= allTabs.length) return;
 
         const targetNode = allTabs[targetIdx];
-        const draggedId = tabNode.dataset.id;
-        const targetId = targetNode.dataset.id;
+        const movedId = tabNode.dataset.id;
+        const anchorId = targetNode.dataset.id;
 
         // Capture bounding boxes internally
         const preNodes = Array.from(document.querySelectorAll('.tab-item'));
@@ -1360,11 +1349,11 @@ document.addEventListener('DOMContentLoaded', () => {
             firstPositions[n.dataset.id] = n.getBoundingClientRect().left;
         });
 
-        const targetInitialLeft = firstPositions[draggedId] || 0;
+        const targetInitialLeft = firstPositions[movedId] || 0;
 
         // Reorder state
-        const oldIdx = appState.lists.findIndex(l => l.id === draggedId);
-        const newIdx = appState.lists.findIndex(l => l.id === targetId);
+        const oldIdx = appState.lists.findIndex(l => l.id === movedId);
+        const newIdx = appState.lists.findIndex(l => l.id === anchorId);
         if (oldIdx !== -1 && newIdx !== -1) {
             const [moved] = appState.lists.splice(oldIdx, 1);
             appState.lists.splice(newIdx, 0, moved);
@@ -1376,7 +1365,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const postNodes = Array.from(document.querySelectorAll('.tab-item'));
 
         // Adjust scroll position horizontally
-        const targetNewNode = postNodes.find(n => n.dataset.id === draggedId);
+        const targetNewNode = postNodes.find(n => n.dataset.id === movedId);
         if (targetNewNode) {
             const targetNewLeft = targetNewNode.getBoundingClientRect().left;
             const scrollDelta = targetNewLeft - targetInitialLeft;
@@ -1391,7 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const deltaX = firstPositions[id] - newLeft;
 
                 if (deltaX !== 0) {
-                    if (id === draggedId) {
+                    if (id === movedId) {
                         n.style.position = 'relative';
                         n.style.zIndex = '20';
                     } else {
@@ -1447,9 +1436,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetIdx < 0 || targetIdx >= allNodes.length) return;
 
         const targetNode = allNodes[targetIdx];
-        const draggedId = node.dataset.id;
+        const movedId = node.dataset.id;
 
-        let targetId = null;
+        let anchorId = null;
         let targetSectionId = null;
         let isPlaceholder = false;
 
@@ -1457,7 +1446,7 @@ document.addEventListener('DOMContentLoaded', () => {
             targetSectionId = targetNode.dataset.sectionId;
             isPlaceholder = true;
         } else {
-            targetId = targetNode.dataset.id;
+            anchorId = targetNode.dataset.id;
         }
 
         // We need to capture bounding boxes for ALL rendered item nodes before the change
@@ -1467,18 +1456,18 @@ document.addEventListener('DOMContentLoaded', () => {
             firstPositions[n.dataset.id] = n.getBoundingClientRect().top;
         });
 
-        const targetInitialTop = firstPositions[draggedId] || 0;
+        const targetInitialTop = firstPositions[movedId] || 0;
 
         // Use standard reorder items logic
-        reorderItems(draggedId, targetId, targetSectionId, isPlaceholder);
+        updateOrderInState(movedId, anchorId, targetSectionId, isPlaceholder);
 
-        // State is saved inside reorderItems, now rerender to get new DOM
+        // State is saved inside updateOrderInState, now rerender to get new DOM
         renderList();
 
         const postNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"]'));
 
         // Adjust scroll position
-        const targetNewNode = postNodes.find(n => n.dataset.id === draggedId);
+        const targetNewNode = postNodes.find(n => n.dataset.id === movedId);
         if (targetNewNode) {
             const targetNewTop = targetNewNode.getBoundingClientRect().top;
             const scrollDelta = targetNewTop - targetInitialTop;
@@ -1493,7 +1482,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const deltaY = firstPositions[id] - newTop;
 
                 if (deltaY !== 0) {
-                    if (id === draggedId) {
+                    if (id === movedId) {
                         n.style.position = 'relative';
                         n.style.zIndex = '20';
                     } else {
@@ -1521,45 +1510,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function reorderItems(draggedId, targetId, targetSectionId, isPlaceholder) {
+    function updateOrderInState(movedId, anchorId, targetSectionId, isPlaceholder) {
         const currentList = getCurrentList();
         const isHome = currentMode === 'home';
         const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
         const indexKey = isHome ? 'homeIndex' : 'shopIndex';
 
-        const draggedItem = currentList.items.find(i => i.id === draggedId);
-        if (!draggedItem) return;
+        const movedItem = currentList.items.find(i => i.id === movedId);
+        if (!movedItem) return;
 
-        const oldSectionId = draggedItem[sectionIdKey];
+        const oldSectionId = movedItem[sectionIdKey];
 
         // Ensure indices exist and sort old section
         let oldSectionItems = currentList.items.filter(i => i[sectionIdKey] === oldSectionId);
         oldSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
 
         if (isPlaceholder) {
-            draggedItem[sectionIdKey] = targetSectionId;
-            let sectionItems = currentList.items.filter(i => i[sectionIdKey] === targetSectionId && i.id !== draggedId);
-            sectionItems.push(draggedItem);
+            movedItem[sectionIdKey] = targetSectionId;
+            let sectionItems = currentList.items.filter(i => i[sectionIdKey] === targetSectionId && i.id !== movedId);
+            sectionItems.push(movedItem);
             sectionItems.forEach((item, idx) => { item[indexKey] = idx; });
 
             if (oldSectionId !== targetSectionId) {
-                oldSectionItems = oldSectionItems.filter(i => i.id !== draggedId);
+                oldSectionItems = oldSectionItems.filter(i => i.id !== movedId);
                 oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
             }
             saveAppState();
             return;
         }
 
-        const targetItem = currentList.items.find(i => i.id === targetId);
-        if (!targetItem) return;
+        const anchorItem = currentList.items.find(i => i.id === anchorId);
+        if (!anchorItem) return;
 
-        const newSectionId = targetItem[sectionIdKey];
-        draggedItem[sectionIdKey] = newSectionId;
+        const newSectionId = anchorItem[sectionIdKey];
+        movedItem[sectionIdKey] = newSectionId;
 
         if (oldSectionId === newSectionId) {
-            // Dragging within the SAME section
-            const oldIdx = oldSectionItems.findIndex(i => i.id === draggedId);
-            const newIdx = oldSectionItems.findIndex(i => i.id === targetId);
+            // Moving within the SAME section
+            const oldIdx = oldSectionItems.findIndex(i => i.id === movedId);
+            const newIdx = oldSectionItems.findIndex(i => i.id === anchorId);
 
             if (oldIdx !== -1 && newIdx !== -1) {
                 const [moved] = oldSectionItems.splice(oldIdx, 1);
@@ -1567,18 +1556,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
             }
         } else {
-            // Dragging ACROSS sections
-            oldSectionItems = oldSectionItems.filter(i => i.id !== draggedId);
+            // Moving ACROSS sections
+            oldSectionItems = oldSectionItems.filter(i => i.id !== movedId);
             oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
 
-            let newSectionItems = currentList.items.filter(i => i[sectionIdKey] === newSectionId && i.id !== draggedId);
+            let newSectionItems = currentList.items.filter(i => i[sectionIdKey] === newSectionId && i.id !== movedId);
             newSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
 
-            const insertIdx = newSectionItems.findIndex(i => i.id === targetId);
+            const insertIdx = newSectionItems.findIndex(i => i.id === anchorId);
             if (insertIdx !== -1) {
-                newSectionItems.splice(insertIdx, 0, draggedItem);
+                newSectionItems.splice(insertIdx, 0, movedItem);
             } else {
-                newSectionItems.push(draggedItem);
+                newSectionItems.push(movedItem);
             }
             newSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
         }
