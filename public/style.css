@@ -652,6 +652,8 @@ input:checked+.slider .icon-shop {
 .quantity-controls {
     display: flex;
     align-items: center;
+    position: relative;
+    z-index: 10;
 }
 
 .qty-combined-pill {
@@ -660,12 +662,18 @@ input:checked+.slider .icon-shop {
     background: color-mix(in srgb, var(--primary-color) 5%, var(--hover-bg));
     border-radius: 14px;
     overflow: hidden;
-    transition: var(--transition);
+    transition: margin-left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s ease;
+    margin-left: 0;
 }
 
 .qty-combined-pill:hover,
 .qty-combined-pill.active {
     background: color-mix(in srgb, var(--primary-color) 12%, var(--hover-bg));
+}
+
+.qty-combined-pill.active {
+    /* Offset the exact width added by the two 26px buttons so the layout width is unchanged */
+    margin-left: -52px;
 }
 
 .qty-divider {
