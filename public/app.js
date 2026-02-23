@@ -677,12 +677,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 switchList(list.id);
             });
 
-            // Double click to rename
+            // Double tap to rename inline
             onDoubleTap(nameSpan, (e) => {
                 e.stopPropagation();
                 activeTabReorderId = null;
                 tab.classList.remove('reorder-active');
-                renameList(list.id);
+
+                // Turn into text input
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = list.name;
+                input.className = 'inline-edit-input tab-edit-input';
+
+                const saveName = () => {
+                    const newName = input.value.trim();
+                    if (newName && newName !== list.name) {
+                        list.name = newName;
+                        saveAppState();
+                        updateModeUI(); // Re-apply theme in case it's relevant
+                    }
+                    renderTabs();
+                };
+
+                input.addEventListener('blur', saveName);
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') {
+                        input.blur();
+                    } else if (ke.key === 'Escape') {
+                        renderTabs();
+                    }
+                });
+
+                tab.replaceChild(input, nameSpan);
+                input.focus();
+                input.setSelectionRange(0, input.value.length);
             });
 
             onLongPress(tab, (e) => {
@@ -918,6 +946,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 itemsUl.classList.add('shop-mode');
             }
 
+            // Check if any item in this section is currently being reordered
+            if (sectionItems.some(i => i.id === activeReorderId)) {
+                itemsUl.classList.add('reorder-active-list');
+            }
+
             sectionItems.forEach(item => {
                 const li = document.createElement('li');
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${item.shopCompleted && !isHome ? 'completed' : ''}`;
@@ -1095,6 +1128,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
+                    const btnUp = document.createElement('button');
+                    btnUp.className = 'item-reorder-btn item-up';
+                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
+
+                    const btnDown = document.createElement('button');
+                    btnDown.className = 'item-reorder-btn item-down';
+                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
+
+                    btnUp.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        swapItemsAndAnimate(li, -1);
+                    });
+
+                    btnDown.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        swapItemsAndAnimate(li, 1);
+                    });
+
+                    if (item.id === activeReorderId) {
+                        li.classList.add('reorder-active');
+                    }
+
                     const textSpan = document.createElement('span');
                     textSpan.className = 'item-text';
                     textSpan.textContent = item.text;
@@ -1112,12 +1167,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     qtyCircle.appendChild(qtyNumber);
                     qtyCircle.appendChild(checkIcon);
 
+                    li.appendChild(btnUp);
                     li.appendChild(textSpan);
                     li.appendChild(qtyCircle);
+                    li.appendChild(btnDown);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
+                        if (activeReorderId) return; // Don't toggle completion while reordering
                         toggleShopCompleted(item.id);
+                    });
+
+                    onLongPress(li, (e) => {
+                        const isActive = li.classList.contains('reorder-active');
+                        document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
+                        if (!isActive) {
+                            li.classList.add('reorder-active');
+                            activeReorderId = item.id;
+                        } else {
+                            activeReorderId = null;
+                        }
+                        renderList();
                     });
                 }
 
@@ -1586,18 +1656,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.grocery-item.reorder-active').forEach(node => {
             if (!node.contains(e.target) && !e.target.closest('.item-reorder-btn')) {
-                node.classList.remove('reorder-active');
+                // Apply dismissing class for animation
+                node.classList.add('dismissing');
                 if (node.dataset.id === activeReorderId) activeReorderId = null;
+
+                // Keep the reorder-active-list class until animation finishes
+                const list = node.closest('.section-items-list');
+
+                setTimeout(() => {
+                    node.classList.remove('reorder-active', 'dismissing');
+                    if (list) list.classList.remove('reorder-active-list');
+                    renderList();
+                }, 300);
             }
         });
 
         document.querySelectorAll('.tab-item.reorder-active').forEach(node => {
             if (!node.contains(e.target) && !e.target.closest('.tab-reorder-btn')) {
-                node.classList.remove('reorder-active');
-                if (node.dataset.id === activeTabReorderId) {
-                    activeTabReorderId = null;
+                node.classList.add('dismissing');
+                if (node.dataset.id === activeTabReorderId) activeTabReorderId = null;
+
+                setTimeout(() => {
+                    node.classList.remove('reorder-active', 'dismissing');
                     renderTabs();
-                }
+                }, 300);
             }
         });
     });
