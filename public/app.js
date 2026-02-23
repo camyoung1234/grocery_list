@@ -693,11 +693,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeTabReorderId = null;
                 tab.classList.remove('reorder-active');
 
-                // Turn into text input
+                // Turn into text input with dynamic resizing
+                const container = document.createElement('div');
+                container.className = 'dynamic-edit-container';
+
+                const mirror = document.createElement('span');
+                mirror.className = 'inline-mirror-span';
+                mirror.textContent = list.name;
+                // Add a zero-width space or similar if empty? 
+                // But list.name won't be empty here.
+
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.value = list.name;
                 input.className = 'inline-edit-input tab-edit-input';
+
+                container.appendChild(mirror);
+                container.appendChild(input);
+
+                const syncMirror = () => {
+                    mirror.textContent = input.value || ' '; // Use space to maintain height
+                };
+
+                input.addEventListener('input', syncMirror);
 
                 const saveName = () => {
                     const newName = input.value.trim();
@@ -718,9 +736,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                tab.replaceChild(input, nameSpan);
+                tab.replaceChild(container, nameSpan);
                 input.focus();
                 input.setSelectionRange(0, input.value.length);
+                syncMirror(); // Initial sync
             });
 
             onLongPress(tab, (e) => {
