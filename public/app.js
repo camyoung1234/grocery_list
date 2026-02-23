@@ -677,6 +677,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (deltaY !== 0) {
                     node.style.transform = `translateY(${deltaY}px)`;
                     node.style.transition = 'none';
+                    if (id === targetSectionId) {
+                        node.style.position = 'relative';
+                        node.style.zIndex = '10';
+                    }
                 }
             }
         });
@@ -692,6 +696,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     node.addEventListener('transitionend', function cleanup() {
                         node.style.transition = '';
                         node.style.transform = '';
+                        node.style.position = '';
+                        node.style.zIndex = '';
                         node.removeEventListener('transitionend', cleanup);
                     });
                 }
