@@ -597,7 +597,7 @@ input:checked+.slider .icon-shop {
     width: auto;
     flex: 0 0 auto;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, opacity 0.2s ease;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     gap: 0.5rem;

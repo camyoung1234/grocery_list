@@ -1,14 +1,11 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // --- State ---
     let appState = {
         lists: [],
         currentListId: null
     };
 
-    // Legacy state retrieval for migration
-    const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
-    const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
-    let currentMode = localStorage.getItem('grocery-mode') || 'home'; // 'home' or 'shop'
+    let currentMode = 'home'; // 'home' or 'shop'
     let activeReorderId = null;
     let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
@@ -58,8 +55,58 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSectionDeleteOnlyCallback = null;
     let currentSectionDeleteAllCallback = null;
 
+    // --- URL Hash State Sync ---
+    async function syncToHash() {
+        try {
+            const payload = JSON.stringify({
+                appState: JSON.parse(localStorage.getItem('grocery-app-state') || 'null'),
+                mode: localStorage.getItem('grocery-mode') || 'home'
+            });
+            const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'));
+            const compressed = await new Response(stream).arrayBuffer();
+            const bytes = new Uint8Array(compressed);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            const hash = btoa(binary);
+            history.replaceState(null, '', '#' + hash);
+        } catch (e) {
+            console.warn('Failed to sync state to URL hash:', e);
+        }
+    }
+
+    // Restore state from URL hash (if present) before reading localStorage
+    async function restoreFromHash() {
+        try {
+            const hash = window.location.hash.slice(1);
+            if (!hash) return;
+            const binary = atob(hash);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+            const decompressed = await new Response(stream).text();
+            const data = JSON.parse(decompressed);
+            if (data && data.appState && data.appState.lists) {
+                localStorage.setItem('grocery-app-state', JSON.stringify(data.appState));
+                if (data.mode) {
+                    localStorage.setItem('grocery-mode', data.mode);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to restore state from URL hash:', e);
+        }
+    }
+
     // --- Initialization ---
     function init() {
+        // Read localStorage after hash restore has had a chance to update it
+        const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
+        const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
+        currentMode = localStorage.getItem('grocery-mode') || 'home';
+
         if (storedState && storedState.lists && storedState.lists.length > 0) {
             appState = storedState;
             // Migration for sections
@@ -306,16 +353,10 @@ document.addEventListener('DOMContentLoaded', () => {
         currentSectionDeleteAllCallback = onDeleteAll;
 
         sectionDeleteModalTitle.textContent = 'Delete Section?';
-        if (isHome) {
-            sectionDeleteModalText.innerHTML = `This action cannot be undone. How would you like to delete <strong>${sectionName}</strong>?`;
-            sectionDeleteOnlyBtn.style.display = '';
-            sectionDeleteAllBtn.style.display = '';
-        } else {
-            sectionDeleteModalText.innerHTML = `This action cannot be undone. All items in <strong>${sectionName}</strong> will be moved to Uncategorized.`;
-            sectionDeleteOnlyBtn.textContent = 'Delete Section';
-            sectionDeleteOnlyBtn.style.display = '';
-            sectionDeleteAllBtn.style.display = 'none';
-        }
+        sectionDeleteModalText.innerHTML = `This action cannot be undone. How would you like to delete <strong>${sectionName}</strong>?`;
+        sectionDeleteOnlyBtn.textContent = 'Delete Section Only';
+        sectionDeleteOnlyBtn.style.display = '';
+        sectionDeleteAllBtn.style.display = '';
 
         sectionDeleteModalOverlay.classList.add('visible');
     }
@@ -704,10 +745,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveAppState() {
         localStorage.setItem('grocery-app-state', JSON.stringify(appState));
+        syncToHash();
     }
 
     function saveMode() {
         localStorage.setItem('grocery-mode', currentMode);
+        syncToHash();
     }
 
     function renderTabs() {
@@ -1446,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             } else {
                                 animateShopChipReorder(sectionUl, () => {
                                     li.classList.remove('reorder-active');
-                                    sectionUl.classList.remove('reorder-active-list');
+                                    document.querySelectorAll('.section-items-list.reorder-active-list').forEach(ul => ul.classList.remove('reorder-active-list'));
                                 });
                             }
                         }
@@ -2045,5 +2088,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    await restoreFromHash();
     init();
 });
