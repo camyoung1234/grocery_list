@@ -169,88 +169,71 @@ h1 {
     display: none;
 }
 
-/* Mode Switch */
-.mode-switch-container {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.switch {
+/* Mode Indicator */
+.mode-indicator {
+    font-size: 1.3rem;
+    transition: var(--transition);
     position: relative;
-    display: inline-block;
-    width: 64px;
-    height: 32px;
 }
 
-.switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
+.mode-indicator i {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
 }
 
-.slider {
-    position: absolute;
-    cursor: pointer;
+/* Swipe transition overlay */
+.swipe-indicator {
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: color-mix(in srgb, var(--primary-color) 20%, var(--card-bg));
-    transition: .4s;
-    border-radius: 32px;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-.slider-thumb {
-    position: absolute;
-    height: 24px;
-    width: 24px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.swipe-indicator.active {
+    opacity: 1;
+}
+
+/* Delete list mode styles */
+.tab-item.delete-mode {
+    animation: deleteModePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes deleteModePulse {
+
+    0%,
+    100% {
+        box-shadow: none;
+    }
+
+    50% {
+        box-shadow: 0 0 0 2px var(--danger-color);
+    }
+}
+
+.tab-delete-icon {
+    display: none;
+    margin-left: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--danger-color);
+    opacity: 0;
+    width: 0;
     overflow: hidden;
+    transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s, margin 0.3s;
 }
 
-input:checked+.slider {
-    background-color: var(--primary-color);
+.tab-item.delete-mode .tab-delete-icon {
+    display: inline-flex;
+    width: 16px;
+    opacity: 0.8;
 }
 
-input:checked+.slider .slider-thumb {
-    transform: translateX(32px);
-}
-
-.slider-thumb i {
-    position: absolute;
-    font-size: 13px;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s;
-}
-
-.icon-home {
-    color: var(--primary-color);
-    transform: translateY(0);
-    opacity: 1;
-}
-
-.icon-shop {
-    color: var(--primary-color);
-    transform: translateY(24px);
-    opacity: 0;
-}
-
-input:checked+.slider .icon-home {
-    transform: translateY(-24px);
-    opacity: 0;
-}
-
-input:checked+.slider .icon-shop {
-    transform: translateY(0);
-    opacity: 1;
+.add-tab-btn.delete-active {
+    background: color-mix(in srgb, var(--danger-color) 15%, var(--hover-bg));
+    color: var(--danger-color);
 }
 
 /* Tabs */
@@ -355,8 +338,8 @@ input:checked+.slider .icon-shop {
 }
 
 .add-tab-btn {
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     border: none;
     background: color-mix(in srgb, var(--primary-color) 10%, var(--hover-bg));
@@ -423,6 +406,72 @@ input:checked+.slider .icon-shop {
     padding: 0;
     margin: 0;
     flex: 1;
+    overflow: hidden;
+}
+
+/* Swipe slide transition */
+@keyframes slideOutLeft {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(-30%);
+        opacity: 0;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(30%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(30%);
+        opacity: 0;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-30%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.grocery-list.slide-left {
+    animation: slideOutLeft 0.15s ease-in forwards;
+}
+
+.grocery-list.slide-right {
+    animation: slideOutRight 0.15s ease-in forwards;
+}
+
+.grocery-list.slide-in-left {
+    animation: slideInLeft 0.2s ease-out forwards;
+}
+
+.grocery-list.slide-in-right {
+    animation: slideInRight 0.2s ease-out forwards;
 }
 
 .grocery-item {
@@ -1005,6 +1054,7 @@ input:checked+.slider .icon-shop {
 
 .qty-part.expanded .qty-btn:active {
     background: color-mix(in srgb, var(--primary-color) 40%, transparent);
+    border-radius: 50%;
     transform: scale(0.85);
 }
 

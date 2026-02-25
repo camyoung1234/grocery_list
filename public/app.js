@@ -9,12 +9,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     let activeReorderId = null;
     let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
+    let deleteListMode = false; // Tracks whether we're in list-deletion mode
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
-    const modeToggle = document.getElementById('mode-toggle');
+    const modeIndicator = document.getElementById('mode-indicator');
+    const appContainer = document.querySelector('.app-container');
     const tabsList = document.getElementById('tabs-list');
-    // const addTabBtn = document.getElementById('add-tab-btn'); // Removed static ref
 
     // Modal Elements
     const modalOverlay = document.getElementById('modal-overlay');
@@ -161,36 +162,100 @@ document.addEventListener('DOMContentLoaded', async () => {
             appState.currentListId = appState.lists[0].id;
         }
 
-        modeToggle.checked = currentMode === 'shop';
         updateModeUI();
         renderTabs();
         renderList();
     }
 
-    // --- Event Listeners ---
-    modeToggle.addEventListener('change', () => {
-        const newMode = modeToggle.checked ? 'shop' : 'home';
+    // --- Mode Switching ---
+    function switchMode(newMode, animate = false) {
+        if (newMode === currentMode) return;
 
-        // Auto-update "Have" counts when switching FROM Shop TO Home
-        if (currentMode === 'shop' && newMode === 'home') {
-            const currentList = getCurrentList();
-            currentList.items.forEach(item => {
-                if (item.shopCompleted) {
-                    item.haveCount = item.wantCount; // Assume bought to full capacity
-                    item.shopCompleted = false;      // Reset for next trip
-                }
-            });
-            saveAppState();
+        const doSwitch = () => {
+            // Auto-update "Have" counts when switching FROM Shop TO Home
+            if (currentMode === 'shop' && newMode === 'home') {
+                const currentList = getCurrentList();
+                currentList.items.forEach(item => {
+                    if (item.shopCompleted) {
+                        item.haveCount = item.wantCount;
+                        item.shopCompleted = false;
+                    }
+                });
+                saveAppState();
+            }
+
+            currentMode = newMode;
+            saveMode();
+            updateModeUI();
+            renderList();
+        };
+
+        if (!animate) {
+            doSwitch();
+            return;
         }
 
-        currentMode = newMode;
-        saveMode();
-        updateModeUI();
-        renderList(); // Re-render to sort by new mode
-    });
+        // Slide transition: out → switch → in
+        const slideOutClass = newMode === 'shop' ? 'slide-left' : 'slide-right';
+        const slideInClass = newMode === 'shop' ? 'slide-in-right' : 'slide-in-left';
+
+        groceryList.classList.add(slideOutClass);
+        groceryList.addEventListener('animationend', function onOut() {
+            groceryList.removeEventListener('animationend', onOut);
+            groceryList.classList.remove(slideOutClass);
+
+            doSwitch();
+
+            groceryList.classList.add(slideInClass);
+            groceryList.addEventListener('animationend', function onIn() {
+                groceryList.removeEventListener('animationend', onIn);
+                groceryList.classList.remove(slideInClass);
+            });
+        });
+    }
+
+    // --- Swipe Gesture for Mode Switching ---
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let isSwiping = false;
+
+    appContainer.addEventListener('touchstart', (e) => {
+        // Don't initiate swipe on buttons, inputs, modals, or tab reorder areas
+        if (e.target.closest('button') || e.target.closest('input') ||
+            e.target.closest('.modal-overlay') || e.target.closest('.tab-reorder-btn') ||
+            e.target.closest('select')) return;
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+        isSwiping = true;
+    }, { passive: true });
+
+    appContainer.addEventListener('touchmove', (e) => {
+        // passive listener, just tracking
+    }, { passive: true });
+
+    appContainer.addEventListener('touchend', (e) => {
+        if (!isSwiping) return;
+        isSwiping = false;
+
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const deltaX = endX - swipeStartX;
+        const deltaY = endY - swipeStartY;
+
+        // Only trigger on predominantly horizontal swipes
+        if (Math.abs(deltaX) > 60 && Math.abs(deltaY) < Math.abs(deltaX) * 0.5) {
+            if (deltaX < 0) {
+                // Swipe left → shop mode
+                switchMode('shop', true);
+            } else {
+                // Swipe right → home mode
+                switchMode('home', true);
+            }
+        }
+    }, { passive: true });
 
     // --- Import / Export Logic ---
-    exportBtn.addEventListener('click', () => {
+    if (exportBtn) exportBtn.addEventListener('click', () => {
         const dataStr = JSON.stringify(appState, null, 2);
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -207,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         URL.revokeObjectURL(url);
     });
 
-    importBtn.addEventListener('click', () => {
+    if (importBtn) importBtn.addEventListener('click', () => {
         importInput.click();
     });
 
@@ -409,14 +474,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function onLongPress(element, callback, duration = 300) {
+    function onLongPress(element, callback, duration = 300, options = {}) {
         let pressTimer;
         let isPressing = false;
         let startX, startY;
 
         const startPress = (e) => {
             if (e.type === 'mousedown' && e.button !== 0) return;
-            if (e.target.closest('button') || e.target.closest('input')) return;
+            if (!options.allowOnButtons && (e.target.closest('button') || e.target.closest('input'))) return;
 
             isPressing = true;
             if (e.type === 'mousedown') {
@@ -733,13 +798,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateModeUI() {
         const currentList = getCurrentList();
-        // Fallback color if something goes wrong or no list
         const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
+        document.documentElement.style.setProperty('--primary-color', themeColor);
 
-        if (currentMode === 'home') {
-            document.documentElement.style.setProperty('--primary-color', themeColor);
-        } else {
-            document.documentElement.style.setProperty('--primary-color', themeColor);
+        // Update mode indicator icon
+        if (modeIndicator) {
+            const icon = modeIndicator.querySelector('i');
+            if (currentMode === 'shop') {
+                icon.className = 'fas fa-shopping-cart';
+                modeIndicator.title = 'Shop Mode';
+            } else {
+                icon.className = 'fas fa-home';
+                modeIndicator.title = 'Home Mode';
+            }
         }
     }
 
@@ -759,6 +830,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         appState.lists.forEach((list, index) => {
             const tab = document.createElement('div');
             tab.className = `tab-item ${list.id === appState.currentListId ? 'active' : ''}`;
+            if (deleteListMode) {
+                tab.classList.add('delete-mode');
+            }
             if (activeTabReorderId === list.id) {
                 tab.classList.add('reorder-active');
             }
@@ -794,13 +868,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             tab.appendChild(btnLeft);
             tab.appendChild(nameSpan);
+
+            // Add trash icon for delete mode
+            const trashIcon = document.createElement('span');
+            trashIcon.className = 'tab-delete-icon';
+            trashIcon.innerHTML = '<i class="fas fa-trash"></i>';
+            tab.appendChild(trashIcon);
+
             tab.appendChild(btnRight);
 
             tab.addEventListener('click', (e) => {
                 if (e.target.closest('.tab-reorder-btn')) return;
 
+                // Delete mode: clicking a tab deletes it
+                if (deleteListMode) {
+                    deleteListWithConfirmation(list.id, list.name);
+                    return;
+                }
+
                 if (activeTabReorderId === list.id) {
-                    // Start dismissing animation for the current tab
                     tab.classList.add('dismissing');
                     activeTabReorderId = null;
                     setTimeout(() => {
@@ -809,7 +895,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }, 320);
                     return;
                 } else if (activeTabReorderId) {
-                    // Immediately switch or clear if clicking another tab
                     activeTabReorderId = null;
                     renderTabs();
                     return;
@@ -903,14 +988,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Add the "+" button at the end
         const addBtn = document.createElement('button');
         addBtn.id = 'add-tab-btn';
-        addBtn.className = 'add-tab-btn';
-        addBtn.innerHTML = '<i class="fas fa-plus"></i>';
-        addBtn.title = "Create New List";
+        addBtn.className = 'add-tab-btn' + (deleteListMode ? ' delete-active' : '');
+        addBtn.innerHTML = deleteListMode ? '<i class="fas fa-times"></i>' : '<i class="fas fa-plus"></i>';
+        addBtn.title = deleteListMode ? 'Exit Delete Mode' : 'Create New List';
         addBtn.addEventListener('click', () => {
-            showModal('Create New List', 'New List', true, 'var(--theme-blue)', (name, theme) => {
-                if (name) addNewList(name, theme);
-            });
+            if (deleteListMode) {
+                deleteListMode = false;
+                renderTabs();
+            } else {
+                showModal('Create New List', 'New List', true, 'var(--theme-blue)', (name, theme) => {
+                    if (name) addNewList(name, theme);
+                });
+            }
         });
+
+        // Long-press on add button to enter delete mode
+        onLongPress(addBtn, () => {
+            deleteListMode = !deleteListMode;
+            renderTabs();
+        }, 300, { allowOnButtons: true });
+
         tabsList.appendChild(addBtn);
     }
     function swapSectionsAndAnimate(arr, idx1, idx2) {
