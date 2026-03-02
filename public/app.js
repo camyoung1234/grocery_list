@@ -1361,7 +1361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!isHome) {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     // Hide if 0-qty, not completed, and NOT in the Uncategorized section.
-                    if (toBuy <= 0 && !item.shopCompleted && section.id !== defId) {
+                    if (toBuy <= 0 && !item.shopCompleted && section.id !== shopDefId) {
                         li.classList.add('shop-hidden');
                     }
                 }
@@ -1534,8 +1534,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     qtyCircle.appendChild(qtyNumber);
                     qtyCircle.appendChild(checkIcon);
 
+                    li.appendChild(btnUp);
                     li.appendChild(textSpan);
                     li.appendChild(qtyCircle);
+                    li.appendChild(btnDown);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
