@@ -1396,15 +1396,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                             part.closest('.qty-combined-pill')?.classList.remove('active');
                         });
 
-                        const isActive = li.classList.contains('reorder-active');
-                        document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
-                        if (!isActive) {
+                        if (activeReorderId) {
+                            // In Home mode, long press on ANY item while reordering exits the mode
+                            activeReorderId = null;
+                            document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
+                            groceryList.classList.remove('reorder-mode-active');
+                        } else {
+                            // Enter reorder mode
                             li.classList.add('reorder-active');
                             groceryList.classList.add('reorder-mode-active');
                             activeReorderId = item.id;
-                        } else {
-                            activeReorderId = null;
-                            groceryList.classList.remove('reorder-mode-active');
                         }
                     });
 
@@ -1645,7 +1646,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addSecInput = document.createElement('input');
         addSecInput.type = 'text';
         addSecInput.placeholder = '+ Add section';
-        addSecInput.className = 'inline-item-input';
+        addSecInput.className = 'inline-item-input add-section-input';
 
         const doAddSec = (e) => {
             if (e) e.preventDefault();
