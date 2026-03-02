@@ -564,7 +564,46 @@ h1 {
     min-width: 0;
     overflow: visible;
     position: relative;
+    transition: margin 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+
+/* Reorder Mode Global Styles (Home Mode) */
+#grocery-list.reorder-mode-active .item-reorder-btn {
+    width: 30px;
+    opacity: 1;
+}
+
+#grocery-list.reorder-mode-active .item-up {
+    margin-right: 0.5rem;
+}
+
+#grocery-list.reorder-mode-active .item-down {
+    margin-left: 0.5rem;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    width: 104px;
+    /* Fix width to enable transition */
+    opacity: 1;
+    overflow: visible;
+    /* Changed from hidden to allow expansion overlay */
+    position: relative;
+    z-index: 10;
+    transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#grocery-list.reorder-mode-active .quantity-controls {
+    width: 0;
+    opacity: 0;
+    margin: 0;
+    overflow: hidden;
+    /* Re-enable for the reorder transition */
+    pointer-events: none;
+}
+
+
 
 /* Shop Mode Content */
 .section-items-list.shop-mode {
@@ -1034,6 +1073,8 @@ h1 {
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
     border: 1px solid var(--border-color);
     cursor: default;
+    z-index: 100;
+    /* Ensure it stays on top of everything */
 }
 
 .qty-part.expanded .qty-btn {

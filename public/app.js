@@ -1293,9 +1293,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
                         if (!isActive) {
                             li.classList.add('reorder-active');
+                            groceryList.classList.add('reorder-mode-active');
                             activeReorderId = item.id;
                         } else {
                             activeReorderId = null;
+                            groceryList.classList.remove('reorder-mode-active');
                         }
                     });
 
@@ -1312,6 +1314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // Close reordering
                         activeReorderId = null;
                         li.classList.remove('reorder-active');
+                        groceryList.classList.remove('reorder-mode-active');
 
                         // Turn into text input
                         const container = document.createElement('div');
@@ -1358,76 +1361,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
 
                     info.appendChild(nameSpan);
-
-                    const badgeSpan = document.createElement('span');
-                    badgeSpan.className = 'item-shop-badge';
-                    const currentList = getCurrentList();
-                    const shopSec = currentList.shopSections.find(s => s.id === item.shopSectionId) || currentList.shopSections[0];
-                    badgeSpan.textContent = shopSec ? shopSec.name : 'Unknown';
-
-                    onDoubleTap(badgeSpan, (e) => {
-                        e.stopPropagation();
-
-                        // Close reordering
-                        activeReorderId = null;
-                        li.classList.remove('reorder-active');
-
-                        const dropdownContainer = document.createElement('div');
-                        dropdownContainer.className = 'custom-dropdown-container';
-
-                        const dropdownList = document.createElement('ul');
-                        dropdownList.className = 'custom-dropdown-list';
-
-                        const closeDropdown = (e) => {
-                            if (!dropdownContainer.contains(e.target)) {
-                                document.removeEventListener('mousedown', closeDropdown);
-                                renderList();
-                            }
-                        };
-
-                        currentList.shopSections.forEach(sec => {
-                            const option = document.createElement('li');
-                            option.className = 'custom-dropdown-item';
-                            option.textContent = sec.name;
-                            if (sec.id === item.shopSectionId) {
-                                option.classList.add('selected');
-                            }
-
-                            option.addEventListener('mousedown', (clickEvent) => {
-                                clickEvent.preventDefault(); // Prevent default focus changes
-                                clickEvent.stopPropagation();
-                                if (sec.id !== item.shopSectionId) {
-                                    item.shopSectionId = sec.id;
-                                    saveAppState();
-                                }
-                                document.removeEventListener('mousedown', closeDropdown);
-                                renderList();
-                            });
-
-                            dropdownList.appendChild(option);
-                        });
-
-                        dropdownContainer.appendChild(dropdownList);
-
-                        // Small delay to prevent immediate close if double click propagates
-                        setTimeout(() => {
-                            document.addEventListener('mousedown', closeDropdown);
-                        }, 50);
-
-                        info.replaceChild(dropdownContainer, badgeSpan);
-
-                        // Center the selected item within the scrollable area
-                        const selectedOption = dropdownList.querySelector('.selected');
-                        if (selectedOption) {
-                            // Scroll so the element is vertically centered in the dropdown view
-                            const dropdownHeight = dropdownList.offsetHeight;
-                            const optionTop = selectedOption.offsetTop;
-                            const optionHeight = selectedOption.offsetHeight;
-                            dropdownList.scrollTop = optionTop - (dropdownHeight / 2) + (optionHeight / 2);
-                        }
-                    });
-
-                    info.appendChild(badgeSpan);
 
                     li.appendChild(btnUp); // Arrow Up on the left
                     li.appendChild(info);
@@ -2162,6 +2095,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     // Home mode: use existing dismissing animation
                     node.classList.add('dismissing');
+                    groceryList.classList.remove('reorder-mode-active');
                     const list = node.closest('.section-items-list');
                     setTimeout(() => {
                         node.classList.remove('reorder-active', 'dismissing');
