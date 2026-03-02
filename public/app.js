@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let deleteListMode = false; // Tracks whether we're in list-deletion mode
+    let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
+    let selectedShopItems = new Set(); // Tracks currently selected item IDs
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -149,7 +151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 id: defaultListId,
                 name: 'Grocery List',
                 theme: 'var(--theme-blue)', // Default Theme
-                homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+                homeSections: [], // Start with no sections
                 shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
                 items: []
             }];
@@ -172,17 +174,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (newMode === currentMode) return;
 
         const doSwitch = () => {
-            // Auto-update "Have" counts when switching FROM Shop TO Home
+            // Auto-update "Have" counts and auto-sort when switching FROM Shop TO Home
             if (currentMode === 'shop' && newMode === 'home') {
                 const currentList = getCurrentList();
+
+                // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
+                const sectionsMap = new Map();
+                currentList.items.forEach(item => {
+                    if (item.shopCompleted) {
+                        if (!sectionsMap.has(item.shopSectionId)) {
+                            sectionsMap.set(item.shopSectionId, []);
+                        }
+                        sectionsMap.get(item.shopSectionId).push(item);
+                    }
+                });
+
+                sectionsMap.forEach(checkedItems => {
+                    // Sort by check order (ascending - older checks first)
+                    checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
+
+                    // Extract their current indices and sort numerically
+                    const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
+
+                    // Re-assign sorted indices back to the items based on their check order
+                    checkedItems.forEach((item, i) => {
+                        item.shopIndex = indices[i];
+                    });
+                });
+
                 currentList.items.forEach(item => {
                     if (item.shopCompleted) {
                         item.haveCount = item.wantCount;
                         item.shopCompleted = false;
+                        item.shopCheckOrder = null;
                     }
                 });
                 saveAppState();
             }
+
+            // Clear shop selection mode on any mode switch
+            shopSelectionMode = false;
+            selectedShopItems.clear();
 
             currentMode = newMode;
             saveMode();
@@ -535,7 +567,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             id: Date.now().toString(),
             name: name,
             theme: theme || 'var(--theme-blue)',
-            homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+            homeSections: [], // Start with no sections in Home Mode
             shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
             items: []
         };
@@ -611,12 +643,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function addSection(name, isHome) {
         const currentList = getCurrentList();
+        const trimmedName = name.trim();
+        if (!trimmedName) return;
+
         const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
+
         const newSection = {
             id: 'sec-' + Date.now().toString(),
-            name: name
+            name: trimmedName
         };
+
         sectionArray.push(newSection);
+
         saveAppState();
         renderList();
     }
@@ -663,10 +701,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     function getOrCreateUncategorizedSection(isHome) {
         const currentList = getCurrentList();
         const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
-        let uncategorized = sectionArray.find(s => s.name === 'Uncategorized');
+        const defId = isHome ? 'sec-h-def' : 'sec-s-def';
+        let uncategorized = sectionArray.find(s => s.id === defId);
         if (!uncategorized) {
             uncategorized = {
-                id: 'sec-' + Date.now().toString(),
+                id: defId,
                 name: 'Uncategorized'
             };
             sectionArray.unshift(uncategorized);
@@ -680,14 +719,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
             const uncategorized = getOrCreateUncategorizedSection(isHome);
 
-            // Re-assign items to Uncategorized
+            // Re-assign items to Uncategorized for this mode only
             currentList.items.forEach(item => {
                 if (item[sectionIdKey] === id) {
                     item[sectionIdKey] = uncategorized.id;
                 }
             });
 
-            // Remove section
+            // Remove section from the target mode's array
             if (isHome) {
                 currentList.homeSections = currentList.homeSections.filter(s => s.id !== id);
             } else {
@@ -702,10 +741,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const currentList = getCurrentList();
             const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
 
-            // Delete all items in this section
+            // Delete all items that belong to this section in THIS mode
             currentList.items = currentList.items.filter(item => item[sectionIdKey] !== id);
 
-            // Remove section
+            // Remove section from the target mode's array
             if (isHome) {
                 currentList.homeSections = currentList.homeSections.filter(s => s.id !== id);
             } else {
@@ -726,11 +765,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!text) return;
 
         const currentList = getCurrentList();
+
+        let targetSectionId = sectionId;
+
+        // Ensure the item has a section in both modes.
+        // If the target mode (Home or Shop) has no sections, create "Uncategorized" as a fallback.
+        if (isHome && currentList.homeSections.length === 0) {
+            const uncategorized = getOrCreateUncategorizedSection(true);
+            targetSectionId = uncategorized.id;
+        } else if (!isHome && currentList.homeSections.length === 0) {
+            // Adding in Shop mode, but Home mode has no sections. 
+            // Create "Uncategorized" in Home so the item is visible there.
+            getOrCreateUncategorizedSection(true);
+        }
+
         const newItem = {
             id: Date.now().toString(),
             text: text,
-            homeSectionId: isHome ? sectionId : currentList.homeSections[0].id,
-            shopSectionId: !isHome ? sectionId : currentList.shopSections[0].id,
+            homeSectionId: isHome ? targetSectionId : currentList.homeSections[0].id,
+            shopSectionId: !isHome ? targetSectionId : 'sec-s-def',
             homeIndex: currentList.items.length,
             shopIndex: currentList.items.length,
             haveCount: 0,
@@ -1100,7 +1153,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const sections = currentList[sectionsKey] || [];
 
+        // Special logic for "Uncategorized" (ID: sec-s-def) only applies in Shop Mode
+        const shopDefId = 'sec-s-def';
+
         sections.forEach((section) => {
+            // items for this section 
+            let sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
+            const totalItemsInSection = sectionItems.length;
+
+            if (!isHome && section.id === shopDefId) {
+                // In shop mode, Uncategorized is only visible if at least one item is needed
+                const hasNeededItems = sectionItems.some(item => (item.wantCount - item.haveCount) > 0);
+                if (!hasNeededItems) {
+                    return; // Skip rendering Uncategorized
+                }
+            }
+
+            // Note: User requested "Show sections without items", so we are no longer hiding empty sections in Shop Mode.
+            // (Except Uncategorized which has specific rules above).
+
             const sectionLi = document.createElement('li');
             sectionLi.className = 'section-container';
             sectionLi.dataset.id = section.id;
@@ -1113,38 +1184,44 @@ document.addEventListener('DOMContentLoaded', async () => {
             const titleSpan = document.createElement('h3');
             titleSpan.className = 'section-title';
             titleSpan.textContent = section.name;
-            // Double tap to rename section
-            onDoubleTap(titleSpan, (e) => {
-                e.stopPropagation();
 
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = section.name;
-                input.className = 'inline-section-input';
+            // Double tap to rename section (disabled for Uncategorized in Shop Mode ONLY)
+            const canRename = isHome || section.id !== shopDefId;
+            if (canRename) {
+                onDoubleTap(titleSpan, (e) => {
+                    e.stopPropagation();
 
-                const saveSectionName = () => {
-                    const newName = input.value.trim();
-                    if (newName && newName !== section.name) {
-                        section.name = newName;
-                        saveAppState();
-                    }
-                    renderList();
-                };
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = section.name;
+                    input.className = 'inline-section-input';
 
-                input.addEventListener('blur', saveSectionName);
-                input.addEventListener('keydown', (ke) => {
-                    if (ke.key === 'Enter') {
-                        input.blur();
-                    } else if (ke.key === 'Escape') {
+                    const saveSectionName = () => {
+                        const newName = input.value.trim();
+                        if (newName && newName !== section.name) {
+                            section.name = newName;
+                            saveAppState();
+                        }
                         renderList();
-                    }
-                });
+                    };
 
-                header.replaceChild(input, titleSpan);
-                input.focus();
-                input.setSelectionRange(0, input.value.length);
-            });
-            header.appendChild(titleSpan);
+                    input.addEventListener('blur', saveSectionName);
+                    input.addEventListener('keydown', (ke) => {
+                        if (ke.key === 'Enter') {
+                            input.blur();
+                        } else if (ke.key === 'Escape') {
+                            renderList();
+                        }
+                    });
+
+                    header.replaceChild(input, titleSpan);
+                    input.focus();
+                    input.setSelectionRange(0, input.value.length);
+                });
+                header.appendChild(titleSpan);
+            } else {
+                header.appendChild(titleSpan);
+            }
 
             // Delete Button (revealed on long-press)
             const deleteBtn = document.createElement('button');
@@ -1169,42 +1246,74 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            // Reorder Controls
+            // Reorder Controls or Merge Button
             const reorderControls = document.createElement('div');
             reorderControls.className = 'section-reorder-controls';
 
             const arr = isHome ? currentList.homeSections : currentList.shopSections;
             const idx = arr.findIndex(s => s.id === section.id);
 
-            const upBtn = document.createElement('button');
-            upBtn.className = 'section-reorder-btn';
-            upBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-            if (idx === 0) {
-                upBtn.disabled = true;
-            }
-            upBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (idx > 0) {
-                    swapSectionsAndAnimate(arr, idx, idx - 1);
-                }
-            });
+            if (shopSelectionMode && !isHome) {
+                // If we are in shop selection mode, show a "merge here" button instead of reorder arrows
+                const moveHereBtn = document.createElement('button');
+                moveHereBtn.className = 'move-here-btn';
+                moveHereBtn.innerHTML = '<i class="fas fa-level-down-alt"></i>';
+                moveHereBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (selectedShopItems.size > 0) {
+                        currentList.items.forEach(item => {
+                            if (selectedShopItems.has(item.id)) {
+                                item.shopSectionId = section.id;
+                            }
+                        });
+                        saveAppState();
+                        shopSelectionMode = false;
+                        selectedShopItems.clear();
+                        renderList();
+                    }
+                });
+                reorderControls.appendChild(moveHereBtn);
+                header.appendChild(reorderControls);
+            } else if (isHome || section.id !== shopDefId) {
+                // Normal mode: show reordering arrows (except for Uncategorized in Shop Mode)
+                const upBtn = document.createElement('button');
+                upBtn.className = 'section-reorder-btn';
+                upBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
 
-            const downBtn = document.createElement('button');
-            downBtn.className = 'section-reorder-btn';
-            downBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-            if (idx === arr.length - 1) {
-                downBtn.disabled = true;
-            }
-            downBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (idx < arr.length - 1 && idx !== -1) {
-                    swapSectionsAndAnimate(arr, idx, idx + 1);
-                }
-            });
+                // In Shop mode, Uncategorized is locked at index 0 and can't move. 
+                // So index 1 in Shop mode also can't move up.
+                const cannotMoveUp = isHome ? (idx === 0) : (idx <= 1);
 
-            reorderControls.appendChild(upBtn);
-            reorderControls.appendChild(downBtn);
-            header.appendChild(reorderControls);
+                if (cannotMoveUp) {
+                    upBtn.disabled = true;
+                }
+                upBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // In Home mode, anything index > 0 can move up.
+                    // In Shop mode, index 1 cannot move up (protects Uncategorized at 0).
+                    const canMoveUp = isHome ? (idx > 0) : (idx > 1);
+                    if (canMoveUp) {
+                        swapSectionsAndAnimate(arr, idx, idx - 1);
+                    }
+                });
+
+                const downBtn = document.createElement('button');
+                downBtn.className = 'section-reorder-btn';
+                downBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                if (idx === arr.length - 1) {
+                    downBtn.disabled = true;
+                }
+                downBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (idx < arr.length - 1 && idx !== -1) {
+                        swapSectionsAndAnimate(arr, idx, idx + 1);
+                    }
+                });
+
+                reorderControls.appendChild(upBtn);
+                reorderControls.appendChild(downBtn);
+                header.appendChild(reorderControls);
+            }
 
             sectionLi.appendChild(header);
 
@@ -1216,18 +1325,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
-            // items for this section 
-            let sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
-
-            if (!isHome) {
-                // filter shop items (but show all during reorder so layout stays stable)
-                if (!activeReorderId) {
-                    sectionItems = sectionItems.filter(item => {
-                        const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                        return toBuy > 0 || item.shopCompleted;
-                    });
-                }
-            }
+            // items for this section are already fetched in sectionItems variable
+            // and shop mode filtering logic will be handled differently or is already done
 
             sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
 
@@ -1248,6 +1347,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
+
+                if (!isHome) {
+                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                    // Hide if 0-qty, not completed, and NOT in the Uncategorized section.
+                    if (toBuy <= 0 && !item.shopCompleted && section.id !== defId) {
+                        li.classList.add('shop-hidden');
+                    }
+                }
 
                 // Tag 0-qty items shown during shop mode reorder
                 if (!isHome && activeReorderId) {
@@ -1393,8 +1500,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         swapItemsAndAnimate(li, 1);
                     });
 
-                    if (item.id === activeReorderId) {
-                        li.classList.add('reorder-active');
+                    // Check if selected
+                    const isSelected = selectedShopItems.has(item.id);
+                    if (isSelected) {
+                        li.classList.add('selected');
                     }
 
                     const textSpan = document.createElement('span');
@@ -1414,115 +1523,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                     qtyCircle.appendChild(qtyNumber);
                     qtyCircle.appendChild(checkIcon);
 
-                    li.appendChild(btnUp);
                     li.appendChild(textSpan);
                     li.appendChild(qtyCircle);
-                    li.appendChild(btnDown);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
-                        if (activeReorderId) return; // Don't toggle completion while reordering
-                        toggleShopCompleted(item.id);
+                        if (shopSelectionMode) {
+                            // Toggle selection
+                            if (selectedShopItems.has(item.id)) {
+                                selectedShopItems.delete(item.id);
+                                li.classList.remove('selected');
+                                // Auto-exit if empty
+                                if (selectedShopItems.size === 0) {
+                                    shopSelectionMode = false;
+                                    renderList(); // re-render to restore section arrows
+                                }
+                            } else {
+                                selectedShopItems.add(item.id);
+                                li.classList.add('selected');
+                            }
+                        } else {
+                            // Normal behavior: toggle check off
+                            toggleShopCompleted(item.id);
+                            item.shopCheckOrder = item.shopCompleted ? Date.now() : null;
+                            saveAppState();
+                        }
                     });
 
                     onLongPress(li, (e) => {
-                        const isActive = li.classList.contains('reorder-active');
-                        const sectionUl = li.closest('.section-items-list');
-
-                        if (!isActive) {
-                            // Entering reorder mode
-                            // First: capture current chip positions for FLIP animation
-                            const existingChips = Array.from(sectionUl.querySelectorAll('.shop-chip'));
-                            const firstRects = new Map();
-                            existingChips.forEach(chip => {
-                                firstRects.set(chip.dataset.id, chip.getBoundingClientRect());
-                            });
-
-                            // Capture the selected item's viewport position before re-render
-                            const itemRectBefore = li.getBoundingClientRect();
-                            const itemViewportTop = itemRectBefore.top;
-
-                            // Set state so re-render includes 0-qty items
-                            document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
-                            document.querySelectorAll('.section-items-list.reorder-active-list').forEach(ul => ul.classList.remove('reorder-active-list'));
-                            activeReorderId = item.id;
-                            renderList();
-
-                            // Re-query the section UL and the new item node since renderList() rebuilt the DOM
-                            const newSectionUl = document.querySelector(`.section-items-list[data-section-id="${section.id}"]`);
-                            if (!newSectionUl) return;
-
-                            // Scroll to keep the item at the same viewport position
-                            const newItemNode = newSectionUl.querySelector(`.shop-chip[data-id="${item.id}"]`);
-                            if (newItemNode) {
-                                const newItemTop = newItemNode.getBoundingClientRect().top;
-                                window.scrollBy(0, newItemTop - itemViewportTop);
-                            }
-
-                            // Last: animate existing chips with FLIP, fade in new 0-qty ones
-                            const allNewChips = Array.from(newSectionUl.querySelectorAll('.shop-chip'));
-                            allNewChips.forEach(chip => {
-                                if (chip.classList.contains('zero-qty-reorder')) {
-                                    // New 0-qty items: add entering class for fade-in animation
-                                    chip.classList.add('zero-qty-entering');
-                                }
-                            });
-
-                            const newChips = Array.from(newSectionUl.querySelectorAll('.shop-chip:not(.zero-qty-reorder)'));
-                            newChips.forEach(chip => {
-                                const id = chip.dataset.id;
-                                const first = firstRects.get(id);
-                                if (first) {
-                                    // Existing chip: FLIP animate
-                                    const last = chip.getBoundingClientRect();
-                                    const deltaX = first.left - last.left;
-                                    const deltaY = first.top - last.top;
-                                    const scaleX = first.width / last.width;
-                                    if (deltaX !== 0 || deltaY !== 0 || Math.abs(scaleX - 1) > 0.01) {
-                                        chip.style.transformOrigin = 'left center';
-                                        chip.style.transform = `translate(${deltaX}px, ${deltaY}px) scaleX(${scaleX})`;
-                                        chip.style.transition = 'none';
-                                    }
-                                }
-                                // New 0-qty items get the fade-in class (set during render)
-                            });
-
-                            requestAnimationFrame(() => {
-                                newChips.forEach(chip => {
-                                    if (chip.style.transform) {
-                                        chip.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
-                                        chip.style.transform = '';
-                                        chip.addEventListener('transitionend', function cleanup(ev) {
-                                            if (ev.propertyName !== 'transform') return;
-                                            chip.removeEventListener('transitionend', cleanup);
-                                            chip.style.transition = '';
-                                            chip.style.transformOrigin = '';
-                                        });
-                                    }
-                                });
-                            });
-                        } else {
-                            // Exiting reorder mode
-                            // Fade out 0-qty items first, then FLIP animate remaining
-                            const zeroQtyChips = sectionUl.querySelectorAll('.shop-chip.zero-qty-reorder');
-                            activeReorderId = null;
-
-                            if (zeroQtyChips.length > 0) {
-                                zeroQtyChips.forEach(chip => {
-                                    chip.classList.remove('zero-qty-reorder');
-                                    chip.classList.add('zero-qty-leaving');
-                                });
-                                // Wait for fade-out animation, then re-render
-                                setTimeout(() => {
-                                    renderList();
-                                }, 300);
-                            } else {
-                                animateShopChipReorder(sectionUl, () => {
-                                    li.classList.remove('reorder-active');
-                                    document.querySelectorAll('.section-items-list.reorder-active-list').forEach(ul => ul.classList.remove('reorder-active-list'));
-                                });
-                            }
-                        }
+                        // Enter selection mode
+                        shopSelectionMode = true;
+                        selectedShopItems.add(item.id);
+                        renderList();
                     });
                 }
 
@@ -1531,8 +1563,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 itemsUl.appendChild(li);
             });
 
-            // Add placeholder for shop mode reorder (allows dropping into empty sections)
-            if (!isHome && activeReorderId) {
+            // Add placeholder for shop mode selection (allows dropping into empty sections when merging... actually just for visual padding)
+            if (!isHome && shopSelectionMode) {
                 const placeholder = document.createElement('li');
                 placeholder.className = 'grocery-item shop-reorder-placeholder';
                 placeholder.dataset.type = 'item-placeholder';
@@ -1605,10 +1637,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Add "Add a section..." element at the bottom
         const addSecRow = document.createElement('li');
-        addSecRow.className = 'add-section-row';
+        addSecRow.className = 'grocery-item';
 
         const addSecContainer = document.createElement('form');
-        addSecContainer.className = 'inline-input-group';
+        addSecContainer.className = 'input-group inline-input-group';
 
         const addSecInput = document.createElement('input');
         addSecInput.type = 'text';
@@ -1616,9 +1648,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         addSecInput.className = 'inline-item-input';
 
         const doAddSec = (e) => {
-            e.preventDefault();
-            if (addSecInput.value.trim()) {
-                addSection(addSecInput.value.trim(), isHome);
+            if (e) e.preventDefault();
+            const val = addSecInput.value.trim();
+            if (val) {
+                addSection(val, isHome);
                 addSecInput.value = '';
             }
         };
