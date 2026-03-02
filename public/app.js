@@ -1700,7 +1700,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             document.querySelectorAll('.qty-part.expanded').forEach(p => {
-                if (p !== part) p.classList.remove('expanded');
+                if (p !== part) {
+                    p.classList.remove('expanded');
+                    // Also remove active from the other pill if it's not our own parent
+                    const otherGroup = p.closest('.qty-combined-pill');
+                    if (otherGroup && otherGroup !== group) {
+                        otherGroup.classList.remove('active');
+                    }
+                }
             });
             part.classList.add('expanded');
             group.classList.add('active'); // For overall styling if needed
