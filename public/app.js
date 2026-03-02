@@ -1588,7 +1588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const input = document.createElement('input');
                 input.type = 'text';
-                input.className = 'inline-item-input';
+                input.className = 'inline-item-input add-item-input';
                 input.placeholder = '+ Add item';
 
                 const doAdd = (e) => {

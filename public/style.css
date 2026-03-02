@@ -389,8 +389,16 @@ h1 {
 }
 
 .add-item-row {
-    padding: 0.5rem 0;
-    /* Override the 1rem padding of standard grocery items */
+    /* Inherit standard 1rem padding from .grocery-item */
+}
+
+.section-container .add-item-row {
+    padding-top: 0.8rem;
+}
+
+.add-item-input {
+    line-height: 1.5rem;
+    padding: 3px 1rem;
 }
 
 .add-section-input {
@@ -1554,7 +1562,7 @@ h1 {
 }
 
 .section-container .add-item-row {
-    padding-top: 1rem;
+    padding-top: 0.8rem;
     padding-bottom: 0;
     border-bottom: none;
     cursor: default;
