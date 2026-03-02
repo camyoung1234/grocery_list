@@ -450,10 +450,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentSectionDeleteAllCallback = onDeleteAll;
 
         sectionDeleteModalTitle.textContent = 'Delete Section?';
-        sectionDeleteModalText.innerHTML = `This action cannot be undone. How would you like to delete <strong>${sectionName}</strong>?`;
-        sectionDeleteOnlyBtn.textContent = 'Delete Section Only';
-        sectionDeleteOnlyBtn.style.display = '';
-        sectionDeleteAllBtn.style.display = '';
+
+        if (isHome) {
+            sectionDeleteModalText.innerHTML = `This action cannot be undone. How would you like to delete <strong>${sectionName}</strong>?`;
+            sectionDeleteOnlyBtn.textContent = 'Delete Section Only';
+            sectionDeleteOnlyBtn.style.display = '';
+            sectionDeleteAllBtn.style.display = '';
+        } else {
+            sectionDeleteModalText.innerHTML = `This action cannot be undone. Are you sure you want to delete <strong>${sectionName}</strong>?`;
+            sectionDeleteOnlyBtn.textContent = 'Delete Section';
+            sectionDeleteOnlyBtn.style.display = '';
+            sectionDeleteAllBtn.style.display = 'none';
+        }
 
         sectionDeleteModalOverlay.classList.add('visible');
     }
@@ -462,7 +470,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         sectionDeleteModalOverlay.classList.remove('visible');
         currentSectionDeleteOnlyCallback = null;
         currentSectionDeleteAllCallback = null;
-        // Reset button text for next use
+        // Reset button visibility and text for next use
+        sectionDeleteOnlyBtn.style.display = '';
+        sectionDeleteAllBtn.style.display = '';
         sectionDeleteOnlyBtn.textContent = 'Delete Section Only';
     }
 
