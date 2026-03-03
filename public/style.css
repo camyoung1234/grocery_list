@@ -1011,7 +1011,7 @@ h1 {
 .qty-combined-pill {
     display: flex;
     align-items: center;
-    background: color-mix(in srgb, var(--primary-color) 5%, var(--hover-bg));
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
     border-radius: 14px;
     overflow: hidden;
     transition: margin-left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s ease;
@@ -1020,12 +1020,12 @@ h1 {
 
 @media (hover: hover) {
     .qty-combined-pill:hover {
-        background: color-mix(in srgb, var(--primary-color) 12%, var(--hover-bg));
+        background: color-mix(in srgb, var(--primary-color) 25%, transparent);
     }
 }
 
 .qty-combined-pill.active {
-    background: color-mix(in srgb, var(--primary-color) 12%, var(--hover-bg));
+    background: color-mix(in srgb, var(--primary-color) 25%, transparent);
     /* Offset the exact width added by the two 26px buttons so the layout width is unchanged */
     margin-left: -52px;
 }
