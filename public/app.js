@@ -252,10 +252,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isSwiping = false;
 
     appContainer.addEventListener('touchstart', (e) => {
-        // Don't initiate swipe on buttons, inputs, modals, or tab reorder areas
-        if (e.target.closest('button') || e.target.closest('input') ||
-            e.target.closest('.modal-overlay') || e.target.closest('.tab-reorder-btn') ||
-            e.target.closest('select')) return;
+        // Don't initiate swipe on buttons, modals, select or tab reorder areas.
+        // Allow swipe on specific inputs (add-item and add-section) while blocking others (like in modals).
+        if (e.target.closest('button') || e.target.closest('.modal-overlay') ||
+            e.target.closest('.tab-reorder-btn') || e.target.closest('select')) return;
+
+        const input = e.target.closest('input');
+        if (input && !input.classList.contains('add-item-input') && !input.classList.contains('add-section-input')) return;
         swipeStartX = e.touches[0].clientX;
         swipeStartY = e.touches[0].clientY;
         isSwiping = true;
