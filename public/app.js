@@ -265,6 +265,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // passive listener, just tracking
     }, { passive: true });
 
+    appContainer.addEventListener('touchcancel', () => {
+        isSwiping = false;
+    }, { passive: true });
+
     appContainer.addEventListener('touchend', (e) => {
         if (!isSwiping) return;
         isSwiping = false;
