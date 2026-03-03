@@ -375,12 +375,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         currentModalCallback = callback;
         modalOverlay.classList.add('visible');
+
+        // Initial preview
+        if (showTheme) {
+            document.documentElement.style.setProperty('--primary-color', modalThemeSelect.value);
+        }
     }
 
     function hideModal() {
         modalOverlay.classList.remove('visible');
         currentModalCallback = null;
         currentDeleteActionCallback = null;
+        updateModeUI(); // Restore original theme
     }
 
     modalCancelBtn.addEventListener('click', hideModal);
@@ -422,6 +428,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 currentModalCallback(val, theme);
             }
             hideModal();
+        }
+    });
+
+    modalThemeSelect.addEventListener('change', () => {
+        if (!modalThemeGroup.classList.contains('hidden')) {
+            document.documentElement.style.setProperty('--primary-color', modalThemeSelect.value);
         }
     });
 
@@ -969,60 +981,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 switchList(list.id);
             });
 
-            // Double tap to rename inline
+            // Double tap to edit list name and theme via modal
             onDoubleTap(nameSpan, (e) => {
                 e.stopPropagation();
                 activeTabReorderId = null;
                 tab.classList.remove('reorder-active');
 
-                // Turn into text input with dynamic resizing
-                const container = document.createElement('div');
-                container.className = 'dynamic-edit-container';
-
-                const mirror = document.createElement('span');
-                mirror.className = 'inline-mirror-span';
-                mirror.textContent = list.name;
-                // Add a zero-width space or similar if empty? 
-                // But list.name won't be empty here.
-
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = list.name;
-                input.size = 1;
-                input.className = 'inline-edit-input tab-edit-input';
-
-                container.appendChild(mirror);
-                container.appendChild(input);
-
-                const syncMirror = () => {
-                    mirror.textContent = input.value || ' '; // Use space to maintain height
-                };
-
-                input.addEventListener('input', syncMirror);
-
-                const saveName = () => {
-                    const newName = input.value.trim();
-                    if (newName && newName !== list.name) {
+                showModal('Edit List', list.name, true, list.theme, (newName, newTheme) => {
+                    if (newName && (newName !== list.name || newTheme !== list.theme)) {
                         list.name = newName;
+                        if (newTheme) list.theme = newTheme;
                         saveAppState();
-                        updateModeUI(); // Re-apply theme in case it's relevant
-                    }
-                    renderTabs();
-                };
-
-                input.addEventListener('blur', saveName);
-                input.addEventListener('keydown', (ke) => {
-                    if (ke.key === 'Enter') {
-                        input.blur();
-                    } else if (ke.key === 'Escape') {
                         renderTabs();
+                        // If editing the current list, update theme color immediately
+                        if (list.id === appState.currentListId) {
+                            updateModeUI();
+                        }
                     }
                 });
-
-                tab.replaceChild(container, nameSpan);
-                input.focus();
-                input.setSelectionRange(0, input.value.length);
-                syncMirror(); // Initial sync
             });
 
             onLongPress(tab, (e) => {

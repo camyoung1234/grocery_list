@@ -1369,7 +1369,7 @@ h1 {
 
 @media (hover: hover) {
     .modal-btn.save:hover {
-        background: #357abd;
+        background: color-mix(in srgb, var(--primary-color) 80%, black);
     }
 }
 
