@@ -1640,20 +1640,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 itemsUl.appendChild(li);
             });
 
-            // Add placeholder for shop mode selection (allows dropping into empty sections when merging... actually just for visual padding)
-            if (!isHome && shopSelectionMode) {
-                const placeholder = document.createElement('li');
-                placeholder.className = 'grocery-item shop-reorder-placeholder';
-                placeholder.dataset.type = 'item-placeholder';
-                placeholder.dataset.sectionId = section.id;
-                placeholder.style.padding = '0';
-                placeholder.style.margin = '0';
-                placeholder.style.border = 'none';
-                placeholder.style.minHeight = '0';
-                placeholder.style.height = '0';
-                placeholder.style.overflow = 'hidden';
-                itemsUl.appendChild(placeholder);
-            }
 
             // Add "Add item" row for this section
             if (isHome) {

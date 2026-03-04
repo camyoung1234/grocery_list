@@ -637,59 +637,31 @@ h1 {
     text-align: left;
 }
 
-/* Shop Mode Selection State */
-.shop-chip.selected {
-    border-color: var(--primary-color);
-    background: color-mix(in srgb, var(--primary-color) 25%, var(--card-bg));
-    box-shadow: 0 0 0 1px var(--primary-color);
-    transform: scale(0.98);
+/* Shop Mode Selection State - High specificity to override base/hover */
+.section-container .grocery-item.shop-chip.selected {
+    background: var(--primary-color);
 }
 
 /* Hide 0-qty items in shop mode (except Uncategorized) via CSS as requested */
-.shop-chip.shop-hidden {
+.section-container .grocery-item.shop-chip.shop-hidden {
     display: none;
 }
 
-.shop-chip.selected .item-text {
-    color: var(--primary-color);
+.section-container .grocery-item.shop-chip.selected .item-text {
+    color: white;
     font-weight: 700;
 }
 
-.shop-chip.selected .shop-qty-circle {
-    background: var(--primary-color);
-    color: white;
-}
-
-/* Selection Mode - Move Here Button */
-.move-here-btn {
-    border: 1px solid var(--primary-color);
-    border-radius: 6px;
-    padding: 2px 8px;
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+.section-container .grocery-item.shop-chip.selected .shop-qty-circle {
+    background: white;
     color: var(--primary-color);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--transition);
 }
 
-@media (hover: hover) {
-    .move-here-btn:hover {
-        background: var(--primary-color);
-        color: white;
-    }
-}
 
-.move-here-btn:active {
-    transform: scale(0.95);
-}
 
 .section-container .grocery-item.shop-chip {
     padding: 0.2rem 0.4rem 0.2rem 0.8rem;
     background: color-mix(in srgb, var(--primary-color) 15%, transparent);
-    border: 2px solid transparent;
-    /* Added explicit border to prevent layout shift */
     border-radius: 9999px;
     width: auto;
     flex: 0 0 auto;
@@ -779,7 +751,7 @@ h1 {
 
 .section-container .grocery-item.shop-chip .item-text {
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--primary-color);
 }
 
@@ -1644,7 +1616,9 @@ h1 {
     color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
     font-size: 1.2rem;
     cursor: pointer;
-    padding: 0.4rem;
+    padding: 0;
+    width: 30px;
+    height: 30px;
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -1668,12 +1642,10 @@ h1 {
     list-style: none;
     padding: 0;
     margin: 0;
-    min-height: 20px;
-    /* target for empty lists */
+    min-height: 0;
 }
 
 .section-items-list.shop-mode:empty {
-    min-height: 0;
     padding-top: 0;
 }
 
