@@ -27,7 +27,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modalSaveBtn = document.getElementById('modal-save-btn');
     const modalDeleteBtn = document.getElementById('modal-delete-btn');
     const modalThemeGroup = document.getElementById('modal-theme-group');
-    const modalThemeSelect = document.getElementById('modal-theme');
+    const themeDropdown = document.getElementById('theme-dropdown');
+    const themeTrigger = document.getElementById('theme-trigger');
+    const themeOptions = document.getElementById('theme-options');
+    const currentThemeSwatch = document.getElementById('current-theme-swatch');
+    const currentThemeName = document.getElementById('current-theme-name');
     const modalHomeSectionGroup = document.getElementById('modal-home-section-group');
     const modalShopSectionGroup = document.getElementById('modal-shop-section-group');
     const modalHomeSectionSelect = document.getElementById('modal-home-section');
@@ -351,7 +355,77 @@ document.addEventListener('DOMContentLoaded', async () => {
         reader.readAsText(file);
     });
 
-    // addTabBtn listener moved to renderTabs
+    // --- Custom Theme Dropdown Logic ---
+    const themes = [
+        { name: 'Red', value: 'var(--theme-red)' },
+        { name: 'Pink', value: 'var(--theme-pink)' },
+        { name: 'Purple', value: 'var(--theme-purple)' },
+        { name: 'Deep Purple', value: 'var(--theme-deep-purple)' },
+        { name: 'Indigo', value: 'var(--theme-indigo)' },
+        { name: 'Blue', value: 'var(--theme-blue)' },
+        { name: 'Light Blue', value: 'var(--theme-light-blue)' },
+        { name: 'Cyan', value: 'var(--theme-cyan)' },
+        { name: 'Teal', value: 'var(--theme-teal)' },
+        { name: 'Green', value: 'var(--theme-green)' },
+        { name: 'Light Green', value: 'var(--theme-light-green)' },
+        { name: 'Lime', value: 'var(--theme-lime)' },
+        { name: 'Yellow', value: 'var(--theme-yellow)' },
+        { name: 'Amber', value: 'var(--theme-amber)' },
+        { name: 'Orange', value: 'var(--theme-orange)' },
+        { name: 'Deep Orange', value: 'var(--theme-deep-orange)' },
+        { name: 'Brown', value: 'var(--theme-brown)' },
+        { name: 'Grey', value: 'var(--theme-grey)' },
+        { name: 'Blue Grey', value: 'var(--theme-blue-grey)' }
+    ];
+
+    let selectedThemeValue = 'var(--theme-blue)';
+
+    function initThemeDropdown() {
+        themeOptions.innerHTML = '';
+        themes.forEach(theme => {
+            const option = document.createElement('div');
+            option.className = 'theme-option';
+            option.dataset.value = theme.value;
+            option.innerHTML = `
+                <div class="option-swatch" style="background: ${theme.value}"></div>
+                <span>${theme.name}</span>
+            `;
+            option.addEventListener('click', () => {
+                selectTheme(theme.value);
+                themeDropdown.classList.remove('open');
+            });
+            themeOptions.appendChild(option);
+        });
+    }
+
+    function selectTheme(value) {
+        const theme = themes.find(t => t.value === value) || themes[5]; // Default to blue
+        selectedThemeValue = theme.value;
+        currentThemeSwatch.style.background = theme.value;
+        currentThemeName.textContent = theme.name;
+
+        // Update selected class in options
+        document.querySelectorAll('.theme-option').forEach(opt => {
+            opt.classList.toggle('selected', opt.dataset.value === value);
+        });
+
+        // Trigger live preview
+        document.documentElement.style.setProperty('--primary-color', theme.value);
+    }
+
+    themeTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        themeDropdown.classList.toggle('open');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!themeDropdown.contains(e.target)) {
+            themeDropdown.classList.remove('open');
+        }
+    });
+
+    initThemeDropdown();
 
 
     let currentModalCallback = null;
@@ -363,7 +437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (showTheme) {
             modalThemeGroup.classList.remove('hidden');
-            modalThemeSelect.value = initialTheme || 'var(--theme-blue)';
+            selectTheme(initialTheme || 'var(--theme-blue)');
         } else {
             modalThemeGroup.classList.add('hidden');
         }
@@ -382,14 +456,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentModalCallback = callback;
         modalOverlay.classList.add('visible');
 
-        // Initial preview
-        if (showTheme) {
-            document.documentElement.style.setProperty('--primary-color', modalThemeSelect.value);
-        }
     }
 
     function hideModal() {
         modalOverlay.classList.remove('visible');
+        themeDropdown.classList.remove('open');
         currentModalCallback = null;
         currentDeleteActionCallback = null;
         updateModeUI(); // Restore original theme
@@ -406,7 +477,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     modalSaveBtn.addEventListener('click', () => {
         const val = modalInput.value.trim();
-        const theme = !modalThemeGroup.classList.contains('hidden') ? modalThemeSelect.value : null;
+        const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
         if (currentModalCallback) {
             currentModalCallback(val, theme);
         }
@@ -418,7 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Only trigger if clicking exactly on the overlay (not its children)
         if (e.target === modalOverlay) {
             const val = modalInput.value.trim();
-            const theme = !modalThemeGroup.classList.contains('hidden') ? modalThemeSelect.value : null;
+            const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
             if (currentModalCallback) {
                 currentModalCallback(val, theme);
             }
@@ -426,10 +497,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    modalInput.addEventListener('keypress', (e) => {
+    modalInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             const val = modalInput.value.trim();
-            const theme = !modalThemeGroup.classList.contains('hidden') ? modalThemeSelect.value : null;
+            const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
             if (currentModalCallback) {
                 currentModalCallback(val, theme);
             }
@@ -437,11 +508,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    modalThemeSelect.addEventListener('change', () => {
-        if (!modalThemeGroup.classList.contains('hidden')) {
-            document.documentElement.style.setProperty('--primary-color', modalThemeSelect.value);
-        }
-    });
 
     // --- Delete Modal Logic ---
     function showDeleteModal(title, matchName, callback) {

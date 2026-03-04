@@ -49,28 +49,17 @@
             </div>
 
             <div class="form-group" id="modal-theme-group">
-                <label for="modal-theme" class="modal-label">Theme</label>
-                <select id="modal-theme" class="modal-select">
-                    <option value="var(--theme-red)">Red</option>
-                    <option value="var(--theme-pink)">Pink</option>
-                    <option value="var(--theme-purple)">Purple</option>
-                    <option value="var(--theme-deep-purple)">Deep Purple</option>
-                    <option value="var(--theme-indigo)">Indigo</option>
-                    <option value="var(--theme-blue)">Blue</option>
-                    <option value="var(--theme-light-blue)">Light Blue</option>
-                    <option value="var(--theme-cyan)">Cyan</option>
-                    <option value="var(--theme-teal)">Teal</option>
-                    <option value="var(--theme-green)">Green</option>
-                    <option value="var(--theme-light-green)">Light Green</option>
-                    <option value="var(--theme-lime)">Lime</option>
-                    <option value="var(--theme-yellow)">Yellow</option>
-                    <option value="var(--theme-amber)">Amber</option>
-                    <option value="var(--theme-orange)">Orange</option>
-                    <option value="var(--theme-deep-orange)">Deep Orange</option>
-                    <option value="var(--theme-brown)">Brown</option>
-                    <option value="var(--theme-grey)">Grey</option>
-                    <option value="var(--theme-blue-grey)">Blue Grey</option>
-                </select>
+                <label class="modal-label">Theme</label>
+                <div class="custom-theme-dropdown" id="theme-dropdown">
+                    <div class="theme-trigger" id="theme-trigger">
+                        <div class="theme-swatch" id="current-theme-swatch"></div>
+                        <span id="current-theme-name">Blue</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="theme-options" id="theme-options">
+                        <!-- Options injected by JS -->
+                    </div>
+                </div>
             </div>
 
             <div class="form-group hidden" id="modal-home-section-group">
