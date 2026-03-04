@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let deleteListMode = false; // Tracks whether we're in list-deletion mode
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
+    let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -733,7 +734,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 saveAppState();
                 renderList();
             }
-        }, () => deleteItemWithConfirmation(id, item.text));
+        }, () => deleteItem(id));
 
         modalHomeSectionGroup.classList.remove('hidden');
         modalShopSectionGroup.classList.remove('hidden');
@@ -790,11 +791,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function deleteItemWithConfirmation(id, name) {
-        showDeleteModal('Delete Item?', name, () => {
-            deleteItem(id);
-        });
-    }
 
     function getOrCreateUncategorizedSection(isHome) {
         const currentList = getCurrentList();
@@ -922,7 +918,62 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function deleteItem(id) {
         const currentList = getCurrentList();
+        const item = currentList.items.find(i => i.id === id);
+        if (!item) return;
+
+        // Mark as pending delete
+        item.pendingDelete = true;
+
+        // Save state immediately - items with pendingDelete will be filtered out during save
+        saveAppState();
+
+        // Clear any existing timer just in case
+        if (pendingDeletions.has(id)) {
+            clearTimeout(pendingDeletions.get(id));
+        }
+
+        // Set timer for final removal
+        const timerId = setTimeout(() => {
+            finalizeDeleteItem(id);
+        }, 5000);
+
+        pendingDeletions.set(id, timerId);
+
+        renderList();
+    }
+
+    function undoDeleteItem(id) {
+        const currentList = getCurrentList();
+        const item = currentList.items.find(i => i.id === id);
+        if (!item) return;
+
+        if (pendingDeletions.has(id)) {
+            clearTimeout(pendingDeletions.get(id));
+            pendingDeletions.delete(id);
+        }
+
+        item.pendingDelete = false;
+        saveAppState();
+        renderList();
+    }
+
+    function finalizeDeleteItem(id) {
+        const row = document.querySelector(`.grocery-item[data-id="${id}"]`);
+        if (row) {
+            row.classList.add('collapsing');
+            setTimeout(() => {
+                actuallyRemoveItem(id);
+            }, 300);
+        } else {
+            actuallyRemoveItem(id);
+        }
+    }
+
+    function actuallyRemoveItem(id) {
+        const currentList = getCurrentList();
+        if (!currentList) return;
         currentList.items = currentList.items.filter(i => i.id !== id);
+        pendingDeletions.delete(id);
         saveAppState();
         renderList();
     }
@@ -966,7 +1017,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function saveAppState() {
-        localStorage.setItem('grocery-app-state', JSON.stringify(appState));
+        // Clone appState for saving, filtering out items that are currently pending deletion
+        const stateToSave = JSON.parse(JSON.stringify(appState));
+        stateToSave.lists.forEach(list => {
+            list.items = list.items.filter(item => !item.pendingDelete);
+        });
+        localStorage.setItem('grocery-app-state', JSON.stringify(stateToSave));
         syncToHash();
     }
 
@@ -1422,6 +1478,54 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
 
+                if (item.pendingDelete) {
+                    li.classList.add('undo-row');
+                    li.dataset.id = item.id;
+                    li.dataset.type = 'item';
+                    li.dataset.sectionId = section.id;
+
+                    // Placeholders for reorder buttons to maintain alignment
+                    const btnUp = document.createElement('button');
+                    btnUp.className = 'item-reorder-btn item-up placeholder-btn';
+                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                    btnUp.disabled = true;
+
+                    const btnDown = document.createElement('button');
+                    btnDown.className = 'item-reorder-btn item-down placeholder-btn';
+                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    btnDown.disabled = true;
+
+                    // Standard item text layout
+                    const info = document.createElement('div');
+                    info.className = 'item-info';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'item-text';
+                    nameSpan.textContent = item.text;
+                    // Note: No onDoubleTap here
+
+                    const undoBtn = document.createElement('button');
+                    undoBtn.className = 'undo-btn-inline';
+                    undoBtn.textContent = 'Undo';
+                    undoBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        undoDeleteItem(item.id);
+                    });
+
+                    li.appendChild(btnUp);
+                    if (isHome) {
+                        info.appendChild(nameSpan);
+                    } else {
+                        // Shop Mode
+                        info.appendChild(nameSpan);
+                    }
+                    li.appendChild(info); // Always use info wrapper for flex: 1
+                    li.appendChild(undoBtn); // Put in place of counter/qty circle
+                    li.appendChild(btnDown);
+
+                    itemsUl.appendChild(li);
+                    return;
+                }
+
                 if (!isHome) {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     // Hide if 0-qty, not completed, and NOT in the Uncategorized section.
@@ -1840,7 +1944,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         want.btnMinus.addEventListener('click', (e) => {
             e.stopPropagation();
             if (item.wantCount === 0) {
-                deleteItemWithConfirmation(item.id, item.text);
+                deleteItem(item.id);
             } else {
                 item.wantCount = Math.max(0, item.wantCount - 1);
                 updateUI();

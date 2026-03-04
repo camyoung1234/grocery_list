@@ -1670,3 +1670,98 @@ h1 {
     margin-top: 1rem;
     margin-bottom: 1.5rem;
 }
+
+/* Undo Row Styles & Animations */
+.grocery-item.undo-row {
+    background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
+    border-radius: 8px;
+    padding: 0.8rem 0;
+    margin-bottom: 0.4rem;
+    cursor: default;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-bottom: none;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    height: auto;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.grocery-item.undo-row .item-text {
+    opacity: 0.6;
+    font-style: italic;
+    cursor: default;
+}
+
+.section-container .grocery-item.undo-row {
+    padding: 0.8rem 0;
+}
+
+.grocery-item.undo-row .item-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.grocery-item.undo-row .placeholder-btn {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.undo-btn-inline {
+    background: var(--primary-color);
+    border: none;
+    color: white;
+    padding: 4px 14px;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    margin-left: auto;
+    margin-right: 0.5rem;
+    box-shadow: 0 0 0 0 rgba(var(--primary-color), 0.4);
+    animation: undo-pulse 2s infinite;
+}
+
+@keyframes undo-pulse {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary-color) 40%, transparent);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px color-mix(in srgb, var(--primary-color) 0%, transparent);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary-color) 0%, transparent);
+    }
+}
+
+@media (hover: hover) {
+    .undo-btn-inline:hover {
+        transform: scale(1.05);
+        filter: brightness(1.1);
+        animation: none;
+    }
+}
+
+.undo-btn-inline:active {
+    transform: scale(0.95);
+}
+
+.grocery-item.collapsing {
+    height: 0 !important;
+    min-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+    pointer-events: none;
+}
