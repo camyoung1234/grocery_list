@@ -1149,7 +1149,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const sections = currentList[sectionsKey] || [];
 
-        // Special logic for "Uncategorized" (ID: sec-s-def) only applies in Shop Mode
+        // Toggle global reorder/selection classes
+        if (activeReorderId) {
+            groceryList.classList.add('reorder-mode-active');
+        } else if (isHome) {
+            groceryList.classList.remove('reorder-mode-active');
+        }
+
+        if (!isHome && shopSelectionMode) {
+            groceryList.classList.add('shop-selection-mode');
+        } else {
+            groceryList.classList.remove('shop-selection-mode');
+        }
+
         const shopDefId = 'sec-s-def';
 
         sections.forEach((section) => {

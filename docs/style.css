@@ -1472,10 +1472,15 @@ h1 {
 }
 
 .section-reorder-controls {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 0.2rem;
     margin-left: auto;
+}
+
+.reorder-mode-active .section-reorder-controls,
+.shop-selection-mode .section-reorder-controls {
+    display: flex;
 }
 
 /* Section Delete Button (revealed on long-press) */
