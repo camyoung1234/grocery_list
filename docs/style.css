@@ -492,13 +492,19 @@ h1 {
     align-items: center;
     justify-content: space-between;
     /* Space for delete btn */
-    padding: 1rem;
+    padding: 0 1rem;
+    height: 58px;
+    box-sizing: border-box;
     background: transparent;
     transition: var(--transition);
     flex-wrap: wrap;
     /* Allow wrapping on small screens if needed */
     gap: 1rem;
     touch-action: pan-y;
+}
+
+.grocery-item.shop-chip {
+    height: auto;
 }
 
 /* Item Reorder Buttons */
@@ -1649,15 +1655,19 @@ h1 {
     padding-top: 0;
 }
 
-/* Make inner grocery items flush inside the section box */
 .section-container .grocery-item {
-    padding: 0.8rem 0;
+    padding: 0;
+    height: 58px;
+    box-sizing: border-box;
     border-radius: 0;
 }
 
 .section-container .add-item-row {
-    padding-top: 0.8rem;
-    padding-bottom: 0;
+    padding: 0;
+    height: 58px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
     border-bottom: none;
     cursor: default;
     /* not draggable */
@@ -1674,12 +1684,13 @@ h1 {
 /* Undo Row Styles & Animations */
 .grocery-item.undo-row {
     background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
-    border-radius: 8px;
-    padding: 0.8rem 0;
-    margin-bottom: 0.4rem;
+    border-radius: 0;
+    padding: 0;
+    height: 58px !important;
+    box-sizing: border-box;
+    margin-bottom: 0;
     cursor: default;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border-bottom: none;
     display: flex;
     justify-content: flex-start;
     align-items: center;
@@ -1695,7 +1706,8 @@ h1 {
 }
 
 .section-container .grocery-item.undo-row {
-    padding: 0.8rem 0;
+    padding: 0;
+    height: 58px;
 }
 
 .grocery-item.undo-row .item-info {
@@ -1725,6 +1737,11 @@ h1 {
     margin-right: 0.5rem;
     box-shadow: 0 0 0 0 rgba(var(--primary-color), 0.4);
     animation: undo-pulse 2s infinite;
+    height: 24px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 @keyframes undo-pulse {
