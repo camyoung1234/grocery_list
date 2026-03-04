@@ -273,7 +273,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, { passive: true });
 
     appContainer.addEventListener('touchend', (e) => {
-        if (!isSwiping) return;
+        if (!isSwiping || shopSelectionMode) {
+            isSwiping = false;
+            return;
+        }
         isSwiping = false;
 
         const endX = e.changedTouches[0].clientX;
