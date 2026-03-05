@@ -1712,7 +1712,6 @@ h1 {
 
 .grocery-item.undo-row .item-text {
     opacity: 0.6;
-    font-style: italic;
     cursor: default;
 }
 
