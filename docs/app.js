@@ -1357,12 +1357,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'section-delete-btn';
             deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                header.classList.remove('delete-active');
-                deleteSectionWithConfirmation(section.id, isHome, section.name);
-            });
-            header.appendChild(deleteBtn);
+            if (canRename) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    header.classList.remove('delete-active');
+                    deleteSectionWithConfirmation(section.id, isHome, section.name);
+                });
+                header.appendChild(deleteBtn);
+            }
 
             // Long-press to toggle reorder mode
             onLongPress(header, (e) => {
