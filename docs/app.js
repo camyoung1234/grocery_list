@@ -1372,12 +1372,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Exit reorder mode
                     activeReorderId = null;
                     groceryList.classList.remove('reorder-mode-active');
+                    document.querySelectorAll('.reorder-active').forEach(n => n.classList.remove('reorder-active'));
                 } else {
                     // Enter reorder mode for this section
                     activeReorderId = section.id;
                     groceryList.classList.add('reorder-mode-active');
                 }
-                renderList();
             });
 
             // Reorder Controls or Merge Button

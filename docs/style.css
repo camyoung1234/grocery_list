@@ -1568,15 +1568,23 @@ h1 {
 }
 
 .section-reorder-controls {
-    display: none;
+    display: flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0;
     margin-left: auto;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
 }
 
 .reorder-mode-active .section-reorder-controls,
 .shop-selection-mode .section-reorder-controls {
-    display: flex;
+    max-width: 100px;
+    opacity: 1;
+    gap: 0.2rem;
+    pointer-events: auto;
 }
 
 /* Section Delete Button (revealed on long-press) */
