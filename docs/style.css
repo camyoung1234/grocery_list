@@ -1599,7 +1599,8 @@ h1 {
     pointer-events: none;
 }
 
-.section-header.delete-active .section-delete-btn {
+.section-header.delete-active .section-delete-btn,
+.reorder-mode-active .section-delete-btn {
     width: 32px;
     opacity: 1;
     margin-left: 0.3rem;

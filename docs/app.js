@@ -1274,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Toggle global reorder/selection classes
         if (activeReorderId) {
             groceryList.classList.add('reorder-mode-active');
-        } else if (isHome) {
+        } else {
             groceryList.classList.remove('reorder-mode-active');
         }
 
@@ -1364,16 +1364,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             header.appendChild(deleteBtn);
 
-            // Long-press to reveal delete icon
+            // Long-press to toggle reorder mode
             onLongPress(header, (e) => {
-                const isActive = header.classList.contains('delete-active');
-                // Close any other active section delete buttons
-                document.querySelectorAll('.section-header.delete-active').forEach(h => h.classList.remove('delete-active'));
-                if (!isActive) {
-                    header.classList.add('delete-active');
+                if (activeReorderId) {
+                    // Exit reorder mode
+                    activeReorderId = null;
+                    groceryList.classList.remove('reorder-mode-active');
                 } else {
-                    header.classList.remove('delete-active');
+                    // Enter reorder mode for this section
+                    activeReorderId = section.id;
+                    groceryList.classList.add('reorder-mode-active');
                 }
+                renderList();
             });
 
             // Reorder Controls or Merge Button
