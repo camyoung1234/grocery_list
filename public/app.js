@@ -923,22 +923,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
         if (item) {
-            item.shopCompleted = !item.shopCompleted;
-            saveAppState();
-
-            // Dynamically update the DOM node so CSS animations can reverse without being destroyed
-            const itemNodes = document.querySelectorAll(`li.grocery-item[data-id="${id}"]`);
-            itemNodes.forEach(node => {
-                if (item.shopCompleted) {
-                    node.classList.add('completed');
-                } else {
-                    node.classList.remove('completed');
-                }
-                const checkbox = node.querySelector('.item-checkbox');
-                if (checkbox) {
-                    checkbox.checked = item.shopCompleted;
-                }
+            // Find all items with the same name to toggle them together (Grouping requirement)
+            const sameNameItems = currentList.items.filter(i => i.text === item.text);
+            const newState = !item.shopCompleted;
+            
+            sameNameItems.forEach(i => {
+                i.shopCompleted = newState;
+                i.shopCheckOrder = newState ? Date.now() : null;
             });
+            
+            saveAppState();
+            renderList();
         }
     }
 
@@ -1312,9 +1307,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const shopDefId = 'sec-s-def';
 
+        // Pre-group items for shop mode
+        const groupedMap = new Map();
+        const nameToSection = new Map();
+        if (!isHome) {
+            currentList.items.forEach(item => {
+                const name = item.text.trim();
+                if (!groupedMap.has(name)) {
+                    groupedMap.set(name, {
+                        id: item.id,
+                        text: name,
+                        wantCount: 0,
+                        haveCount: 0,
+                        shopCompleted: true,
+                        shopSectionId: item.shopSectionId,
+                        shopIndex: item.shopIndex,
+                        allIds: []
+                    });
+                    nameToSection.set(name, item.shopSectionId);
+                }
+                const group = groupedMap.get(name);
+                group.wantCount += item.wantCount;
+                group.haveCount += item.haveCount;
+                group.allIds.push(item.id);
+                if (!item.shopCompleted) group.shopCompleted = false;
+            });
+        }
+
         sections.forEach((section) => {
             // items for this section 
-            let sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
+            let sectionItems;
+            if (isHome) {
+                sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
+            } else {
+                // Filter groups for this section
+                sectionItems = [];
+                groupedMap.forEach(group => {
+                    if (nameToSection.get(group.text) === section.id) {
+                        sectionItems.push(group);
+                    }
+                });
+
+                // Add pending delete items for this section (should not be grouped)
+                currentList.items.forEach(item => {
+                    if (item.pendingDelete && item.shopSectionId === section.id) {
+                        sectionItems.push(item);
+                    }
+                });
+            }
+
             const totalItemsInSection = sectionItems.length;
 
             if (!isHome && section.id === shopDefId) {
@@ -1324,9 +1365,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return; // Skip rendering Uncategorized
                 }
             }
-
-            // Note: User requested "Show sections without items", so we are no longer hiding empty sections in Shop Mode.
-            // (Except Uncategorized which has specific rules above).
 
             const sectionLi = document.createElement('li');
             sectionLi.className = 'section-container';
