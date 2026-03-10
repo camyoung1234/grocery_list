@@ -205,9 +205,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (newMode === currentMode) return;
 
         const doSwitch = () => {
-            // Auto-update "Have" counts and auto-sort when switching FROM Shop TO Home
+            // Auto-update \"Have\" counts and auto-sort when switching FROM Shop TO Home
             if (currentMode === 'shop' && newMode === 'home') {
                 const currentList = getCurrentList();
+
+                // Aggregate logic: Group items by name (text), sum quantities, and mark them as bought
+                const itemsMap = new Map();
+                currentList.items.forEach(item => {
+                    if (item.shopCompleted) {
+                        const name = item.text.trim().toLowerCase();
+                        if (!itemsMap.has(name)) {
+                            itemsMap.set(name, {
+                                wantCount: 0,
+                                haveCount: 0,
+                                ids: []
+                            });
+                        }
+                        const entry = itemsMap.get(name);
+                        entry.wantCount += item.wantCount;
+                        entry.haveCount += item.haveCount;
+                        entry.ids.push(item.id);
+                    }
+                });
+
+                // Apply aggregation to the original items
+                itemsMap.forEach((data, name) => {
+                    const firstId = data.ids[0];
+                    currentList.items.forEach(item => {
+                        if (item.id === firstId) {
+                            item.wantCount = data.wantCount;
+                            item.haveCount = data.wantCount; // As requested, update to desired quantity
+                            item.shopCompleted = false;
+                            item.shopCheckOrder = null;
+                        } else if (data.ids.includes(item.id)) {
+                            // These are the other items sharing the same name that were also checked
+                            // They need to be updated to haveCount = wantCount for consistency, 
+                            // and then handled, but the user requested setting all items... their quantities increased
+                            item.haveCount = item.wantCount;
+                            item.shopCompleted = false;
+                            item.shopCheckOrder = null;
+                        }
+                    });
+                });
 
                 // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
                 const sectionsMap = new Map();
@@ -233,13 +272,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
                 });
 
-                currentList.items.forEach(item => {
-                    if (item.shopCompleted) {
-                        item.haveCount = item.wantCount;
-                        item.shopCompleted = false;
-                        item.shopCheckOrder = null;
-                    }
-                });
                 saveAppState();
             }
 
@@ -414,7 +446,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             option.className = 'theme-option';
             option.dataset.value = theme.value;
             option.innerHTML = `
-                <div class="option-swatch" style="background: ${theme.value}"></div>
+                <div class=\"option-swatch\" style=\"background: ${theme.value}\"></div>
                 <span>${theme.name}</span>
             `;
             option.addEventListener('click', () => {
@@ -889,13 +921,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         let targetSectionId = sectionId;
 
         // Ensure the item has a section in both modes.
-        // If the target mode (Home or Shop) has no sections, create "Uncategorized" as a fallback.
+        // If the target mode (Home or Shop) has no sections, create Uncategorized as a fallback.
         if (isHome && currentList.homeSections.length === 0) {
             const uncategorized = getOrCreateUncategorizedSection(true);
             targetSectionId = uncategorized.id;
         } else if (!isHome && currentList.homeSections.length === 0) {
             // Adding in Shop mode, but Home mode has no sections. 
-            // Create "Uncategorized" in Home so the item is visible there.
+            // Create Uncategorized in Home so the item is visible there.
             getOrCreateUncategorizedSection(true);
         }
 
@@ -915,7 +947,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveAppState();
         renderList();
 
-        const newInlineInput = document.querySelector(`.section-items-list[data-section-id="${sectionId}"] .inline-item-input`);
+        const newInlineInput = document.querySelector(`.section-items-list[data-section-id=\"${sectionId}\"] .inline-item-input`);
         if (newInlineInput) newInlineInput.focus();
     }
 
@@ -927,7 +959,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveAppState();
 
             // Dynamically update the DOM node so CSS animations can reverse without being destroyed
-            const itemNodes = document.querySelectorAll(`li.grocery-item[data-id="${id}"]`);
+            const itemNodes = document.querySelectorAll(`li.grocery-item[data-id=\"${id}\"]`);
             itemNodes.forEach(node => {
                 if (item.shopCompleted) {
                     node.classList.add('completed');
@@ -984,7 +1016,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function finalizeDeleteItem(id) {
-        const row = document.querySelector(`.grocery-item[data-id="${id}"]`);
+        const row = document.querySelector(`.grocery-item[data-id=\"${id}\"]`);
         if (row) {
             row.classList.add('collapsing');
             setTimeout(() => {
@@ -1077,12 +1109,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const btnLeft = document.createElement('button');
             btnLeft.className = 'tab-reorder-btn tab-left';
-            btnLeft.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            btnLeft.innerHTML = '<i class=\"fas fa-chevron-left\"></i>';
             btnLeft.disabled = index === 0;
 
             const btnRight = document.createElement('button');
             btnRight.className = 'tab-reorder-btn tab-right';
-            btnRight.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            btnRight.innerHTML = '<i class=\"fas fa-chevron-right\"></i>';
             btnRight.disabled = index === appState.lists.length - 1;
 
             btnLeft.addEventListener('click', (e) => {
@@ -1105,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Add trash icon for delete mode
             const trashIcon = document.createElement('span');
             trashIcon.className = 'tab-delete-icon';
-            trashIcon.innerHTML = '<i class="fas fa-trash"></i>';
+            trashIcon.innerHTML = '<i class=\"fas fa-trash\"></i>';
             tab.appendChild(trashIcon);
 
             tab.appendChild(btnRight);
@@ -1182,11 +1214,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             tabsList.appendChild(tab);
         });
 
-        // Add the "+" button at the end
+        // Add the \"+\" button at the end
         const addBtn = document.createElement('button');
         addBtn.id = 'add-tab-btn';
         addBtn.className = 'add-tab-btn' + (deleteListMode ? ' delete-active' : '');
-        addBtn.innerHTML = deleteListMode ? '<i class="fas fa-times"></i>' : '<i class="fas fa-plus"></i>';
+        addBtn.innerHTML = deleteListMode ? '<i class=\"fas fa-times\"></i>' : '<i class=\"fas fa-plus\"></i>';
         addBtn.title = deleteListMode ? 'Exit Delete Mode' : 'Create New List';
         addBtn.addEventListener('click', () => {
             if (deleteListMode) {
@@ -1325,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // Note: User requested "Show sections without items", so we are no longer hiding empty sections in Shop Mode.
+            // Note: User requested Show sections without items, so we are no longer hiding empty sections in Shop Mode.
             // (Except Uncategorized which has specific rules above).
 
             const sectionLi = document.createElement('li');
@@ -1382,7 +1414,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Delete Button (revealed on long-press)
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'section-delete-btn';
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.innerHTML = '<i class=\"fas fa-trash\"></i>';
             if (canRename) {
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -1414,10 +1446,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const idx = arr.findIndex(s => s.id === section.id);
 
             if (shopSelectionMode && !isHome) {
-                // If we are in shop selection mode, show a "merge here" button instead of reorder arrows
+                // If we are in shop selection mode, show a merge here button instead of reorder arrows
                 const moveHereBtn = document.createElement('button');
                 moveHereBtn.className = 'move-here-btn';
-                moveHereBtn.innerHTML = '<i class="fas fa-level-down-alt"></i>';
+                moveHereBtn.innerHTML = '<i class=\"fas fa-level-down-alt\"></i>';
                 moveHereBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (selectedShopItems.size > 0) {
@@ -1438,7 +1470,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Normal mode: show reordering arrows (except for Uncategorized in Shop Mode)
                 const upBtn = document.createElement('button');
                 upBtn.className = 'section-reorder-btn';
-                upBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                upBtn.innerHTML = '<i class=\"fas fa-chevron-up\"></i>';
 
                 // In Shop mode, Uncategorized is locked at index 0 and can't move. 
                 // So index 1 in Shop mode also can't move up.
@@ -1459,7 +1491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const downBtn = document.createElement('button');
                 downBtn.className = 'section-reorder-btn';
-                downBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                downBtn.innerHTML = '<i class=\"fas fa-chevron-down\"></i>';
                 if (idx === arr.length - 1) {
                     downBtn.disabled = true;
                 }
@@ -1517,12 +1549,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Placeholders for reorder buttons to maintain alignment
                     const btnUp = document.createElement('button');
                     btnUp.className = 'item-reorder-btn item-up placeholder-btn';
-                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                    btnUp.innerHTML = '<i class=\"fas fa-chevron-up\"></i>';
                     btnUp.disabled = true;
 
                     const btnDown = document.createElement('button');
                     btnDown.className = 'item-reorder-btn item-down placeholder-btn';
-                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    btnDown.innerHTML = '<i class=\"fas fa-chevron-down\"></i>';
                     btnDown.disabled = true;
 
                     // Standard item text layout
@@ -1581,11 +1613,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (isHome) {
                     const btnUp = document.createElement('button');
                     btnUp.className = 'item-reorder-btn item-up';
-                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                    btnUp.innerHTML = '<i class=\"fas fa-chevron-up\"></i>';
 
                     const btnDown = document.createElement('button');
                     btnDown.className = 'item-reorder-btn item-down';
-                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    btnDown.innerHTML = '<i class=\"fas fa-chevron-down\"></i>';
 
                     btnUp.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -1693,11 +1725,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     const btnUp = document.createElement('button');
                     btnUp.className = 'item-reorder-btn item-up';
-                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                    btnUp.innerHTML = '<i class=\"fas fa-chevron-up\"></i>';
 
                     const btnDown = document.createElement('button');
                     btnDown.className = 'item-reorder-btn item-down';
-                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    btnDown.innerHTML = '<i class=\"fas fa-chevron-down\"></i>';
 
                     btnUp.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -1775,7 +1807,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
 
-            // Add "Add item" row for this section
+            // Add Add item row for this section
             if (isHome) {
                 const addRow = document.createElement('li');
                 addRow.className = 'grocery-item add-item-row';
@@ -1807,8 +1839,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Handle disabling of first up/last down globally
-        const allReorderableNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"], .grocery-item[data-type="item-placeholder"]'));
-        const activeItems = document.querySelectorAll('.grocery-item[data-type="item"]');
+        const allReorderableNodes = Array.from(document.querySelectorAll('.grocery-item[data-type=\"item\"], .grocery-item[data-type=\"item-placeholder\"]'));
+        const activeItems = document.querySelectorAll('.grocery-item[data-type=\"item\"]');
 
         activeItems.forEach(item => {
             const itemIdx = allReorderableNodes.indexOf(item);
@@ -1832,7 +1864,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Add "Add a section..." element at the bottom
+        // Add Add a section... element at the bottom
         const addSecRow = document.createElement('li');
         addSecRow.className = 'grocery-item';
 
@@ -1879,7 +1911,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const btnPlus = document.createElement('button');
         btnPlus.className = 'qty-btn plus';
-        btnPlus.innerHTML = '<i class="fas fa-plus"></i>';
+        btnPlus.innerHTML = '<i class=\"fas fa-plus\"></i>';
 
         part.appendChild(btnMinus);
         part.appendChild(valSpan);
@@ -2119,7 +2151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sectionKey = isHome ? 'homeSectionId' : 'shopSectionId';
 
         // Include both items and placeholders (for empty sections) to establish strict linear vertical order
-        const allNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"], .grocery-item[data-type="item-placeholder"]'));
+        const allNodes = Array.from(document.querySelectorAll('.grocery-item[data-type=\"item\"], .grocery-item[data-type=\"item-placeholder\"]'));
         const nodeIdx = allNodes.indexOf(node);
 
         if (nodeIdx === -1) return;
@@ -2158,7 +2190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // We need to capture bounding boxes for ALL rendered item nodes before the change
-        const preNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"]'));
+        const preNodes = Array.from(document.querySelectorAll('.grocery-item[data-type=\"item\"]'));
         const firstPositions = {};
         preNodes.forEach(n => {
             firstPositions[n.dataset.id] = n.getBoundingClientRect().top;
@@ -2172,7 +2204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // State is saved inside updateOrderInState, now rerender to get new DOM
         renderList();
 
-        const postNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"]'));
+        const postNodes = Array.from(document.querySelectorAll('.grocery-item[data-type=\"item\"]'));
 
         // Adjust scroll position to keep moved item at same viewport position
         const targetNewNode = postNodes.find(n => n.dataset.id === movedId);
