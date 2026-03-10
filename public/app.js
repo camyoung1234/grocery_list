@@ -58,6 +58,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sectionDeleteAllBtn = document.getElementById('section-delete-all-btn');
     const sectionDeleteCancelBtn = document.getElementById('section-delete-cancel-btn');
 
+    // Restore Modal Elements
+    const restoreModalOverlay = document.getElementById('restore-modal-overlay');
+    const restoreCancelBtn = document.getElementById('restore-cancel-btn');
+    const restoreConfirmBtn = document.getElementById('restore-confirm-btn');
+
     // Modal State
     let currentDeleteCallback = null;
     let currentSectionDeleteOnlyCallback = null;
@@ -98,10 +103,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             const decompressed = await new Response(stream).text();
             const data = JSON.parse(decompressed);
             if (data && data.appState && data.appState.lists) {
-                localStorage.setItem('grocery-app-state', JSON.stringify(data.appState));
-                if (data.mode) {
-                    localStorage.setItem('grocery-mode', data.mode);
+                const currentStoredState = localStorage.getItem('grocery-app-state');
+                
+                // If hash state matches current state, skip prompt
+                if (currentStoredState && JSON.stringify(data.appState) === currentStoredState) {
+                    return;
                 }
+
+                restoreModalOverlay.classList.add('visible');
+
+                return new Promise((resolve) => {
+                    restoreConfirmBtn.onclick = () => {
+                        localStorage.setItem('grocery-app-state', JSON.stringify(data.appState));
+                        if (data.mode) {
+                            localStorage.setItem('grocery-mode', data.mode);
+                        }
+                        restoreModalOverlay.classList.remove('visible');
+                        resolve();
+                    };
+                    restoreCancelBtn.onclick = () => {
+                        restoreModalOverlay.classList.remove('visible');
+                        resolve();
+                    };
+                });
             }
         } catch (e) {
             console.warn('Failed to restore state from URL hash:', e);
@@ -109,7 +133,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Initialization ---
-    function init() {
+    async function init() {
+        await restoreFromHash();
+        
         // Read localStorage after hash restore has had a chance to update it
         const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
         const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
@@ -2330,6 +2356,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    await restoreFromHash();
     init();
 });
