@@ -1313,8 +1313,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         const shopDefId = 'sec-s-def';
 
         sections.forEach((section) => {
-            // items for this section 
+            // Aggregate items by name in Shop Mode
             let sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
+            
+            if (!isHome) {
+                const aggregatedItems = [];
+                const itemMap = new Map();
+                
+                sectionItems.forEach(item => {
+                    if (item.pendingDelete) return;
+                    
+                    if (itemMap.has(item.text)) {
+                        const existing = itemMap.get(item.text);
+                        existing.wantCount += item.wantCount;
+                        existing.haveCount += item.haveCount;
+                    } else {
+                        // Clone to avoid modifying original
+                        itemMap.set(item.text, { ...item });
+                    }
+                });
+                
+                itemMap.forEach(item => aggregatedItems.push(item));
+                sectionItems = aggregatedItems;
+            }
+
             const totalItemsInSection = sectionItems.length;
 
             if (!isHome && section.id === shopDefId) {
