@@ -19,6 +19,6 @@
   },
   "homepage": "https://github.com/camyoung1234/grocery_list#readme",
   "devDependencies": {
-    "wrangler": "^4.67.0"
+    "wrangler": "^4.71.0"
   }
 }

@@ -1,3 +1,5 @@
 name = "grocery-list"
 compatibility_date = "2024-02-20"
-pages_build_output_dir = "public"
+[assets]
+directory = "public"
+
