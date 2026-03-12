@@ -1137,6 +1137,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         groceryList.classList.remove('is-dragging', 'dragging-section');
         draggedElement = null;
         dndPlaceholder = null;
+
+        // Force a re-render to ensure all collapsed/hidden elements reappear correctly
+        setTimeout(() => {
+            renderList();
+        }, 300); // Wait for CSS transitions to finish
     }
 
     function reorderSection(draggedId, targetId, isTop) {
@@ -1348,6 +1353,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         dndPlaceholder = null;
         lastTouchTarget = null;
+
+        // Force a re-render to ensure all collapsed/hidden elements reappear correctly
+        setTimeout(() => {
+            renderList();
+        }, 300); // Wait for CSS transitions to finish
     }, { passive: false });
 
     function renderTabs() {
