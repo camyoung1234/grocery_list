@@ -1077,21 +1077,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 0);
     }
 
+    let lastDragOverTime = 0;
+    let lastTouchMoveTime = 0;
     function handleDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
 
+        const now = Date.now();
+        if (now - lastDragOverTime < 16) return; // Throttle to ~60fps
+        lastDragOverTime = now;
+
         const target = e.target.closest('.grocery-item, .section-container');
         if (!target || target === draggedElement || target === dndPlaceholder) return;
+
+        // If we are dragging an item, don't allow it to be dropped between sections
+        if (draggedElement.dataset.type === 'item' && target.dataset.type === 'section') {
+            const itemsList = target.querySelector('.section-items-list');
+            if (itemsList && itemsList.children.length === 0) {
+                itemsList.appendChild(dndPlaceholder);
+            }
+            return;
+        }
 
         const rect = target.getBoundingClientRect();
         const midpoint = rect.top + rect.height / 2;
         const isAfter = e.clientY > midpoint;
 
+        // Only move placeholder if it's not already in the correct position relative to target
         if (isAfter) {
-            target.after(dndPlaceholder);
+            if (target.nextElementSibling !== dndPlaceholder) {
+                target.after(dndPlaceholder);
+            }
         } else {
-            target.before(dndPlaceholder);
+            if (target.previousElementSibling !== dndPlaceholder) {
+                target.before(dndPlaceholder);
+            }
         }
     }
 
@@ -1258,13 +1278,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         touchOffsetY = e.touches[0].clientY - rect.top;
 
         // Create ghost
-        touchGhost = li.cloneNode(true);
+        if (type === 'section') {
+            const header = li.querySelector('.section-header');
+            touchGhost = header.cloneNode(true);
+        } else {
+            touchGhost = li.cloneNode(true);
+        }
+
         touchGhost.style.position = 'fixed';
         touchGhost.style.top = '0';
         touchGhost.style.left = '0';
         touchGhost.style.transform = `translate(${(e.touches[0].clientX - touchOffsetX)}px, ${(e.touches[0].clientY - touchOffsetY)}px)`;
         touchGhost.style.width = li.offsetWidth + 'px';
-        touchGhost.style.opacity = '0.7';
+        touchGhost.style.opacity = '0.8';
+        touchGhost.style.background = 'var(--card-bg)';
+        touchGhost.style.boxShadow = 'var(--shadow)';
+        touchGhost.style.borderRadius = '8px';
         touchGhost.style.pointerEvents = 'none';
         touchGhost.style.zIndex = '10000';
         touchGhost.style.willChange = 'transform';
@@ -1274,14 +1303,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         li.classList.add('dragging');
 
         // Prevent scrolling while dragging
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
     }, { passive: false });
 
     groceryList.addEventListener('touchmove', (e) => {
         if (!touchDraggedElement || !touchGhost) return;
 
+        const now = Date.now();
         const touch = e.touches[0];
         touchGhost.style.transform = `translate(${(touch.clientX - touchOffsetX)}px, ${(touch.clientY - touchOffsetY)}px)`;
+
+        if (now - lastTouchMoveTime < 16) return; // Throttle to ~60fps
+        lastTouchMoveTime = now;
 
         // Check if we need to create placeholder
         if (!dndPlaceholder) {
@@ -1292,19 +1325,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.grocery-item, .section-container');
 
         if (target && target !== touchDraggedElement && target !== dndPlaceholder) {
+            // If we are dragging an item, don't allow it to be dropped between sections
+            if (touchDraggedElement.dataset.type === 'item' && target.dataset.type === 'section') {
+                const itemsList = target.querySelector('.section-items-list');
+                if (itemsList && itemsList.children.length === 0) {
+                    itemsList.appendChild(dndPlaceholder);
+                }
+                return;
+            }
+
             const rect = target.getBoundingClientRect();
             const midpoint = rect.top + rect.height / 2;
             const isAfter = touch.clientY > midpoint;
 
             if (isAfter) {
-                target.after(dndPlaceholder);
+                if (target.nextElementSibling !== dndPlaceholder) {
+                    target.after(dndPlaceholder);
+                }
             } else {
-                target.before(dndPlaceholder);
+                if (target.previousElementSibling !== dndPlaceholder) {
+                    target.before(dndPlaceholder);
+                }
             }
             lastTouchTarget = target;
         }
 
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
     }, { passive: false });
 
     groceryList.addEventListener('touchend', (e) => {
@@ -1941,7 +1987,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Add "Add a section..." element at the bottom
         const addSecRow = document.createElement('li');
-        addSecRow.className = 'grocery-item';
+        addSecRow.className = 'grocery-item add-section-row-global';
 
         const addSecContainer = document.createElement('form');
         addSecContainer.className = 'input-group inline-input-group';
