@@ -43,6 +43,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const exportBtn = document.getElementById('export-btn');
     const importInput = document.getElementById('import-input');
 
+    // Mode Bar Elements
+    const modeHomeBtn = document.getElementById('mode-home');
+    const modeShopBtn = document.getElementById('mode-shop');
+
     // Delete Modal Elements
     const deleteModalOverlay = document.getElementById('delete-modal-overlay');
     const deleteMatchName = document.getElementById('delete-match-name');
@@ -277,55 +281,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Swipe Gesture for Mode Switching ---
-    let swipeStartX = 0;
-    let swipeStartY = 0;
-    let isSwiping = false;
-
-    appContainer.addEventListener('touchstart', (e) => {
-        // Don't initiate swipe on buttons, modals, select or tab reorder areas.
-        // Allow swipe on specific inputs (add-item and add-section) while blocking others (like in modals).
-        if (e.target.closest('button') || e.target.closest('.modal-overlay') ||
-            e.target.closest('.tab-reorder-btn') || e.target.closest('select')) return;
-
-        const input = e.target.closest('input');
-        if (input && !input.classList.contains('add-item-input') && !input.classList.contains('add-section-input')) return;
-        swipeStartX = e.touches[0].clientX;
-        swipeStartY = e.touches[0].clientY;
-        isSwiping = true;
-    }, { passive: true });
-
-    appContainer.addEventListener('touchmove', (e) => {
-        // passive listener, just tracking
-    }, { passive: true });
-
-    appContainer.addEventListener('touchcancel', () => {
-        isSwiping = false;
-    }, { passive: true });
-
-    appContainer.addEventListener('touchend', (e) => {
-        if (!isSwiping || shopSelectionMode) {
-            isSwiping = false;
-            return;
-        }
-        isSwiping = false;
-
-        const endX = e.changedTouches[0].clientX;
-        const endY = e.changedTouches[0].clientY;
-        const deltaX = endX - swipeStartX;
-        const deltaY = endY - swipeStartY;
-
-        // Only trigger on predominantly horizontal swipes
-        if (Math.abs(deltaX) > 60 && Math.abs(deltaY) < Math.abs(deltaX) * 0.5) {
-            if (deltaX < 0) {
-                // Swipe left → shop mode
-                switchMode('shop', true);
-            } else {
-                // Swipe right → home mode
-                switchMode('home', true);
-            }
-        }
-    }, { passive: true });
+    // --- Mode Bar Switching ---
+    if (modeHomeBtn) {
+        modeHomeBtn.addEventListener('click', () => switchMode('home', true));
+    }
+    if (modeShopBtn) {
+        modeShopBtn.addEventListener('click', () => switchMode('shop', true));
+    }
 
     // --- Import / Export Logic ---
     if (exportBtn) exportBtn.addEventListener('click', () => {
@@ -1034,6 +996,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 icon.className = 'fas fa-home';
                 modeIndicator.title = 'Home Mode';
             }
+        }
+
+        // Update Mode Bar active state
+        if (modeHomeBtn && modeShopBtn) {
+            modeHomeBtn.classList.toggle('active', currentMode === 'home');
+            modeShopBtn.classList.toggle('active', currentMode === 'shop');
         }
     }
 
