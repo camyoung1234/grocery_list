@@ -1255,12 +1255,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Create ghost
         touchGhost = li.cloneNode(true);
         touchGhost.style.position = 'fixed';
-        touchGhost.style.top = (e.touches[0].clientY - touchOffsetY) + 'px';
-        touchGhost.style.left = (e.touches[0].clientX - touchOffsetX) + 'px';
+        touchGhost.style.top = '0';
+        touchGhost.style.left = '0';
+        touchGhost.style.transform = `translate(${(e.touches[0].clientX - touchOffsetX)}px, ${(e.touches[0].clientY - touchOffsetY)}px)`;
         touchGhost.style.width = li.offsetWidth + 'px';
         touchGhost.style.opacity = '0.7';
         touchGhost.style.pointerEvents = 'none';
         touchGhost.style.zIndex = '10000';
+        touchGhost.style.willChange = 'transform';
         touchGhost.classList.add('touch-ghost');
         document.body.appendChild(touchGhost);
 
@@ -1274,8 +1276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!touchDraggedElement || !touchGhost) return;
 
         const touch = e.touches[0];
-        touchGhost.style.top = (touch.clientY - touchOffsetY) + 'px';
-        touchGhost.style.left = (touch.clientX - touchOffsetX) + 'px';
+        touchGhost.style.transform = `translate(${(touch.clientX - touchOffsetX)}px, ${(touch.clientY - touchOffsetY)}px)`;
 
         // Check if we need to create placeholder
         if (!dndPlaceholder) {
