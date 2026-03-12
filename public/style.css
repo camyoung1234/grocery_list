@@ -92,12 +92,11 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 0 1rem 1rem; /* Added 1rem left padding to avoid Android back gesture */
+    padding: 1rem 0 1rem 1rem; /* Safety gutter for mobile gestures */
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    /* Full height on mobile */
     box-sizing: border-box;
 }
 
@@ -487,6 +486,29 @@ h1 {
     animation: slideInRight 0.2s ease-out forwards;
 }
 
+.grocery-item,
+.section-container,
+.section-header,
+.add-item-row,
+.add-section-row,
+.add-section-row-global,
+.section-items-list {
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1),
+                height 0.3s cubic-bezier(0.2, 0, 0, 1),
+                max-height 0.3s cubic-bezier(0.2, 0, 0, 1),
+                opacity 0.3s ease,
+                margin 0.3s cubic-bezier(0.2, 0, 0, 1),
+                padding 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.is-dragging .grocery-item,
+.is-dragging .section-header,
+.is-dragging .add-item-row,
+.is-dragging .add-section-row,
+.is-dragging .add-section-row-global {
+    transition: none !important;
+}
+
 .grocery-item {
     display: flex;
     align-items: center;
@@ -495,20 +517,11 @@ h1 {
     height: 50px;
     box-sizing: border-box;
     background: transparent;
-    /* transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.3s ease, height 0.3s cubic-bezier(0.2, 0, 0, 1), margin 0.3s cubic-bezier(0.2, 0, 0, 1), padding 0.3s cubic-bezier(0.2, 0, 0, 1); */
     flex-wrap: nowrap;
     gap: 0.5rem;
     touch-action: pan-y;
     overflow: hidden;
-}
-
-/* Add a class to enable transitions only when NOT actively dragging to avoid vibration */
-.grocery-list:not(.is-dragging) .grocery-item,
-.grocery-list:not(.is-dragging) .section-container,
-.grocery-list:not(.is-dragging) .add-item-row,
-.grocery-list:not(.is-dragging) .add-section-row,
-.grocery-list:not(.is-dragging) .add-section-row-global {
-    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.3s ease, height 0.3s cubic-bezier(0.2, 0, 0, 1), margin 0.3s cubic-bezier(0.2, 0, 0, 1), padding 0.3s cubic-bezier(0.2, 0, 0, 1), max-height 0.3s cubic-bezier(0.2, 0, 0, 1);
+    position: relative;
 }
 
 .grocery-item.shop-chip {
@@ -518,12 +531,13 @@ h1 {
 /* Drag and Drop */
 .drag-handle {
     cursor: grab;
-    width: 24px;
+    width: 32px;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: color-mix(in srgb, var(--primary-color) 40%, var(--text-muted));
-    font-size: 1rem;
+    font-size: 1.1rem;
     transition: color 0.2s ease;
     flex-shrink: 0;
     touch-action: none; /* Crucial for custom touch DnD */
@@ -534,30 +548,29 @@ h1 {
 }
 
 .dragging {
-    height: 0 !important;
-    opacity: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    pointer-events: none !important;
-    min-height: 0 !important;
-    transition: none !important; /* Instant collapse for the dragged element to avoid phantom spot */
+    opacity: 0.3 !important;
+    background: var(--hover-bg) !important;
 }
 
 .dnd-placeholder {
-    background: color-mix(in srgb, var(--primary-color) 5%, var(--hover-bg));
-    border: 2px dashed color-mix(in srgb, var(--primary-color) 20%, transparent);
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--hover-bg));
+    border: 2px dashed var(--primary-color);
     border-radius: 8px;
     margin: 4px 8px;
-    height: 42px; /* Slightly smaller than item for visual gap effect */
-    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
-    animation: placeholderExpand 0.3s cubic-bezier(0.2, 0, 0, 1);
-    overflow: hidden;
+    height: 42px;
+    transition: none !important;
+    pointer-events: none;
 }
 
-@keyframes placeholderExpand {
-    from { height: 0; margin-top: 0; margin-bottom: 0; opacity: 0; }
-    to { height: 42px; margin: 4px 8px; opacity: 1; }
+/* Touch Ghost styling */
+.touch-ghost {
+    position: fixed !important;
+    pointer-events: none !important;
+    z-index: 9999 !important;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
+    opacity: 0.9 !important;
+    background: var(--card-bg) !important;
+    border: 1px solid var(--primary-color) !important;
 }
 
 /* Item Reorder Buttons */
@@ -1622,16 +1635,11 @@ h1 {
 
 .section-items-list {
     list-style: none;
-    padding: 0 0 0 1.5rem; /* Indented items */
+    padding: 0 0 0 1.5rem; /* Visual hierarchy via indentation */
     margin: 0;
-    min-height: 0;
-    /* transition: max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.3s ease; */
-    max-height: 2000px; /* Large enough for most lists */
+    min-height: 10px; /* Give some drop area even when empty */
+    max-height: 2000px;
     overflow: hidden;
-}
-
-.grocery-list:not(.is-dragging) .section-items-list {
-    transition: max-height 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.3s ease;
 }
 
 .section-items-list.shop-mode:empty {
@@ -1800,22 +1808,42 @@ h1 {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     margin: 0 !important;
-    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
 .is-dragging .add-item-row,
 .is-dragging .add-section-row,
 .is-dragging .add-section-row-global,
-.is-dragging #grocery-list > li:last-child {
-    height: 0 !important;
+.is-dragging #grocery-list > li:last-child,
+.is-dragging .quantity-controls,
+.is-dragging .section-reorder-controls {
+    max-height: 0 !important;
     opacity: 0 !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     pointer-events: none !important;
-    min-height: 0 !important;
-    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1) !important; /* Ensure they animate when hidden/shown */
+}
+
+/* Reappearance Animations */
+@keyframes slideDownRestore {
+    from { max-height: 0; opacity: 0; transform: translateY(-5px); }
+    to { max-height: 100px; opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDownSectionRestore {
+    from { max-height: 0; opacity: 0; }
+    to { max-height: 5000px; opacity: 1; }
+}
+
+.app-restoring .grocery-item,
+.app-restoring .add-item-row,
+.app-restoring .add-section-row,
+.app-restoring .add-section-row-global,
+.app-restoring #grocery-list > li:last-child {
+    animation: slideDownRestore 0.25s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+.app-restoring .section-items-list {
+    animation: slideDownSectionRestore 0.3s cubic-bezier(0.2, 0, 0, 1) forwards;
 }
 
 .is-dragging .section-header .section-reorder-controls {
