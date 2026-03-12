@@ -92,8 +92,8 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 0;
-    /* Remove horizontal padding */
+    padding: 1rem 0 0 0;
+    /* Remove horizontal and bottom padding */
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
@@ -420,6 +420,7 @@ h1 {
     padding: 0;
     margin: 0;
     flex: 1;
+    padding-bottom: 60px;
 }
 
 /* Swipe slide transition */
@@ -1816,4 +1817,48 @@ h1 {
     overflow: hidden !important;
     border: none !important;
     pointer-events: none;
+}
+
+/* Mode Bar (Bottom Tabs) */
+.mode-bar {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom));
+    gap: 1rem;
+    z-index: 1000;
+}
+
+.mode-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.6rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+    border-radius: var(--border-radius);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.mode-tab i {
+    font-size: 1.2rem;
+}
+
+.mode-tab.active {
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+.mode-tab:active {
+    transform: scale(0.95);
 }
