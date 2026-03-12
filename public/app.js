@@ -1058,11 +1058,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     function handleDragStart(e) {
         if (!e.target.draggable) return;
         draggedElement = e.target;
+        const type = draggedElement.dataset.type;
+
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', e.target.dataset.id);
 
         dndPlaceholder = document.createElement('div');
         dndPlaceholder.className = 'dnd-placeholder';
+
+        groceryList.classList.add('is-dragging');
+        if (type === 'section') {
+            groceryList.classList.add('dragging-section');
+        }
 
         // Use a slight delay to allow the "ghost" image to be created before we hide original
         setTimeout(() => {
@@ -1127,6 +1134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (dndPlaceholder && dndPlaceholder.parentElement) {
             dndPlaceholder.parentElement.removeChild(dndPlaceholder);
         }
+        groceryList.classList.remove('is-dragging', 'dragging-section');
         draggedElement = null;
         dndPlaceholder = null;
     }
@@ -1233,6 +1241,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!li) return;
 
         touchDraggedElement = li;
+        const type = touchDraggedElement.dataset.type;
+
+        groceryList.classList.add('is-dragging');
+        if (type === 'section') {
+            groceryList.classList.add('dragging-section');
+        }
 
         const rect = li.getBoundingClientRect();
         touchOffsetX = e.touches[0].clientX - rect.left;
@@ -1289,6 +1303,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     groceryList.addEventListener('touchend', (e) => {
         if (!touchDraggedElement) return;
+
+        groceryList.classList.remove('is-dragging', 'dragging-section');
 
         if (dndPlaceholder && dndPlaceholder.parentElement) {
             const draggedId = touchDraggedElement.dataset.id;

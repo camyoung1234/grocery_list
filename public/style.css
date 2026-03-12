@@ -92,13 +92,13 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 0;
-    /* Remove horizontal padding */
+    padding: 1rem 0 1rem 1rem; /* Added 1rem left padding to avoid Android back gesture */
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
     /* Full height on mobile */
+    box-sizing: border-box;
 }
 
 @media (min-width: 600px) {
@@ -495,7 +495,7 @@ h1 {
     height: 50px;
     box-sizing: border-box;
     background: transparent;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.3s ease;
     flex-wrap: nowrap;
     gap: 0.5rem;
     touch-action: pan-y;
@@ -534,7 +534,14 @@ h1 {
     border-radius: 8px;
     margin: 4px 8px;
     height: 42px; /* Slightly smaller than item for visual gap effect */
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+    animation: placeholderExpand 0.3s cubic-bezier(0.2, 0, 0, 1);
+    overflow: hidden;
+}
+
+@keyframes placeholderExpand {
+    from { height: 0; margin-top: 0; margin-bottom: 0; opacity: 0; }
+    to { height: 42px; margin: 4px 8px; opacity: 1; }
 }
 
 /* Item Reorder Buttons */
@@ -1599,9 +1606,10 @@ h1 {
 
 .section-items-list {
     list-style: none;
-    padding: 0;
+    padding: 0 0 0 1.5rem; /* Indented items */
     margin: 0;
     min-height: 0;
+    transition: all 0.3s ease;
 }
 
 .section-items-list.shop-mode:empty {
@@ -1638,8 +1646,8 @@ h1 {
 .grocery-item.undo-row {
     background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
     border-radius: 0;
-    padding: 0;
-    height: 58px !important;
+    padding: 0 0.5rem;
+    height: 50px !important;
     box-sizing: border-box;
     margin-bottom: 0;
     cursor: default;
@@ -1671,8 +1679,8 @@ h1 {
 }
 
 .section-container .grocery-item.undo-row {
-    padding: 0;
-    height: 58px;
+    padding: 0 0.5rem;
+    height: 50px;
 }
 
 .grocery-item.undo-row .item-info {
@@ -1758,4 +1766,23 @@ h1 {
     overflow: hidden !important;
     border: none !important;
     pointer-events: none;
+}
+
+/* Drag State Overrides */
+.dragging-section .section-items-list {
+    display: none;
+}
+
+.is-dragging .add-item-row,
+.is-dragging .add-section-row,
+.is-dragging #grocery-list > li:last-child {
+    display: none;
+}
+
+.is-dragging .section-header .section-reorder-controls {
+    display: none;
+}
+
+.is-dragging .quantity-controls {
+    display: none;
 }
