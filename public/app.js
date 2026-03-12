@@ -15,6 +15,241 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
+
+    let draggedElement = null;
+    let placeholder = document.createElement('div');
+    placeholder.className = 'dnd-placeholder';
+
+    function handleDragStart(e) {
+        draggedElement = e.target.closest('.grocery-item, .section-container');
+        if (!draggedElement) return;
+
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', draggedElement.dataset.id);
+
+        // Match placeholder height to dragged element
+        placeholder.style.height = draggedElement.offsetHeight + 'px';
+
+        document.body.classList.add('drag-active');
+        if (draggedElement.dataset.type === 'section') {
+            document.body.classList.add('dragging-section');
+        }
+
+        setTimeout(() => {
+            draggedElement.classList.add('dragging');
+        }, 0);
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const target = e.target.closest('.grocery-item, .section-container');
+        if (!target || target === draggedElement || target.classList.contains('undo-row')) return;
+
+        const rect = target.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+
+        // Ensure items can only be dropped near other items or into sections
+        // and sections only near other sections
+        const draggedType = draggedElement.dataset.type;
+        const targetType = target.dataset.type;
+
+        if (draggedType === 'item') {
+            if (targetType === 'item' || target.classList.contains('section-items-list') || target.dataset.type === 'item-placeholder') {
+                if (e.clientY < midpoint) {
+                    target.parentNode.insertBefore(placeholder, target);
+                } else {
+                    target.parentNode.insertBefore(placeholder, target.nextSibling);
+                }
+            }
+        } else if (draggedType === 'section' && targetType === 'section') {
+            if (e.clientY < midpoint) {
+                target.parentNode.insertBefore(placeholder, target);
+            } else {
+                target.parentNode.insertBefore(placeholder, target.nextSibling);
+            }
+        }
+    }
+
+    function handleDragEnd(e) {
+        if (draggedElement) draggedElement.classList.remove('dragging');
+        if (placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+        draggedElement = null;
+        document.body.classList.remove('drag-active', 'dragging-section');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        if (!draggedElement || !placeholder.parentNode) return;
+
+        const movedId = draggedElement.dataset.id;
+        const type = draggedElement.dataset.type;
+
+        if (type === 'item') {
+            const targetNode = placeholder.nextElementSibling;
+            let anchorId = null;
+            let targetSectionId = null;
+            let isPlaceholder = false;
+
+            if (targetNode && targetNode.dataset.type === 'item') {
+                anchorId = targetNode.dataset.id;
+                targetSectionId = targetNode.dataset.sectionId;
+            } else if (targetNode && targetNode.dataset.type === 'item-placeholder') {
+                targetSectionId = targetNode.dataset.sectionId;
+                isPlaceholder = true;
+            } else {
+                // Dropped at the end of a list
+                const prevNode = placeholder.previousElementSibling;
+                if (prevNode && (prevNode.dataset.type === 'item' || prevNode.dataset.type === 'item-placeholder')) {
+                    targetSectionId = prevNode.dataset.sectionId;
+                    // If dropping after the last item, we don't have an anchorId,
+                    // updateOrderInState handles null anchorId by pushing to end.
+                }
+            }
+
+            if (targetSectionId) {
+                updateOrderInState(movedId, anchorId, targetSectionId, isPlaceholder);
+                renderList();
+            }
+        } else if (type === 'section') {
+            const targetNode = placeholder.nextElementSibling;
+            const currentList = getCurrentList();
+            const arr = currentMode === 'home' ? currentList.homeSections : currentList.shopSections;
+
+            const oldIdx = arr.findIndex(s => s.id === movedId);
+            let newIdx = targetNode && targetNode.dataset.type === 'section'
+                ? arr.findIndex(s => s.id === targetNode.dataset.id)
+                : arr.length;
+
+            if (oldIdx !== -1) {
+                if (oldIdx < newIdx) newIdx--;
+                const [moved] = arr.splice(oldIdx, 1);
+                arr.splice(newIdx, 0, moved);
+                saveAppState();
+                // Ensure UI is refreshed to reflect the new order
+                renderList();
+            }
+        }
+
+        handleDragEnd();
+    }
+
+    groceryList.addEventListener('dragstart', handleDragStart);
+    groceryList.addEventListener('dragover', handleDragOver);
+    groceryList.addEventListener('dragend', handleDragEnd);
+    groceryList.addEventListener('drop', handleDrop);
+
+    // --- Mobile Touch DnD ---
+    let touchDraggedElement = null;
+
+    function handleTouchStart(e) {
+        if (!e.target.classList.contains('drag-handle')) return;
+
+        touchDraggedElement = e.target.closest('.grocery-item, .section-container');
+        if (!touchDraggedElement) return;
+
+        placeholder.style.height = touchDraggedElement.offsetHeight + 'px';
+        document.body.classList.add('drag-active');
+        if (touchDraggedElement.dataset.type === 'section') {
+            document.body.classList.add('dragging-section');
+        }
+
+        touchDraggedElement.classList.add('dragging');
+    }
+
+    function handleTouchMove(e) {
+        if (!touchDraggedElement) return;
+
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (!target) return;
+
+        const dropTarget = target.closest('.grocery-item, .section-container, .section-items-list');
+        if (!dropTarget || dropTarget === touchDraggedElement || dropTarget.classList.contains('undo-row')) return;
+
+        const rect = dropTarget.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+
+        const draggedType = touchDraggedElement.dataset.type;
+        const targetType = dropTarget.dataset.type || (dropTarget.classList.contains('section-items-list') ? 'list' : null);
+
+        if (draggedType === 'item') {
+            if (targetType === 'item' || targetType === 'list' || targetType === 'item-placeholder') {
+                if (touch.clientY < midpoint) {
+                    dropTarget.parentNode.insertBefore(placeholder, dropTarget);
+                } else {
+                    dropTarget.parentNode.insertBefore(placeholder, dropTarget.nextSibling);
+                }
+            }
+        } else if (draggedType === 'section' && targetType === 'section') {
+            if (touch.clientY < midpoint) {
+                dropTarget.parentNode.insertBefore(placeholder, dropTarget);
+            } else {
+                dropTarget.parentNode.insertBefore(placeholder, dropTarget.nextSibling);
+            }
+        }
+    }
+
+    function handleTouchEnd(e) {
+        document.body.classList.remove('drag-active', 'dragging-section');
+        if (!touchDraggedElement) return;
+
+        if (placeholder.parentNode) {
+            const movedId = touchDraggedElement.dataset.id;
+            const type = touchDraggedElement.dataset.type;
+
+            if (type === 'item') {
+                const targetNode = placeholder.nextElementSibling;
+                let anchorId = null;
+                let targetSectionId = null;
+                let isPlaceholder = false;
+
+                if (targetNode && targetNode.dataset.type === 'item') {
+                    anchorId = targetNode.dataset.id;
+                    targetSectionId = targetNode.dataset.sectionId;
+                } else if (targetNode && targetNode.dataset.type === 'item-placeholder') {
+                    targetSectionId = targetNode.dataset.sectionId;
+                    isPlaceholder = true;
+                } else {
+                    const prevNode = placeholder.previousElementSibling;
+                    if (prevNode && (prevNode.dataset.type === 'item' || prevNode.dataset.type === 'item-placeholder')) {
+                        targetSectionId = prevNode.dataset.sectionId;
+                    }
+                }
+
+                if (targetSectionId) {
+                    updateOrderInState(movedId, anchorId, targetSectionId, isPlaceholder);
+                    renderList();
+                }
+            } else if (type === 'section') {
+                const targetNode = placeholder.nextElementSibling;
+                const currentList = getCurrentList();
+                const arr = currentMode === 'home' ? currentList.homeSections : currentList.shopSections;
+
+                const oldIdx = arr.findIndex(s => s.id === movedId);
+                let newIdx = targetNode && targetNode.dataset.type === 'section'
+                    ? arr.findIndex(s => s.id === targetNode.dataset.id)
+                    : arr.length;
+
+                if (oldIdx !== -1) {
+                    if (oldIdx < newIdx) newIdx--;
+                    const [moved] = arr.splice(oldIdx, 1);
+                    arr.splice(newIdx, 0, moved);
+                    saveAppState();
+                    renderList();
+                }
+            }
+        }
+
+        if (touchDraggedElement) touchDraggedElement.classList.remove('dragging');
+        if (placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+        touchDraggedElement = null;
+    }
+
+    groceryList.addEventListener('touchstart', handleTouchStart, { passive: true });
+    groceryList.addEventListener('touchmove', handleTouchMove, { passive: false });
+    groceryList.addEventListener('touchend', handleTouchEnd);
     const modeIndicator = document.getElementById('mode-indicator');
     const appContainer = document.querySelector('.app-container');
     const tabsList = document.getElementById('tabs-list');
@@ -877,297 +1112,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         showSectionDeleteModal(name, isHome, onDeleteOnly, onDeleteAll);
     }
 
-    // --- Drag and Drop Logic ---
-    let draggedElement = null;
-    let dndPlaceholder = null;
-
-    function handleDragStart(e) {
-        const handle = e.target.closest('.drag-handle');
-        if (!handle) {
-            e.preventDefault();
-            return;
-        }
-
-        draggedElement = e.target.closest('.grocery-item, .section-container');
-        if (!draggedElement) return;
-
-        const type = draggedElement.dataset.type;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', draggedElement.dataset.id);
-
-        dndPlaceholder = document.createElement('div');
-        dndPlaceholder.className = 'dnd-placeholder';
-
-        groceryList.classList.add('is-dragging');
-        if (type === 'section') {
-            groceryList.classList.add('dragging-section');
-        }
-
-        setTimeout(() => {
-            draggedElement.classList.add('dragging');
-        }, 0);
-    }
-
-    function handleDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-
-        const target = e.target.closest('.grocery-item, .section-container');
-        if (!target || target === draggedElement || target === dndPlaceholder) return;
-
-        // Constraint: items stay in items list, sections stay in sections list?
-        // Actually the original app allows items to move between sections.
-
-        const type = draggedElement.dataset.type;
-        const targetType = target.dataset.type;
-
-        if (type === 'section' && targetType !== 'section') return;
-        if (type === 'item' && targetType === 'section') {
-            // Drop into empty section?
-            const itemsList = target.querySelector('.section-items-list');
-            if (itemsList && itemsList.children.length === 0) {
-                itemsList.appendChild(dndPlaceholder);
-            }
-            return;
-        }
-
-        const rect = target.getBoundingClientRect();
-        const midpoint = rect.top + rect.height / 2;
-        const isAfter = e.clientY > midpoint;
-
-        if (isAfter) {
-            target.after(dndPlaceholder);
-        } else {
-            target.before(dndPlaceholder);
-        }
-    }
-
-    function handleDrop(e) {
-        e.preventDefault();
-        if (!draggedElement || !dndPlaceholder || !dndPlaceholder.parentElement) return;
-
-        const draggedId = draggedElement.dataset.id;
-        const draggedType = draggedElement.dataset.type;
-
-        const prev = dndPlaceholder.previousElementSibling;
-        const next = dndPlaceholder.nextElementSibling;
-
-        if (draggedType === 'section') {
-            if (next && next.dataset.type === 'section') {
-                reorderSection(draggedId, next.dataset.id, true);
-            } else if (prev && prev.dataset.type === 'section') {
-                reorderSection(draggedId, prev.dataset.id, false);
-            }
-        } else if (draggedType === 'item') {
-            if (next && next.dataset.type === 'item') {
-                reorderItem(draggedId, next.dataset.id, true);
-            } else if (prev && prev.dataset.type === 'item') {
-                reorderItem(draggedId, prev.dataset.id, false);
-            } else {
-                const sectionContainer = dndPlaceholder.closest('.section-container');
-                if (sectionContainer) {
-                    moveItemToSection(draggedId, sectionContainer.dataset.id, true);
-                }
-            }
-        }
-    }
-
-    function handleDragEnd(e) {
-        if (draggedElement) draggedElement.classList.remove('dragging');
-        if (dndPlaceholder && dndPlaceholder.parentElement) {
-            dndPlaceholder.parentElement.removeChild(dndPlaceholder);
-        }
-        groceryList.classList.remove('is-dragging', 'dragging-section');
-        draggedElement = null;
-        dndPlaceholder = null;
-        renderList();
-    }
-
-    function reorderSection(draggedId, targetId, isTop) {
-        const currentList = getCurrentList();
-        const isHome = currentMode === 'home';
-        const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
-        const shopDefId = 'sec-s-def';
-
-        const draggedIdx = sectionArray.findIndex(s => s.id === draggedId);
-        let targetIdx = sectionArray.findIndex(s => s.id === targetId);
-
-        if (draggedIdx === -1 || targetIdx === -1) return;
-        if (!isHome && (draggedId === shopDefId || targetId === shopDefId)) return;
-
-        const [moved] = sectionArray.splice(draggedIdx, 1);
-        targetIdx = sectionArray.findIndex(s => s.id === targetId);
-        const insertIdx = isTop ? targetIdx : targetIdx + 1;
-
-        sectionArray.splice(insertIdx, 0, moved);
-        saveAppState();
-    }
-
-    function reorderItem(draggedId, targetId, isTop) {
-        const currentList = getCurrentList();
-        const targetItem = currentList.items.find(i => i.id === targetId);
-        if (!targetItem) return;
-        const targetSectionId = currentMode === 'home' ? targetItem.homeSectionId : targetItem.shopSectionId;
-
-        if (isTop) {
-            updateOrderInState(draggedId, targetId, targetSectionId, false);
-        } else {
-            const isHome = currentMode === 'home';
-            const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-            const indexKey = isHome ? 'homeIndex' : 'shopIndex';
-            const sectionItems = currentList.items.filter(i => i[sectionIdKey] === targetSectionId);
-            sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
-            const targetIdx = sectionItems.findIndex(i => i.id === targetId);
-
-            if (targetIdx < sectionItems.length - 1) {
-                updateOrderInState(draggedId, sectionItems[targetIdx + 1].id, targetSectionId, false);
-            } else {
-                updateOrderInState(draggedId, null, targetSectionId, true);
-            }
-        }
-    }
-
-    function moveItemToSection(draggedId, targetSectionId, isTop) {
-        const currentList = getCurrentList();
-        const isHome = currentMode === 'home';
-        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
-        const sectionItems = currentList.items.filter(i => i[sectionIdKey] === targetSectionId);
-        sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
-
-        if (isTop && sectionItems.length > 0) {
-            updateOrderInState(draggedId, sectionItems[0].id, targetSectionId, false);
-        } else {
-            updateOrderInState(draggedId, null, targetSectionId, true);
-        }
-    }
-
-    // --- Touch DnD Support ---
-    let touchDraggedElement = null;
-    let touchGhost = null;
-    let touchOffsetX = 0;
-    let touchOffsetY = 0;
-
-    function handleTouchStart(e) {
-        const handle = e.target.closest('.drag-handle');
-        if (!handle) return;
-
-        touchDraggedElement = e.target.closest('.grocery-item, .section-container');
-        if (!touchDraggedElement) return;
-
-        const rect = touchDraggedElement.getBoundingClientRect();
-        touchOffsetX = e.touches[0].clientX - rect.left;
-        touchOffsetY = e.touches[0].clientY - rect.top;
-
-        touchGhost = touchDraggedElement.cloneNode(true);
-        touchGhost.classList.add('touch-ghost');
-        touchGhost.style.width = rect.width + 'px';
-        touchGhost.style.height = rect.height + 'px';
-        touchGhost.style.top = rect.top + 'px';
-        touchGhost.style.left = rect.left + 'px';
-        document.body.appendChild(touchGhost);
-
-        dndPlaceholder = document.createElement('div');
-        dndPlaceholder.className = 'dnd-placeholder';
-
-        groceryList.classList.add('is-dragging');
-        if (touchDraggedElement.dataset.type === 'section') {
-            groceryList.classList.add('dragging-section');
-        }
-        touchDraggedElement.classList.add('dragging');
-
-        if (e.cancelable) e.preventDefault();
-    }
-
-    function handleTouchMove(e) {
-        if (!touchDraggedElement || !touchGhost) return;
-
-        const touch = e.touches[0];
-        touchGhost.style.left = (touch.clientX - touchOffsetX) + 'px';
-        touchGhost.style.top = (touch.clientY - touchOffsetY) + 'px';
-
-        const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.grocery-item, .section-container');
-
-        if (target && target !== touchDraggedElement && target !== dndPlaceholder) {
-            const type = touchDraggedElement.dataset.type;
-            const targetType = target.dataset.type;
-
-            if (type === 'section' && targetType !== 'section') return;
-            if (type === 'item' && targetType === 'section') {
-                const itemsList = target.querySelector('.section-items-list');
-                if (itemsList && itemsList.children.length === 0) {
-                    itemsList.appendChild(dndPlaceholder);
-                }
-                return;
-            }
-
-            const rect = target.getBoundingClientRect();
-            const midpoint = rect.top + rect.height / 2;
-            const isAfter = touch.clientY > midpoint;
-
-            if (isAfter) {
-                target.after(dndPlaceholder);
-            } else {
-                target.before(dndPlaceholder);
-            }
-        }
-        if (e.cancelable) e.preventDefault();
-    }
-
-    function handleTouchEnd(e) {
-        if (!touchDraggedElement) return;
-
-        if (dndPlaceholder && dndPlaceholder.parentElement) {
-            const draggedId = touchDraggedElement.dataset.id;
-            const draggedType = touchDraggedElement.dataset.type;
-            const prev = dndPlaceholder.previousElementSibling;
-            const next = dndPlaceholder.nextElementSibling;
-
-            if (draggedType === 'section') {
-                if (next && next.dataset.type === 'section') {
-                    reorderSection(draggedId, next.dataset.id, true);
-                } else if (prev && prev.dataset.type === 'section') {
-                    reorderSection(draggedId, prev.dataset.id, false);
-                }
-            } else if (draggedType === 'item') {
-                if (next && next.dataset.type === 'item') {
-                    reorderItem(draggedId, next.dataset.id, true);
-                } else if (prev && prev.dataset.type === 'item') {
-                    reorderItem(draggedId, prev.dataset.id, false);
-                } else {
-                    const sectionContainer = dndPlaceholder.closest('.section-container');
-                    if (sectionContainer) {
-                        moveItemToSection(draggedId, sectionContainer.dataset.id, true);
-                    }
-                }
-            }
-        }
-
-        if (touchGhost) {
-            document.body.removeChild(touchGhost);
-            touchGhost = null;
-        }
-        if (touchDraggedElement) {
-            touchDraggedElement.classList.remove('dragging');
-            touchDraggedElement = null;
-        }
-        if (dndPlaceholder && dndPlaceholder.parentElement) {
-            dndPlaceholder.parentElement.removeChild(dndPlaceholder);
-        }
-        dndPlaceholder = null;
-        groceryList.classList.remove('is-dragging', 'dragging-section');
-        renderList();
-    }
-
-    groceryList.addEventListener('dragstart', handleDragStart);
-    groceryList.addEventListener('dragover', handleDragOver);
-    groceryList.addEventListener('drop', handleDrop);
-    groceryList.addEventListener('dragend', handleDragEnd);
-
-    groceryList.addEventListener('touchstart', handleTouchStart, { passive: false });
-    groceryList.addEventListener('touchmove', handleTouchMove, { passive: false });
-    groceryList.addEventListener('touchend', handleTouchEnd, { passive: false });
-
     // --- Core Functions ---
 
     function addItemToSection(sectionId, textValue, isHome) {
@@ -1582,13 +1526,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const sections = currentList[sectionsKey] || [];
 
-        // Toggle global reorder/selection classes
-        if (activeReorderId) {
-            groceryList.classList.add('reorder-mode-active');
-        } else {
-            groceryList.classList.remove('reorder-mode-active');
-        }
-
         if (!isHome && shopSelectionMode) {
             groceryList.classList.add('shop-selection-mode');
         } else {
@@ -1659,10 +1596,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             sectionLi.className = 'section-container';
             sectionLi.dataset.id = section.id;
             sectionLi.dataset.type = 'section';
+            sectionLi.draggable = true;
 
             // Section Header
             const header = document.createElement('div');
             header.className = 'section-header';
+
+            const sectionHandle = document.createElement('i');
+            sectionHandle.className = 'fas fa-grip-vertical drag-handle';
+            header.appendChild(sectionHandle);
 
             const titleSpan = document.createElement('h3');
             titleSpan.className = 'section-title';
@@ -1719,29 +1661,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 header.appendChild(deleteBtn);
             }
 
-            // Long-press to toggle reorder mode
-            onLongPress(header, (e) => {
-                if (activeReorderId) {
-                    // Exit reorder mode
-                    activeReorderId = null;
-                    groceryList.classList.remove('reorder-mode-active');
-                    document.querySelectorAll('.reorder-active').forEach(n => n.classList.remove('reorder-active'));
-                } else {
-                    // Enter reorder mode for this section
-                    activeReorderId = section.id;
-                    groceryList.classList.add('reorder-mode-active');
-                }
-            });
-
-            // Reorder Controls or Merge Button
-            const reorderControls = document.createElement('div');
-            reorderControls.className = 'section-reorder-controls';
-
-            const arr = isHome ? currentList.homeSections : currentList.shopSections;
-            const idx = arr.findIndex(s => s.id === section.id);
-
             if (shopSelectionMode && !isHome) {
-                // If we are in shop selection mode, show a "merge here" button instead of reorder arrows
+                const reorderControls = document.createElement('div');
+                reorderControls.className = 'section-reorder-controls';
+                // If we are in shop selection mode, show a "merge here" button
                 const moveHereBtn = document.createElement('button');
                 moveHereBtn.className = 'move-here-btn';
                 moveHereBtn.innerHTML = '<i class="fas fa-level-down-alt"></i>';
@@ -1760,45 +1683,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
                 reorderControls.appendChild(moveHereBtn);
-                header.appendChild(reorderControls);
-            } else if (isHome || section.id !== shopDefId) {
-                // Normal mode: show reordering arrows (except for Uncategorized in Shop Mode)
-                const upBtn = document.createElement('button');
-                upBtn.className = 'section-reorder-btn';
-                upBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-
-                // In Shop mode, Uncategorized is locked at index 0 and can't move.
-                // So index 1 in Shop mode also can't move up.
-                const cannotMoveUp = isHome ? (idx === 0) : (idx <= 1);
-
-                if (cannotMoveUp) {
-                    upBtn.disabled = true;
-                }
-                upBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    // In Home mode, anything index > 0 can move up.
-                    // In Shop mode, index 1 cannot move up (protects Uncategorized at 0).
-                    const canMoveUp = isHome ? (idx > 0) : (idx > 1);
-                    if (canMoveUp) {
-                        swapSectionsAndAnimate(arr, idx, idx - 1);
-                    }
-                });
-
-                const downBtn = document.createElement('button');
-                downBtn.className = 'section-reorder-btn';
-                downBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                if (idx === arr.length - 1) {
-                    downBtn.disabled = true;
-                }
-                downBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (idx < arr.length - 1 && idx !== -1) {
-                        swapSectionsAndAnimate(arr, idx, idx + 1);
-                    }
-                });
-
-                reorderControls.appendChild(upBtn);
-                reorderControls.appendChild(downBtn);
                 header.appendChild(reorderControls);
             }
 
@@ -1822,11 +1706,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // In shop mode, mark all sections as reorder-active when any reorder is happening
-            if (!isHome && activeReorderId) {
-                itemsUl.classList.add('reorder-active-list');
-            } else if (sectionItems.some(i => i.id === activeReorderId)) {
-                itemsUl.classList.add('reorder-active-list');
-            }
 
             sectionItems.forEach(item => {
                 const li = document.createElement('li');
@@ -1834,6 +1713,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
+                li.draggable = true;
 
                 if (item.pendingDelete) {
                     li.classList.add('undo-row');
@@ -1841,16 +1721,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.dataset.type = 'item';
                     li.dataset.sectionId = section.id;
 
-                    // Placeholders for reorder buttons to maintain alignment
-                    const btnUp = document.createElement('button');
-                    btnUp.className = 'item-reorder-btn item-up placeholder-btn';
-                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                    btnUp.disabled = true;
-
-                    const btnDown = document.createElement('button');
-                    btnDown.className = 'item-reorder-btn item-down placeholder-btn';
-                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                    btnDown.disabled = true;
+                    // Placeholders for drag handle to maintain alignment
+                    const handlePlaceholder = document.createElement('div');
+                    handlePlaceholder.className = 'drag-handle placeholder-handle';
+                    handlePlaceholder.style.visibility = 'hidden';
 
                     // Standard item text layout
                     const info = document.createElement('div');
@@ -1868,16 +1742,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         undoDeleteItem(item.id);
                     });
 
-                    li.appendChild(btnUp);
-                    if (isHome) {
-                        info.appendChild(nameSpan);
-                    } else {
-                        // Shop Mode
-                        info.appendChild(nameSpan);
-                    }
+                    li.appendChild(handlePlaceholder);
+                    info.appendChild(nameSpan);
                     li.appendChild(info); // Always use info wrapper for flex: 1
                     li.appendChild(undoBtn); // Put in place of counter/qty circle
-                    li.appendChild(btnDown);
 
                     itemsUl.appendChild(li);
                     return;
@@ -1891,58 +1759,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                // Tag 0-qty items shown during shop mode reorder
-                if (!isHome && activeReorderId) {
-                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    if (toBuy <= 0 && !item.shopCompleted) {
-                        li.classList.add('zero-qty-reorder');
-                    }
-                }
 
-                if (item.id === activeReorderId && isHome) {
-                    li.classList.add('reorder-active');
-                }
 
                 li.innerHTML = '';
 
                 if (isHome) {
-                    const btnUp = document.createElement('button');
-                    btnUp.className = 'item-reorder-btn item-up';
-                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
-
-                    const btnDown = document.createElement('button');
-                    btnDown.className = 'item-reorder-btn item-down';
-                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
-
-                    btnUp.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        swapItemsAndAnimate(li, -1);
-                    });
-
-                    btnDown.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        swapItemsAndAnimate(li, 1);
-                    });
-
-                    onLongPress(li, (e) => {
-                        // Close steppers
-                        document.querySelectorAll('.qty-part.expanded').forEach(part => {
-                            part.classList.remove('expanded');
-                            part.closest('.qty-combined-pill')?.classList.remove('active');
-                        });
-
-                        if (activeReorderId) {
-                            // In Home mode, long press on ANY item while reordering exits the mode
-                            activeReorderId = null;
-                            document.querySelectorAll('.grocery-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
-                            groceryList.classList.remove('reorder-mode-active');
-                        } else {
-                            // Enter reorder mode
-                            li.classList.add('reorder-active');
-                            groceryList.classList.add('reorder-mode-active');
-                            activeReorderId = item.id;
-                        }
-                    });
+                    const handle = document.createElement('i');
+                    handle.className = 'fas fa-grip-vertical drag-handle';
+                    li.appendChild(handle);
 
                     const info = document.createElement('div');
                     info.className = 'item-info';
@@ -1953,11 +1777,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     onDoubleTap(nameSpan, (e) => {
                         e.stopPropagation();
-
-                        // Close reordering
-                        activeReorderId = null;
-                        li.classList.remove('reorder-active');
-                        groceryList.classList.remove('reorder-mode-active');
 
                         // Turn into text input
                         const container = document.createElement('div');
@@ -2004,37 +1823,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
 
                     info.appendChild(nameSpan);
-
-                    li.appendChild(btnUp); // Arrow Up on the left
                     li.appendChild(info);
 
                     const controls = document.createElement('div');
                     controls.className = 'quantity-controls';
-
                     controls.appendChild(createCombinedQtyControl(item));
-
                     li.appendChild(controls);
-                    li.appendChild(btnDown); // Arrow Down on the right
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
-                    const btnUp = document.createElement('button');
-                    btnUp.className = 'item-reorder-btn item-up';
-                    btnUp.innerHTML = '<i class="fas fa-chevron-up"></i>';
-
-                    const btnDown = document.createElement('button');
-                    btnDown.className = 'item-reorder-btn item-down';
-                    btnDown.innerHTML = '<i class="fas fa-chevron-down"></i>';
-
-                    btnUp.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        swapItemsAndAnimate(li, -1);
-                    });
-
-                    btnDown.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        swapItemsAndAnimate(li, 1);
-                    });
+                    const handle = document.createElement('i');
+                    handle.className = 'fas fa-grip-vertical drag-handle';
+                    li.appendChild(handle);
 
                     // Check if selected
                     const isSelected = selectedShopItems.has(item.id);
@@ -2059,10 +1859,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     qtyCircle.appendChild(qtyNumber);
                     qtyCircle.appendChild(checkIcon);
 
-                    li.appendChild(btnUp);
                     li.appendChild(textSpan);
                     li.appendChild(qtyCircle);
-                    li.appendChild(btnDown);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
@@ -2133,31 +1931,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             groceryList.appendChild(sectionLi);
         });
 
-        // Handle disabling of first up/last down globally
-        const allReorderableNodes = Array.from(document.querySelectorAll('.grocery-item[data-type="item"], .grocery-item[data-type="item-placeholder"]'));
-        const activeItems = document.querySelectorAll('.grocery-item[data-type="item"]');
-
-        activeItems.forEach(item => {
-            const itemIdx = allReorderableNodes.indexOf(item);
-            const upBtn = item.querySelector('.item-up');
-            const downBtn = item.querySelector('.item-down');
-
-            if (upBtn) {
-                // Disabled if there's no valid node above it (index 0 implies it's entirely first)
-                // Wait, even if it's index 1 and index 0 is its OWN placeholder, it can't move up.
-                const hasValidNodeAbove = allReorderableNodes.slice(0, itemIdx).some(n =>
-                    n.dataset.type === 'item' || (n.dataset.type === 'item-placeholder' && n.dataset.sectionId !== item.dataset.sectionId)
-                );
-                upBtn.disabled = !hasValidNodeAbove;
-            }
-
-            if (downBtn) {
-                const hasValidNodeBelow = allReorderableNodes.slice(itemIdx + 1).some(n =>
-                    n.dataset.type === 'item' || (n.dataset.type === 'item-placeholder' && n.dataset.sectionId !== item.dataset.sectionId)
-                );
-                downBtn.disabled = !hasValidNodeBelow;
-            }
-        });
 
         // Add "Add a section..." element at the bottom
         const addSecRow = document.createElement('li');
@@ -2215,13 +1988,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         part.addEventListener('click', (e) => {
             e.stopPropagation();
 
-            // Close reordering if active
-            if (activeReorderId) {
-                const activeNode = document.querySelector('.grocery-item.reorder-active');
-                if (activeNode) activeNode.classList.remove('reorder-active');
-                activeReorderId = null;
-            }
-
             document.querySelectorAll('.qty-part.expanded').forEach(p => {
                 if (p !== part) {
                     p.classList.remove('expanded');
@@ -2242,15 +2008,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function createCombinedQtyControl(item) {
         const group = document.createElement('div');
         group.className = 'qty-combined-pill';
-
-        // Combined pill triggers expansion to clear reordering if clicked as a whole
-        group.addEventListener('click', (e) => {
-            if (activeReorderId) {
-                const activeNode = document.querySelector('.grocery-item.reorder-active');
-                if (activeNode) activeNode.classList.remove('reorder-active');
-                activeReorderId = null;
-            }
-        });
 
         const have = createQtyPart(group, item.haveCount, 'have');
         const want = createQtyPart(group, item.wantCount, 'want');
@@ -2633,42 +2390,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        document.querySelectorAll('.grocery-item.reorder-active').forEach(node => {
-            if (!node.contains(e.target) && !e.target.closest('.item-reorder-btn')) {
-                if (node.dataset.id === activeReorderId) activeReorderId = null;
-
-                const sectionUl = node.closest('.section-items-list');
-                if (sectionUl && currentMode === 'shop') {
-                    // Fade out 0-qty items first, then re-render
-                    const zeroQtyChips = sectionUl.querySelectorAll('.shop-chip.zero-qty-reorder');
-                    if (zeroQtyChips.length > 0) {
-                        zeroQtyChips.forEach(chip => {
-                            chip.classList.remove('zero-qty-reorder');
-                            chip.classList.add('zero-qty-leaving');
-                        });
-                        setTimeout(() => {
-                            renderList();
-                        }, 300);
-                    } else {
-                        // Use FLIP animation for shop chips
-                        animateShopChipReorder(sectionUl, () => {
-                            node.classList.remove('reorder-active');
-                            sectionUl.classList.remove('reorder-active-list');
-                        });
-                    }
-                } else {
-                    // Home mode: use existing dismissing animation
-                    node.classList.add('dismissing');
-                    groceryList.classList.remove('reorder-mode-active');
-                    const list = node.closest('.section-items-list');
-                    setTimeout(() => {
-                        node.classList.remove('reorder-active', 'dismissing');
-                        if (list) list.classList.remove('reorder-active-list');
-                        renderList();
-                    }, 320);
-                }
-            }
-        });
 
         document.querySelectorAll('.tab-item.reorder-active').forEach(node => {
             if (!node.contains(e.target) && !e.target.closest('.tab-reorder-btn')) {

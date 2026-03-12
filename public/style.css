@@ -92,12 +92,13 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 0 1rem 1rem; /* Safety gutter for mobile gestures */
+    padding: 1rem 0;
+    /* Remove horizontal padding */
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    box-sizing: border-box;
+    /* Full height on mobile */
 }
 
 @media (min-width: 600px) {
@@ -486,94 +487,74 @@ h1 {
     animation: slideInRight 0.2s ease-out forwards;
 }
 
-.grocery-item,
-.section-container,
-.section-header,
-.add-item-row,
-.add-section-row,
-.add-section-row-global,
-.section-items-list {
-    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1),
-                height 0.3s cubic-bezier(0.2, 0, 0, 1),
-                max-height 0.3s cubic-bezier(0.2, 0, 0, 1),
-                opacity 0.3s ease,
-                margin 0.3s cubic-bezier(0.2, 0, 0, 1),
-                padding 0.3s cubic-bezier(0.2, 0, 0, 1);
-}
-
-.is-dragging .grocery-item,
-.is-dragging .section-header,
-.is-dragging .add-item-row,
-.is-dragging .add-section-row,
-.is-dragging .add-section-row-global {
-    transition: none !important;
-}
-
 .grocery-item {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    padding: 0 0.5rem;
-    height: 50px;
+    justify-content: space-between;
+    /* Space for delete btn */
+    padding: 0 1rem;
+    height: 58px;
     box-sizing: border-box;
     background: transparent;
-    flex-wrap: nowrap;
-    gap: 0.5rem;
+    transition: var(--transition);
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens if needed */
+    gap: 1rem;
     touch-action: pan-y;
-    overflow: hidden;
-    position: relative;
 }
 
 .grocery-item.shop-chip {
     height: auto;
 }
 
-/* Drag and Drop */
+/* Drag and Drop Styles */
 .drag-handle {
     cursor: grab;
-    width: 32px;
-    height: 100%;
+    padding: 0 0.5rem;
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: color-mix(in srgb, var(--primary-color) 40%, var(--text-muted));
-    font-size: 1.1rem;
-    transition: color 0.2s ease;
+    transition: var(--transition);
     flex-shrink: 0;
-    touch-action: none; /* Crucial for custom touch DnD */
 }
 
-.drag-handle:hover {
-    color: var(--primary-color);
+.drag-handle:active {
+    cursor: grabbing;
 }
 
 .dragging {
-    opacity: 0.3 !important;
-    background: var(--hover-bg) !important;
-}
-
-.dnd-placeholder {
-    background: color-mix(in srgb, var(--primary-color) 10%, var(--hover-bg));
-    border: 2px dashed var(--primary-color);
-    border-radius: 8px;
-    margin: 4px 8px;
-    height: 42px;
-    transition: none !important;
+    opacity: 0.4;
+    background-color: var(--hover-bg);
     pointer-events: none;
 }
 
-/* Touch Ghost styling */
-.touch-ghost {
-    position: fixed !important;
-    pointer-events: none !important;
-    z-index: 9999 !important;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
-    opacity: 0.9 !important;
-    background: var(--card-bg) !important;
-    border: 1px solid var(--primary-color) !important;
+.dnd-placeholder {
+    height: 58px;
+    background: color-mix(in srgb, var(--primary-color) 5%, transparent);
+    border: 2px dashed var(--primary-color);
+    margin: 4px 0;
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+    pointer-events: none;
+    transition: height 0.2s ease;
 }
 
-/* Item Reorder Buttons */
+/* Hide rows when dragging */
+body.drag-active .add-item-row,
+body.drag-active .grocery-item:has(.add-section-input) {
+    display: none !important;
+}
+
+/* Hide items when their section is being dragged */
+.section-container.dragging .section-items-list {
+    display: none !important;
+}
+
+/* Reorder "scoot" animation hint */
+.section-container, .grocery-item {
+    transition: transform 0.2s ease, height 0.2s ease, opacity 0.2s ease;
+}
 
 .item-info {
     flex: 1;
@@ -581,8 +562,9 @@ h1 {
     display: flex;
     align-items: center;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
+    transition: margin 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .quantity-controls {
@@ -596,6 +578,15 @@ h1 {
     position: relative;
     z-index: 10;
     transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#grocery-list.reorder-mode-active .quantity-controls {
+    width: 0;
+    opacity: 0;
+    margin: 0;
+    overflow: hidden;
+    /* Re-enable for the reorder transition */
+    pointer-events: none;
 }
 
 
@@ -1492,21 +1483,22 @@ h1 {
 
 .section-container {
     border-radius: 0;
-    padding: 0;
+    /* Square borders */
+    padding: 1rem;
     margin-bottom: 0;
     border: none;
+    transition: var(--transition);
     touch-action: pan-y;
 }
 
 .section-header {
     display: flex;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: center;
-    height: 50px;
-    padding: 0 0.5rem;
     border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0.5rem;
     user-select: none;
-    gap: 0.5rem;
 }
 
 .section-title {
@@ -1547,25 +1539,6 @@ h1 {
     /* line-height + padding/border to ensure exact match */
 }
 
-.section-reorder-controls {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    margin-left: auto;
-    max-width: 0;
-    opacity: 0;
-    overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    pointer-events: none;
-}
-
-.shop-selection-mode .section-reorder-controls {
-    max-width: 100px;
-    opacity: 1;
-    gap: 0.2rem;
-    pointer-events: auto;
-}
-
 /* Section Delete Button (revealed on long-press) */
 .section-delete-btn {
     background: transparent;
@@ -1586,7 +1559,8 @@ h1 {
     pointer-events: none;
 }
 
-.section-header.delete-active .section-delete-btn {
+.section-header.delete-active .section-delete-btn,
+.reorder-mode-active .section-delete-btn {
     width: 32px;
     opacity: 1;
     margin-left: 0.3rem;
@@ -1604,7 +1578,6 @@ h1 {
     background: color-mix(in srgb, var(--danger-color) 25%, transparent);
 }
 
-.section-reorder-btn,
 .move-here-btn {
     background: transparent;
     border: none;
@@ -1621,25 +1594,12 @@ h1 {
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@media (hover: hover) {
-    .section-reorder-btn:hover:not(:disabled) {
-        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-        color: var(--primary-color);
-    }
-}
-
-.section-reorder-btn:disabled {
-    opacity: 0.3;
-    cursor: default;
-}
-
 .section-items-list {
     list-style: none;
-    padding: 0 0 0 1.5rem; /* Visual hierarchy via indentation */
+    padding: 0 0 0 1.5rem; /* Indentation for hierarchy */
     margin: 0;
-    min-height: 10px; /* Give some drop area even when empty */
-    max-height: 2000px;
-    overflow: hidden;
+    min-height: 0;
+    transition: height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
 }
 
 .section-items-list.shop-mode:empty {
@@ -1647,22 +1607,31 @@ h1 {
 }
 
 .section-container .grocery-item {
-    padding: 0 0.5rem;
-    height: 50px;
+    padding: 0;
+    height: 58px;
     box-sizing: border-box;
     border-radius: 0;
 }
 
+/* Collapse all items when dragging a section */
+body.dragging-section .section-items-list {
+    height: 0 !important;
+    opacity: 0;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+    pointer-events: none;
+}
+
 .section-container .add-item-row {
-    padding: 0 0.5rem;
-    height: 50px;
+    padding: 0;
+    height: 58px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     border-bottom: none;
     cursor: default;
-    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
-    overflow: hidden;
+    /* not draggable */
 }
 
 /* Add a Section Row */
@@ -1671,16 +1640,14 @@ h1 {
     padding: 0;
     margin-top: 1rem;
     margin-bottom: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
-    overflow: hidden;
 }
 
 /* Undo Row Styles & Animations */
 .grocery-item.undo-row {
     background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
     border-radius: 0;
-    padding: 0 0.5rem;
-    height: 50px !important;
+    padding: 0;
+    height: 58px !important;
     box-sizing: border-box;
     margin-bottom: 0;
     cursor: default;
@@ -1712,8 +1679,8 @@ h1 {
 }
 
 .section-container .grocery-item.undo-row {
-    padding: 0 0.5rem;
-    height: 50px;
+    padding: 0;
+    height: 58px;
 }
 
 .grocery-item.undo-row .item-info {
@@ -1799,57 +1766,4 @@ h1 {
     overflow: hidden !important;
     border: none !important;
     pointer-events: none;
-}
-
-/* Drag State Overrides */
-.dragging-section .section-items-list {
-    max-height: 0 !important;
-    opacity: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    margin: 0 !important;
-}
-
-.is-dragging .add-item-row,
-.is-dragging .add-section-row,
-.is-dragging .add-section-row-global,
-.is-dragging #grocery-list > li:last-child,
-.is-dragging .quantity-controls,
-.is-dragging .section-reorder-controls {
-    max-height: 0 !important;
-    opacity: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Reappearance Animations */
-@keyframes slideDownRestore {
-    from { max-height: 0; opacity: 0; transform: translateY(-5px); }
-    to { max-height: 100px; opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideDownSectionRestore {
-    from { max-height: 0; opacity: 0; }
-    to { max-height: 5000px; opacity: 1; }
-}
-
-.app-restoring .grocery-item,
-.app-restoring .add-item-row,
-.app-restoring .add-section-row,
-.app-restoring .add-section-row-global,
-.app-restoring #grocery-list > li:last-child {
-    animation: slideDownRestore 0.25s cubic-bezier(0.2, 0, 0, 1) forwards;
-}
-
-.app-restoring .section-items-list {
-    animation: slideDownSectionRestore 0.3s cubic-bezier(0.2, 0, 0, 1) forwards;
-}
-
-.is-dragging .section-header .section-reorder-controls {
-    display: none;
-}
-
-.is-dragging .quantity-controls {
-    display: none;
 }
