@@ -92,8 +92,8 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 0;
-    /* Remove horizontal padding */
+    padding: 1rem 0 0 0;
+    /* Remove horizontal and bottom padding */
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
@@ -420,7 +420,7 @@ h1 {
     padding: 0;
     margin: 0;
     flex: 1;
-    padding-bottom: 80px;
+    padding-bottom: 60px;
 }
 
 /* Swipe slide transition */
