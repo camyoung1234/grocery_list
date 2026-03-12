@@ -534,7 +534,14 @@ h1 {
 }
 
 .dragging {
-    opacity: 0; /* Hide the actual element being dragged */
+    height: 0 !important;
+    opacity: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    min-height: 0 !important;
+    transition: none !important; /* Instant collapse for the dragged element to avoid phantom spot */
 }
 
 .dnd-placeholder {
@@ -1793,6 +1800,7 @@ h1 {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     margin: 0 !important;
+    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
 .is-dragging .add-item-row,
@@ -1807,6 +1815,7 @@ h1 {
     padding-bottom: 0 !important;
     pointer-events: none !important;
     min-height: 0 !important;
+    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1) !important; /* Ensure they animate when hidden/shown */
 }
 
 .is-dragging .section-header .section-reorder-controls {

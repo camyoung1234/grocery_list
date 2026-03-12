@@ -1066,15 +1066,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         dndPlaceholder = document.createElement('div');
         dndPlaceholder.className = 'dnd-placeholder';
 
-        groceryList.classList.add('is-dragging');
+        // Handle section collapse animation
         if (type === 'section') {
             groceryList.classList.add('dragging-section');
         }
+        groceryList.classList.add('is-dragging');
 
         // Use a slight delay to allow the "ghost" image to be created before we hide original
         setTimeout(() => {
             draggedElement.classList.add('dragging');
-        }, 0);
+        }, 10);
     }
 
     let lastDragOverTime = 0;
