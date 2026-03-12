@@ -1053,6 +1053,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Drag and Drop Logic ---
     let draggedElement = null;
+    let dndPlaceholder = null;
 
     function handleDragStart(e) {
         if (!e.target.draggable) return;
@@ -1060,7 +1061,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', e.target.dataset.id);
 
-        // Use a slight delay to allow the "ghost" image to be created before we change opacity
+        dndPlaceholder = document.createElement('div');
+        dndPlaceholder.className = 'dnd-placeholder';
+
+        // Use a slight delay to allow the "ghost" image to be created before we hide original
         setTimeout(() => {
             draggedElement.classList.add('dragging');
         }, 0);
@@ -1071,45 +1075,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.dataTransfer.dropEffect = 'move';
 
         const target = e.target.closest('.grocery-item, .section-container');
-        if (!target || target === draggedElement) return;
-
-        // Clear all indicators
-        document.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom').forEach(el => {
-            el.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
-        });
+        if (!target || target === draggedElement || target === dndPlaceholder) return;
 
         const rect = target.getBoundingClientRect();
         const midpoint = rect.top + rect.height / 2;
+        const isAfter = e.clientY > midpoint;
 
-        if (e.clientY < midpoint) {
-            target.classList.add('drop-indicator-top');
+        if (isAfter) {
+            target.after(dndPlaceholder);
         } else {
-            target.classList.add('drop-indicator-bottom');
+            target.before(dndPlaceholder);
         }
     }
 
     function handleDrop(e) {
         e.preventDefault();
-        const target = e.target.closest('.grocery-item, .section-container');
-
-        if (!target || !draggedElement) return;
+        if (!draggedElement || !dndPlaceholder || !dndPlaceholder.parentElement) return;
 
         const draggedId = draggedElement.dataset.id;
-        const targetId = target.dataset.id;
         const draggedType = draggedElement.dataset.type;
-        const targetType = target.dataset.type;
 
-        const rect = target.getBoundingClientRect();
-        const isTop = e.clientY < rect.top + rect.height / 2;
+        // Determine placement based on placeholder position
+        const prev = dndPlaceholder.previousElementSibling;
+        const next = dndPlaceholder.nextElementSibling;
 
-        if (draggedType === 'section' && targetType === 'section') {
-            reorderSection(draggedId, targetId, isTop);
+        if (draggedType === 'section') {
+            if (next && next.dataset.type === 'section') {
+                reorderSection(draggedId, next.dataset.id, true);
+            } else if (prev && prev.dataset.type === 'section') {
+                reorderSection(draggedId, prev.dataset.id, false);
+            }
         } else if (draggedType === 'item') {
-            if (targetType === 'item') {
-                reorderItem(draggedId, targetId, isTop);
-            } else if (targetType === 'section') {
-                // Drop item onto a section header
-                moveItemToSection(draggedId, targetId, isTop);
+            if (next && next.dataset.type === 'item') {
+                reorderItem(draggedId, next.dataset.id, true);
+            } else if (prev && prev.dataset.type === 'item') {
+                reorderItem(draggedId, prev.dataset.id, false);
+            } else {
+                // Check if dropped into a section (placeholder might be first in a section)
+                const sectionContainer = dndPlaceholder.closest('.section-container');
+                if (sectionContainer) {
+                    moveItemToSection(draggedId, sectionContainer.dataset.id, true);
+                }
             }
         }
     }
@@ -1118,10 +1124,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (draggedElement) {
             draggedElement.classList.remove('dragging');
         }
+        if (dndPlaceholder && dndPlaceholder.parentElement) {
+            dndPlaceholder.parentElement.removeChild(dndPlaceholder);
+        }
         draggedElement = null;
-        document.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom').forEach(el => {
-            el.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
-        });
+        dndPlaceholder = null;
     }
 
     function reorderSection(draggedId, targetId, isTop) {
@@ -1256,25 +1263,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         touchGhost.style.top = (touch.clientY - touchOffsetY) + 'px';
         touchGhost.style.left = (touch.clientX - touchOffsetX) + 'px';
 
+        // Check if we need to create placeholder
+        if (!dndPlaceholder) {
+            dndPlaceholder = document.createElement('div');
+            dndPlaceholder.className = 'dnd-placeholder';
+        }
+
         const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.grocery-item, .section-container');
 
-        // Clear previous indicators
-        document.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom').forEach(el => {
-            el.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
-        });
-
-        if (target && target !== touchDraggedElement) {
+        if (target && target !== touchDraggedElement && target !== dndPlaceholder) {
             const rect = target.getBoundingClientRect();
             const midpoint = rect.top + rect.height / 2;
+            const isAfter = touch.clientY > midpoint;
 
-            if (touch.clientY < midpoint) {
-                target.classList.add('drop-indicator-top');
+            if (isAfter) {
+                target.after(dndPlaceholder);
             } else {
-                target.classList.add('drop-indicator-bottom');
+                target.before(dndPlaceholder);
             }
             lastTouchTarget = target;
-        } else {
-            lastTouchTarget = null;
         }
 
         e.preventDefault();
@@ -1283,25 +1290,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     groceryList.addEventListener('touchend', (e) => {
         if (!touchDraggedElement) return;
 
-        const touch = e.changedTouches[0];
-        const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.grocery-item, .section-container');
-
-        if (target && target !== touchDraggedElement) {
+        if (dndPlaceholder && dndPlaceholder.parentElement) {
             const draggedId = touchDraggedElement.dataset.id;
-            const targetId = target.dataset.id;
             const draggedType = touchDraggedElement.dataset.type;
-            const targetType = target.dataset.type;
 
-            const rect = target.getBoundingClientRect();
-            const isTop = touch.clientY < rect.top + rect.height / 2;
+            const prev = dndPlaceholder.previousElementSibling;
+            const next = dndPlaceholder.nextElementSibling;
 
-            if (draggedType === 'section' && targetType === 'section') {
-                reorderSection(draggedId, targetId, isTop);
+            if (draggedType === 'section') {
+                if (next && next.dataset.type === 'section') {
+                    reorderSection(draggedId, next.dataset.id, true);
+                } else if (prev && prev.dataset.type === 'section') {
+                    reorderSection(draggedId, prev.dataset.id, false);
+                }
             } else if (draggedType === 'item') {
-                if (targetType === 'item') {
-                    reorderItem(draggedId, targetId, isTop);
-                } else if (targetType === 'section') {
-                    moveItemToSection(draggedId, targetId, isTop);
+                if (next && next.dataset.type === 'item') {
+                    reorderItem(draggedId, next.dataset.id, true);
+                } else if (prev && prev.dataset.type === 'item') {
+                    reorderItem(draggedId, prev.dataset.id, false);
+                } else {
+                    const sectionContainer = dndPlaceholder.closest('.section-container');
+                    if (sectionContainer) {
+                        moveItemToSection(draggedId, sectionContainer.dataset.id, true);
+                    }
                 }
             }
         }
@@ -1315,10 +1326,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             touchDraggedElement.classList.remove('dragging');
             touchDraggedElement = null;
         }
-        document.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom').forEach(el => {
-            el.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
-        });
-
+        if (dndPlaceholder && dndPlaceholder.parentElement) {
+            dndPlaceholder.parentElement.removeChild(dndPlaceholder);
+        }
+        dndPlaceholder = null;
         lastTouchTarget = null;
     }, { passive: false });
 

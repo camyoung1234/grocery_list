@@ -490,17 +490,16 @@ h1 {
 .grocery-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    /* Space for delete btn */
-    padding: 0 1rem;
-    height: 58px;
+    justify-content: flex-start;
+    padding: 0 0.5rem;
+    height: 50px;
     box-sizing: border-box;
     background: transparent;
-    transition: var(--transition);
-    flex-wrap: wrap;
-    /* Allow wrapping on small screens if needed */
-    gap: 1rem;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
     touch-action: pan-y;
+    overflow: hidden;
 }
 
 .grocery-item.shop-chip {
@@ -510,12 +509,12 @@ h1 {
 /* Drag and Drop */
 .drag-handle {
     cursor: grab;
-    width: 32px;
+    width: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: color-mix(in srgb, var(--primary-color) 40%, var(--text-muted));
-    font-size: 1.1rem;
+    font-size: 1rem;
     transition: color 0.2s ease;
     flex-shrink: 0;
     touch-action: none; /* Crucial for custom touch DnD */
@@ -526,16 +525,16 @@ h1 {
 }
 
 .dragging {
-    opacity: 0.4;
-    background: var(--hover-bg) !important;
+    opacity: 0; /* Hide the actual element being dragged */
 }
 
-.drop-indicator-top {
-    border-top: 2px solid var(--primary-color) !important;
-}
-
-.drop-indicator-bottom {
-    border-bottom: 2px solid var(--primary-color) !important;
+.dnd-placeholder {
+    background: color-mix(in srgb, var(--primary-color) 5%, var(--hover-bg));
+    border: 2px dashed color-mix(in srgb, var(--primary-color) 20%, transparent);
+    border-radius: 8px;
+    margin: 4px 8px;
+    height: 42px; /* Slightly smaller than item for visual gap effect */
+    transition: all 0.2s ease;
 }
 
 /* Item Reorder Buttons */
@@ -546,9 +545,8 @@ h1 {
     display: flex;
     align-items: center;
     min-width: 0;
-    overflow: visible;
+    overflow: hidden;
     position: relative;
-    transition: margin 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .quantity-controls {
@@ -1458,22 +1456,21 @@ h1 {
 
 .section-container {
     border-radius: 0;
-    /* Square borders */
-    padding: 1rem;
+    padding: 0;
     margin-bottom: 0;
     border: none;
-    transition: var(--transition);
     touch-action: pan-y;
 }
 
 .section-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    height: 50px;
+    padding: 0 0.5rem;
     border-bottom: none;
-    padding-bottom: 0;
-    margin-bottom: 0.5rem;
     user-select: none;
+    gap: 0.5rem;
 }
 
 .section-title {
@@ -1612,15 +1609,15 @@ h1 {
 }
 
 .section-container .grocery-item {
-    padding: 0;
-    height: 58px;
+    padding: 0 0.5rem;
+    height: 50px;
     box-sizing: border-box;
     border-radius: 0;
 }
 
 .section-container .add-item-row {
-    padding: 0;
-    height: 58px;
+    padding: 0 0.5rem;
+    height: 50px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
