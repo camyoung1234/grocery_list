@@ -1359,9 +1359,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const totalItemsInSection = sectionItems.length;
 
             if (!isHome && section.id === shopDefId) {
-                // In shop mode, Uncategorized is only visible if at least one item is needed
-                const hasNeededItems = sectionItems.some(item => (item.wantCount - item.haveCount) > 0);
-                if (!hasNeededItems) {
+                // In shop mode, Uncategorized is only visible if at least one item is in the section
+                if (totalItemsInSection === 0) {
                     return; // Skip rendering Uncategorized
                 }
             }
