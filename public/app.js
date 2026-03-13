@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let scrollAnimationFrame = null;
     let scrollSpeed = 0;
     let relevantSiblings = []; // Performance: cache relevant elements for FLIP
+    let isSectionRestoration = false; // Flag to trigger drop animations
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let deleteListMode = false; // Tracks whether we're in list-deletion mode
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
@@ -1275,6 +1276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             sectionItems.forEach(item => {
                 const li = document.createElement('li');
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${item.shopCompleted && !isHome ? 'completed' : ''}`;
+                if (isSectionRestoration) li.classList.add('restoring-item');
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
@@ -1471,6 +1473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (isHome) {
                 const addRow = document.createElement('li');
                 addRow.className = 'grocery-item add-item-row';
+                if (isSectionRestoration) addRow.classList.add('restoring-item');
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
 
@@ -2234,16 +2237,61 @@ document.addEventListener('DOMContentLoaded', async () => {
         stopAutoScroll();
         placeholder.remove();
 
+        // Capture headers one last time before clearing padding/DRAG state
+        let headerFinalDragTops = new Map();
+        if (dragType === 'section') {
+            document.querySelectorAll('.section-header').forEach(h => {
+                const title = h.querySelector('.section-title')?.textContent;
+                if (title) headerFinalDragTops.set(title, h.getBoundingClientRect().top);
+            });
+            isSectionRestoration = true;
+        }
+
         groceryList.style.paddingTop = '';
         groceryList.style.paddingBottom = '';
         
         const collapsed = document.querySelectorAll('.collapsed');
         collapsed.forEach(el => el.classList.remove('collapsed'));
 
+        const savedDragType = dragType;
         draggedElement = null;
         dragType = null;
         
         renderList();
+        isSectionRestoration = false; // Reset
+
+        if (savedDragType === 'section' && headerFinalDragTops.size > 0) {
+            const postHeaders = Array.from(document.querySelectorAll('.section-header'));
+            postHeaders.forEach(h => {
+                const title = h.querySelector('.section-title')?.textContent;
+                const oldTop = headerFinalDragTops.get(title);
+                if (oldTop !== undefined) {
+                    const newTop = h.getBoundingClientRect().top;
+                    const delta = oldTop - newTop;
+                    if (delta !== 0) {
+                        h.animate([
+                            { transform: `translateY(${delta}px)` },
+                            { transform: 'translateY(0)' }
+                        ], {
+                            duration: 400,
+                            easing: 'cubic-bezier(0.2, 0, 0, 1)'
+                        });
+                    }
+                }
+            });
+
+            // Staggered fade-in for items
+            const restoringItems = Array.from(document.querySelectorAll('.restoring-item'));
+            restoringItems.forEach((item, idx) => {
+                item.style.opacity = '0';
+                item.style.transform = 'translateY(10px)';
+                setTimeout(() => {
+                    item.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                }, idx * 15);
+            });
+        }
 
         // Small delay to let browser process the new DOM before re-enabling transitions
         requestAnimationFrame(() => {
