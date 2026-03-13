@@ -29,7 +29,7 @@
     --success-color: var(--theme-green);
     --border-radius: 12px;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --transition: all 0.3s ease;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --font-family: 'Outfit', sans-serif;
 
     /* UI Component Backgrounds */
@@ -538,9 +538,7 @@ h1 {
     touch-action: pan-y;
 }
 
-.grocery-item.shop-chip {
-    height: auto;
-}
+
 
 
 .item-info {
@@ -571,6 +569,7 @@ h1 {
 
 /* Shop Mode Content */
 .section-items-list.shop-mode {
+    padding-left: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -616,9 +615,7 @@ h1 {
     justify-content: flex-start;
 }
 
-.section-container .grocery-item.shop-chip .item-text {
-    flex: 1;
-}
+
 
 
 @media (hover: hover) {
@@ -632,7 +629,6 @@ h1 {
 }
 
 .section-container .grocery-item.shop-chip.completed {
-    opacity: 0.5;
     background: color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 
@@ -691,11 +687,7 @@ h1 {
     min-width: 0;
 }
 
-.section-container .grocery-item.shop-chip .item-text {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--primary-color);
-}
+
 
 .item-text::after {
     content: '';
@@ -704,7 +696,7 @@ h1 {
     top: 50%;
     width: 0;
     height: 2px;
-    background-color: var(--primary-color);
+    background-color: currentColor;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
