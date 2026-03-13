@@ -528,7 +528,7 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 40px 0 0;
+    padding: 0 1rem 0 0;
     height: 50px;
     box-sizing: border-box;
     background: transparent;
@@ -601,7 +601,7 @@ h1 {
 
 
 .section-container .grocery-item.shop-chip {
-    padding: 0 40px 0 0;
+    padding: 0 1rem 0 0;
     height: 50px;
     background: transparent;
     border-radius: 0;
@@ -1458,7 +1458,7 @@ h1 {
     justify-content: flex-start;
     align-items: center;
     border-bottom: none;
-    padding: 0 40px 0 0;
+    padding: 0 1rem 0 0;
     margin-bottom: 0;
     height: 50px;
     user-select: none;
@@ -1555,14 +1555,14 @@ h1 {
 }
 
 .section-container .grocery-item {
-    padding: 0 40px 0 0;
+    padding: 0 1rem 0 0;
     height: 50px;
     box-sizing: border-box;
     border-radius: 0;
 }
 
 .section-container .add-item-row {
-    padding: 0 40px 0 0;
+    padding: 0 1rem 0 0;
     height: 50px;
     box-sizing: border-box;
     display: flex;
@@ -1575,7 +1575,7 @@ h1 {
 /* Add a Section Row */
 .add-section-row {
     list-style: none;
-    padding: 0 40px 0 0;
+    padding: 0 1rem 0 0;
     margin-top: 0;
     margin-bottom: 0;
 }
@@ -1584,7 +1584,7 @@ h1 {
 .grocery-item.undo-row {
     background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
     border-radius: 0;
-    padding: 0 40px 0 0;
+    padding: 0 1rem 0 0;
     height: 50px !important;
     box-sizing: border-box;
     margin-bottom: 0;
