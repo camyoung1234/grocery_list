@@ -2029,12 +2029,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        if (dragType === 'item') restoreList();
-
         saveAppState();
-
-        // Small delay before ending drag to ensure all drops complete across browsers
-        setTimeout(() => handleDragEnd(), 0);
+        handleDragEnd();
     });
 
     function createDragVisual(point, element, type) {
@@ -2161,23 +2157,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         lastDragPos = { x: 0, y: 0 };
         stopAutoScroll();
         placeholder.remove();
-        groceryList.classList.remove('no-transition');
-        document.body.style.overflow = '';
-
+        
         const collapsed = document.querySelectorAll('.collapsed');
-        if (collapsed.length > 0) {
-            collapsed.forEach(el => el.classList.remove('collapsed'));
-            // Small delay to allow show transition to start before re-rendering
-            setTimeout(() => {
-                draggedElement = null;
-                dragType = null;
-                renderList();
-            }, 50);
-        } else {
-            draggedElement = null;
-            dragType = null;
-            renderList();
-        }
+        collapsed.forEach(el => el.classList.remove('collapsed'));
+
+        draggedElement = null;
+        dragType = null;
+        
+        renderList();
+
+        // Small delay to let browser process the new DOM before re-enabling transitions
+        requestAnimationFrame(() => {
+            groceryList.classList.remove('no-transition');
+            document.body.style.overflow = '';
+        });
     }
 
     groceryList.addEventListener('dragend', handleDragEnd);
