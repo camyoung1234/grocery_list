@@ -92,13 +92,14 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 0 0 0;
-    /* Remove horizontal and bottom padding */
+    padding: 1rem;
+    /* 1rem gutter for symmetry and to avoid mobile back gestures */
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    /* Full height on mobile */
+    box-sizing: border-box;
+    position: relative;
 }
 
 @media (min-width: 600px) {
@@ -117,7 +118,7 @@ header {
     justify-content: center;
     align-items: center;
     margin-bottom: 2rem;
-    padding: 0 1rem;
+    padding: 0;
     /* Restore horizontal padding */
 }
 
@@ -246,7 +247,7 @@ h1 {
     gap: 0.5rem;
     margin-bottom: 0;
     border-bottom: 1px solid var(--border-color);
-    padding: 0 1rem 0.8rem 1rem;
+    padding: 0 0 0.8rem 0;
     /* Restore horizontal padding */
 }
 
@@ -388,9 +389,7 @@ h1 {
     color: var(--primary-color);
 }
 
-.add-item-row {
-    /* Inherit standard 1rem padding from .grocery-item */
-}
+
 
 .section-container .add-item-row {
     padding-top: 0.8rem;
@@ -492,14 +491,12 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    /* Space for delete btn */
-    padding: 0 1rem;
-    height: 58px;
+    padding: 0;
+    height: 50px;
     box-sizing: border-box;
     background: transparent;
     transition: var(--transition);
     flex-wrap: wrap;
-    /* Allow wrapping on small screens if needed */
     gap: 1rem;
     touch-action: pan-y;
 }
@@ -508,68 +505,6 @@ h1 {
     height: auto;
 }
 
-/* Item Reorder Buttons */
-.item-reorder-btn {
-    background: transparent;
-    border: none;
-    color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0;
-    margin: 0;
-    width: 0;
-    opacity: 0;
-    overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    flex-shrink: 0;
-}
-
-.grocery-item.dismissing .item-reorder-btn,
-.tab-item.dismissing .item-reorder-btn,
-.tab-item.dismissing .tab-reorder-btn {
-    width: 0 !important;
-    opacity: 0 !important;
-    margin: 0 !important;
-}
-
-.tab-item.dismissing .tab-text {
-    padding: 0 !important;
-}
-
-@media (hover: hover) {
-    .item-reorder-btn:hover:not(:disabled) {
-        background: color-mix(in srgb, var(--primary-color) 20%, transparent);
-        color: var(--primary-color);
-    }
-}
-
-.item-reorder-btn:active:not(:disabled) {
-    background: color-mix(in srgb, var(--primary-color) 30%, transparent);
-    transform: scale(0.9);
-}
-
-.item-reorder-btn:disabled {
-    opacity: 0.2 !important;
-    cursor: default;
-}
-
-
-.grocery-item.reorder-active .item-reorder-btn {
-    width: 30px;
-    opacity: 1;
-}
-
-.grocery-item.reorder-active .item-up {
-    margin-right: 0.5rem;
-}
-
-.grocery-item.reorder-active .item-down {
-    margin-left: 0.5rem;
-}
 
 .item-info {
     flex: 1;
@@ -580,20 +515,6 @@ h1 {
     overflow: visible;
     position: relative;
     transition: margin 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* Reorder Mode Global Styles (Home Mode) */
-#grocery-list.reorder-mode-active .item-reorder-btn {
-    width: 30px;
-    opacity: 1;
-}
-
-#grocery-list.reorder-mode-active .item-up {
-    margin-right: 0.5rem;
-}
-
-#grocery-list.reorder-mode-active .item-down {
-    margin-left: 0.5rem;
 }
 
 .quantity-controls {
@@ -609,40 +530,16 @@ h1 {
     transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-#grocery-list.reorder-mode-active .quantity-controls {
-    width: 0;
-    opacity: 0;
-    margin: 0;
-    overflow: hidden;
-    /* Re-enable for the reorder transition */
-    pointer-events: none;
-}
-
 
 
 /* Shop Mode Content */
 .section-items-list.shop-mode {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    padding-top: 0.5rem;
-    transition: flex-direction 0.3s ease;
-}
-
-.section-items-list.shop-mode.reorder-active-list {
     flex-direction: column;
+    gap: 0;
+    padding-top: 0;
 }
 
-/* All chips in a reorder-active section go full width */
-.section-items-list.shop-mode.reorder-active-list .shop-chip {
-    width: 100%;
-    justify-content: flex-start;
-}
-
-.section-items-list.shop-mode.reorder-active-list .shop-chip .item-text {
-    flex: 1;
-    text-align: left;
-}
 
 /* Shop Mode Selection State - High specificity to override base/hover */
 .section-container .grocery-item.shop-chip.selected {
@@ -667,26 +564,25 @@ h1 {
 
 
 .section-container .grocery-item.shop-chip {
-    padding: 0 0.4rem 0 0.8rem;
-    height: 36px;
-    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
-    border-radius: 9999px;
-    width: auto;
+    padding: 0;
+    height: 50px;
+    background: transparent;
+    border-radius: 0;
+    width: 100%;
     flex: 0 0 auto;
     cursor: pointer;
     transition: background 0.2s ease, opacity 0.2s ease;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    gap: 0.5rem;
+    gap: 1rem;
     box-sizing: border-box;
+    justify-content: flex-start;
 }
 
-.section-container .grocery-item.shop-chip.reorder-active {
-    width: 100%;
-    height: 58px !important;
-    padding-right: 0.8rem;
-    background: color-mix(in srgb, var(--primary-color) 20%, var(--card-bg));
+.section-container .grocery-item.shop-chip .item-text {
+    flex: 1;
 }
+
 
 @media (hover: hover) {
     .section-container .grocery-item.shop-chip:hover {
@@ -1513,7 +1409,7 @@ h1 {
 .section-container {
     border-radius: 0;
     /* Square borders */
-    padding: 1rem;
+    padding: 0;
     margin-bottom: 0;
     border: none;
     transition: var(--transition);
@@ -1522,11 +1418,12 @@ h1 {
 
 .section-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     border-bottom: none;
-    padding-bottom: 0;
-    margin-bottom: 0.5rem;
+    padding: 0;
+    margin-bottom: 0;
+    height: 50px;
     user-select: none;
 }
 
@@ -1541,6 +1438,7 @@ h1 {
     padding: 3px 0;
     /* Add matching vertical space to compensate for input border/padding */
 }
+
 
 @media (hover: hover) {
     .section-title:hover {
@@ -1580,7 +1478,6 @@ h1 {
     pointer-events: none;
 }
 
-.reorder-mode-active .section-reorder-controls,
 .shop-selection-mode .section-reorder-controls {
     max-width: 100px;
     opacity: 1;
@@ -1588,46 +1485,6 @@ h1 {
     pointer-events: auto;
 }
 
-/* Section Delete Button (revealed on long-press) */
-.section-delete-btn {
-    background: transparent;
-    border: none;
-    color: var(--danger-color);
-    font-size: 1rem;
-    cursor: pointer;
-    padding: 0.4rem;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    width: 0;
-    opacity: 0;
-    overflow: hidden;
-    margin-left: 0;
-    pointer-events: none;
-}
-
-.section-header.delete-active .section-delete-btn,
-.reorder-mode-active .section-delete-btn {
-    width: 32px;
-    opacity: 1;
-    margin-left: 0.3rem;
-    pointer-events: auto;
-}
-
-@media (hover: hover) {
-    .section-delete-btn:hover {
-        background: color-mix(in srgb, var(--danger-color) 15%, transparent);
-    }
-}
-
-.section-delete-btn:active {
-    transform: scale(0.9);
-    background: color-mix(in srgb, var(--danger-color) 25%, transparent);
-}
-
-.section-reorder-btn,
 .move-here-btn {
     background: transparent;
     border: none;
@@ -1644,23 +1501,16 @@ h1 {
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@media (hover: hover) {
-    .section-reorder-btn:hover:not(:disabled) {
-        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-        color: var(--primary-color);
-    }
-}
-
-.section-reorder-btn:disabled {
-    opacity: 0.3;
-    cursor: default;
-}
-
 .section-items-list {
     list-style: none;
-    padding: 0;
+    padding: 0 0 0 1.5rem;
+    /* Indent items within sections */
     margin: 0;
     min-height: 0;
+}
+
+.flattened-indent {
+    padding-left: 1.5rem !important;
 }
 
 .section-items-list.shop-mode:empty {
@@ -1669,14 +1519,14 @@ h1 {
 
 .section-container .grocery-item {
     padding: 0;
-    height: 58px;
+    height: 50px;
     box-sizing: border-box;
     border-radius: 0;
 }
 
 .section-container .add-item-row {
     padding: 0;
-    height: 58px;
+    height: 50px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -1689,8 +1539,8 @@ h1 {
 .add-section-row {
     list-style: none;
     padding: 0;
-    margin-top: 1rem;
-    margin-bottom: 1.5rem;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 /* Undo Row Styles & Animations */
@@ -1698,7 +1548,7 @@ h1 {
     background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
     border-radius: 0;
     padding: 0;
-    height: 58px !important;
+    height: 50px !important;
     box-sizing: border-box;
     margin-bottom: 0;
     cursor: default;
@@ -1731,7 +1581,7 @@ h1 {
 
 .section-container .grocery-item.undo-row {
     padding: 0;
-    height: 58px;
+    height: 50px;
 }
 
 .grocery-item.undo-row .item-info {
@@ -1741,10 +1591,6 @@ h1 {
     min-width: 0;
 }
 
-.grocery-item.undo-row .placeholder-btn {
-    visibility: hidden;
-    pointer-events: none;
-}
 
 .undo-btn-inline {
     background: var(--primary-color);
@@ -1826,7 +1672,7 @@ h1 {
     display: flex;
     background: var(--card-bg);
     border-top: 1px solid var(--border-color);
-    padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom));
+    padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom));
     gap: 1rem;
     z-index: 1000;
 }
@@ -1861,4 +1707,99 @@ h1 {
 
 .mode-tab:active {
     transform: scale(0.95);
+}
+
+/* Drag and Drop Styles */
+.drag-handle {
+    width: 40px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.drag-placeholder {
+    height: 50px;
+    box-sizing: border-box;
+    transition: transform 0.2s ease;
+}
+
+.collapsed {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+    pointer-events: none;
+}
+
+.section-items-list {
+    max-height: 2000px;
+    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+    min-height: 10px; /* Ensure empty sections are targetable during drag */
+}
+
+.add-item-row,
+.add-section-row,
+.grocery-item,
+.section-header {
+    height: 50px;
+    overflow: hidden;
+    transition: height 0.3s ease, max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+}
+
+.collapsed {
+    height: 0 !important;
+    max-height: 0 !important;
+    opacity: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+    pointer-events: none;
+}
+
+.dragging {
+    opacity: 0.5;
+    background: var(--hover-bg) !important;
+}
+
+/* Smooth shifting during drag */
+.grocery-item,
+.section-container {
+    transition: transform 0.2s ease, height 0.3s ease, opacity 0.3s ease;
+}
+
+.no-transition, .no-transition * {
+    transition: none !important;
+}
+
+/* Mobile Touch Ghost */
+.touch-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 10000;
+    opacity: 1;
+    background: var(--card-bg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    transform: scale(1.02);
+    /* Ensure styles like borders from .grocery-item or .section-container are preserved if cloned */
+}
+
+.touch-ghost * {
+    transition: none !important;
 }
