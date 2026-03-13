@@ -1814,8 +1814,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             createDragVisual(e, element, type);
         }
 
-        // Disable scrolling for mobile and desktop consistency
-        document.body.style.overflow = 'hidden';
+        // Maintain scrolling ability so auto-scroll works
+
 
         // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
         setTimeout(() => {
