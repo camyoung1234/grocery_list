@@ -1737,6 +1737,62 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    function flattenList() {
+        const sections = Array.from(groceryList.querySelectorAll('.section-container'));
+        sections.forEach(section => {
+            const header = section.querySelector('.section-header');
+            const list = section.querySelector('.section-items-list');
+            const items = Array.from(list.querySelectorAll('.grocery-item, .add-item-row'));
+            
+            // Mark items with their parent section ID for restoration
+            if (header) {
+                header.dataset.originalSectionId = section.dataset.id;
+                groceryList.appendChild(header);
+            }
+            
+            items.forEach(item => {
+                item.dataset.originalSectionId = section.dataset.id;
+                item.classList.add('flattened-indent');
+                groceryList.appendChild(item);
+            });
+            
+            section.style.display = 'none';
+        });
+        groceryList.appendChild(document.querySelector('.add-section-row'));
+    }
+
+    function restoreList() {
+        const elements = Array.from(groceryList.children);
+        const sections = Array.from(groceryList.querySelectorAll('.section-container'));
+        const sectionMap = new Map();
+        
+        sections.forEach(s => {
+            sectionMap.set(s.dataset.id, s);
+            const list = s.querySelector('.section-items-list');
+            list.innerHTML = ''; // Clear for rebuild
+            s.style.display = '';
+        });
+
+        let currentSectionId = null;
+        elements.forEach(el => {
+            el.classList.remove('flattened-indent');
+            if (el.classList.contains('section-header')) {
+                currentSectionId = el.dataset.originalSectionId;
+            } else if (el.classList.contains('grocery-item') || el.classList.contains('add-item-row') || el === placeholder) {
+                const targetId = el.dataset.originalSectionId || currentSectionId;
+                const section = sectionMap.get(targetId);
+                if (section) {
+                    section.querySelector('.section-items-list').appendChild(el);
+                }
+            } else if (el.classList.contains('add-section-row')) {
+                groceryList.appendChild(el); // Stays at bottom
+            }
+        });
+        
+        // Re-append sections in their current order (if they moved)
+        sections.forEach(s => groceryList.appendChild(s));
+    }
+
     function handleDragStart(e, element, type) {
         draggedElement = element;
         dragType = type;
@@ -1777,6 +1833,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             placeholder.style.height = element.offsetHeight + 'px';
             element.before(placeholder);
 
+            if (type === 'item') {
+                flattenList();
+                placeholder.classList.add('flattened-indent');
+            }
+
             element.classList.add('dragging');
             element.classList.add('collapsed');
             element.style.pointerEvents = 'none'; // Prevent interfering with target detection
@@ -1784,76 +1845,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 50);
     }
 
+    function getBaselineTop(el) {
+        const rect = el.getBoundingClientRect();
+        const style = window.getComputedStyle(el);
+        const transform = style.transform;
+        let translateY = 0;
+        
+        if (transform && transform !== 'none') {
+            const matrix = new DOMMatrix(transform);
+            translateY = matrix.m42;
+        }
+        
+        return rect.top - translateY;
+    }
+
     function animatePlaceholderMove(target, isBefore) {
         if (isBefore && target.previousElementSibling === placeholder) return;
         if (!isBefore && target.nextElementSibling === placeholder) return;
 
-        // Collect all potential elements that could move
-        const allElements = Array.from(groceryList.querySelectorAll('.section-container, .grocery-item, .add-item-row, .add-section-row'));
-        if (!allElements.includes(placeholder)) allElements.push(placeholder);
-
-        // Store initial positions
+        const allElements = Array.from(groceryList.children);
         const initialPositions = new Map();
+        
         allElements.forEach(el => {
-            if (!el.classList.contains('collapsed') && el !== draggedElement) {
-                initialPositions.set(el, el.getBoundingClientRect().top);
+            if (el.nodeType === 1 && !el.classList.contains('collapsed') && el !== draggedElement) {
+                initialPositions.set(el, getBaselineTop(el));
             }
         });
 
-        // Move the placeholder
-        if (target.classList.contains('section-items-list')) {
-            if (isBefore) {
-                target.prepend(placeholder);
-            } else {
-                const addRow = target.querySelector('.add-item-row');
-                if (addRow) {
-                    addRow.before(placeholder);
-                } else {
-                    target.appendChild(placeholder);
-                }
-            }
-        } else if (isBefore) {
+        if (isBefore) {
             target.before(placeholder);
         } else {
             target.after(placeholder);
         }
 
-        // Calculate deltas and apply relative FLIP
-        const deltas = new Map();
         allElements.forEach(el => {
             if (initialPositions.has(el)) {
                 const newTop = el.getBoundingClientRect().top;
                 const oldTop = initialPositions.get(el);
-                deltas.set(el, oldTop - newTop);
-            }
-        });
+                const delta = oldTop - newTop;
 
-        deltas.forEach((delta, el) => {
-            if (delta === 0) return;
-
-            // Find displacement of nearest moving ancestor
-            let parentDisplacement = 0;
-            let p = el.parentElement;
-            while (p && p !== groceryList) {
-                if (deltas.has(p)) {
-                    parentDisplacement = deltas.get(p);
-                    break;
+                if (delta !== 0) {
+                    el.animate([
+                        { transform: `translateY(${delta}px)` },
+                        { transform: 'translateY(0)' }
+                    ], {
+                        duration: 200,
+                        easing: 'ease-out'
+                    });
                 }
-                p = p.parentElement;
-            }
-
-            // The actual transform needs to subtract the parent's displacement
-            // because the layout engine already moved the child with the parent.
-            const relativeDelta = delta - parentDisplacement;
-
-            if (relativeDelta !== 0) {
-                el.animate([
-                    { transform: `translateY(${relativeDelta}px)` },
-                    { transform: 'translateY(0)' }
-                ], {
-                    duration: 200,
-                    easing: 'ease-out'
-                });
             }
         });
     }
@@ -1902,42 +1941,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         updateAutoScroll(e.clientY);
 
-        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list, .add-item-row';
+        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
         let target = e.target.closest(targetSelector);
-
-        let redirectedFromAdd = false;
-        // If dragging an item, redirect "Add item" row to its parent list
-        if (dragType === 'item' && target && target.classList.contains('add-item-row')) {
-            target = target.closest('.section-items-list');
-            redirectedFromAdd = true;
-        }
-        // "Add section" row should still be ignored for items
-        if (dragType === 'item' && target && target.classList.contains('add-section-row')) {
-            target = null;
-        }
 
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
-        if (dragType === 'item' && target.classList.contains('section-items-list')) {
-            const items = Array.from(target.querySelectorAll('.grocery-item:not(.add-item-row):not(.dragging)'));
+        if (dragType === 'item') {
+            const rect = target.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            let isBefore = e.clientY < midpoint;
             
-            if (items.length > 0) {
-                // If section has items, only snap if outside the item block
-                const firstRect = items[0].getBoundingClientRect();
-                const lastRect = items[items.length - 1].getBoundingClientRect();
+            // Restrict gaps: Never allow anything AFTER an "Add item" row 
+            // or BEFORE a "Section header" to prevent between-section parking.
+            if (target.classList.contains('add-item-row')) isBefore = true;
+            if (target.classList.contains('section-header')) isBefore = false;
 
-                if (e.clientY < firstRect.top) {
-                    animatePlaceholderMove(items[0], true);
-                } else if (e.clientY > lastRect.bottom || redirectedFromAdd) {
-                    animatePlaceholderMove(items[items.length - 1], false);
-                }
-                // Else: Ignore the background hit when hovering between existing items
-                return;
-            } else {
-                // Empty section: snap to top
-                animatePlaceholderMove(target, true);
-                return;
+            // Also prevent gaps between the last section and the "Add section" row
+            if (target.classList.contains('add-section-row')) {
+                target = target.previousElementSibling;
+                while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
+                if (!target) return;
+                isBefore = true; // Snap inside the last section (before its Add Item row)
             }
+
+            animatePlaceholderMove(target, isBefore);
+            return;
         }
 
         const rect = target.getBoundingClientRect();
@@ -1977,31 +2005,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             // Item reordering
             const movedId = draggedElement.dataset.id;
-            const targetSection = placeholder.closest('.section-container');
-            if (targetSection) {
-                const targetSectionId = targetSection.dataset.id;
-                const itemsUl = targetSection.querySelector('.section-items-list');
-                const children = Array.from(itemsUl.children).filter(el => (el.classList.contains('grocery-item') && el !== draggedElement) || el === placeholder);
-                const placeholderIdx = children.indexOf(placeholder);
+            
+            const elements = Array.from(groceryList.children).filter(el => 
+                (el.classList.contains('grocery-item') && el !== draggedElement) || 
+                el === placeholder || 
+                el.classList.contains('section-header')
+            );
+            
+            const placeholderIdx = elements.indexOf(placeholder);
+            
+            // Find the current section by looking backwards at headers
+            let targetSectionId = null;
+            for (let i = placeholderIdx; i >= 0; i--) {
+                if (elements[i].classList.contains('section-header')) {
+                    targetSectionId = elements[i].dataset.originalSectionId;
+                    break;
+                }
+            }
 
+            if (targetSectionId) {
+                // Find anchor: the item immediately following the placeholder in the same section
                 let anchorId = null;
-                let isAtEnd = false;
-
-                // If placeholder is not at the very end (before add row)
-                if (placeholderIdx < children.length - 1) {
-                    const nextEl = children[placeholderIdx + 1];
-                    if (nextEl.classList.contains('grocery-item') && !nextEl.classList.contains('add-item-row')) {
-                        anchorId = nextEl.dataset.id;
-                    } else {
-                        isAtEnd = true;
+                let isAtEnd = true;
+                
+                for (let i = placeholderIdx + 1; i < elements.length; i++) {
+                    const el = elements[i];
+                    if (el.classList.contains('section-header')) break; // End of section
+                    if (el.classList.contains('grocery-item') && !el.classList.contains('add-item-row') && !el.classList.contains('add-section-row')) {
+                        anchorId = el.dataset.id;
+                        isAtEnd = false;
+                        break;
                     }
-                } else {
-                    isAtEnd = true;
                 }
 
                 updateOrderInState(movedId, anchorId, targetSectionId, isAtEnd);
             }
         }
+
+        if (dragType === 'item') restoreList();
 
         saveAppState();
 
@@ -2060,38 +2101,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         draggedElement.style.pointerEvents = originalPointerEvents;
 
-        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list, .add-item-row';
+        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
         let target = document.elementFromPoint(touch.clientX, touch.clientY);
         if (target) target = target.closest(targetSelector);
 
-        let redirectedFromAdd = false;
-        if (dragType === 'item' && target && target.classList.contains('add-item-row')) {
-            target = target.closest('.section-items-list');
-            redirectedFromAdd = true;
-        }
-        if (dragType === 'item' && target && target.classList.contains('add-section-row')) {
-            target = null;
-        }
-
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
-        if (dragType === 'item' && target.classList.contains('section-items-list')) {
-            const items = Array.from(target.querySelectorAll('.grocery-item:not(.add-item-row):not(.dragging)'));
-            
-            if (items.length > 0) {
-                const firstRect = items[0].getBoundingClientRect();
-                const lastRect = items[items.length - 1].getBoundingClientRect();
+        if (dragType === 'item') {
+            const rect = target.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            let isBefore = touch.clientY < midpoint;
 
-                if (touch.clientY < firstRect.top) {
-                    animatePlaceholderMove(items[0], true);
-                } else if (touch.clientY > lastRect.bottom || redirectedFromAdd) {
-                    animatePlaceholderMove(items[items.length - 1], false);
-                }
-                return;
-            } else {
-                animatePlaceholderMove(target, true);
-                return;
+            if (target.classList.contains('add-item-row')) isBefore = true;
+            if (target.classList.contains('section-header')) isBefore = false;
+
+            if (target.classList.contains('add-section-row')) {
+                target = target.previousElementSibling;
+                while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
+                if (!target) return;
+                isBefore = true;
             }
+
+            animatePlaceholderMove(target, isBefore);
+            return;
         }
 
         const rect = target.getBoundingClientRect();
@@ -2196,11 +2228,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (oldIdx !== -1 && newIdx !== -1) {
                 const [moved] = oldSectionItems.splice(oldIdx, 1);
-                // After splice, if the original element was before the anchor,
-                // the anchor's index in the remaining array is still newIdx (or newIdx-1 if movedIdx < newIdx)
-                // Actually, finding anchor index AFTER splice is safer.
                 const finalNewIdx = oldSectionItems.findIndex(i => i.id === anchorId);
-                oldSectionItems.splice(finalNewIdx, 0, moved);
+                // Safety check: if anchor lost, append to end
+                if (finalNewIdx === -1) {
+                    oldSectionItems.push(moved);
+                } else {
+                    oldSectionItems.splice(finalNewIdx, 0, moved);
+                }
                 oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
             }
         } else {
