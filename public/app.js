@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     placeholder.className = 'drag-placeholder';
     let dragOffset = { x: 0, y: 0 };
     let lastDragPos = { x: 0, y: 0 };
+    let scrollAnimationFrame = null;
+    let scrollSpeed = 0;
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let deleteListMode = false; // Tracks whether we're in list-deletion mode
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
@@ -1856,6 +1858,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    function handleAutoScrollLoop() {
+        if (scrollSpeed === 0) {
+            scrollAnimationFrame = null;
+            return;
+        }
+        window.scrollBy(0, scrollSpeed);
+        scrollAnimationFrame = requestAnimationFrame(handleAutoScrollLoop);
+    }
+
+    function updateAutoScroll(clientY) {
+        const threshold = 100;
+        const maxSpeed = 20;
+        let speed = 0;
+
+        if (clientY < threshold) {
+            speed = -maxSpeed * (1 - Math.max(0, clientY) / threshold);
+        } else if (clientY > window.innerHeight - threshold) {
+            speed = maxSpeed * (1 - Math.max(0, window.innerHeight - clientY) / threshold);
+        }
+
+        scrollSpeed = speed;
+        if (scrollSpeed !== 0 && !scrollAnimationFrame) {
+            scrollAnimationFrame = requestAnimationFrame(handleAutoScrollLoop);
+        }
+    }
+
+    function stopAutoScroll() {
+        scrollSpeed = 0;
+        if (scrollAnimationFrame) {
+            cancelAnimationFrame(scrollAnimationFrame);
+            scrollAnimationFrame = null;
+        }
+    }
+
     groceryList.addEventListener('dragover', (e) => {
         e.preventDefault();
         if (!draggedElement) return;
@@ -1863,6 +1899,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (touchGhost) {
             touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
         }
+
+        updateAutoScroll(e.clientY);
 
         let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list, .add-item-row';
         let target = e.target.closest(targetSelector);
@@ -2008,6 +2046,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
         }
 
+        updateAutoScroll(touch.clientY);
+
         // Prevent scrolling during drag
         if (e.cancelable) e.preventDefault();
 
@@ -2059,13 +2099,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         animatePlaceholderMove(target, touch.clientY < midpoint);
 
-        // Auto-scroll if near edges
-        const scrollThreshold = 100;
-        if (touch.clientY < scrollThreshold) {
-            window.scrollBy(0, -10);
-        } else if (touch.clientY > window.innerHeight - scrollThreshold) {
-            window.scrollBy(0, 10);
-        }
+        // Auto-scroll logic is now handled by updateAutoScroll in the listener
     }, { passive: false });
 
     groceryList.addEventListener('touchend', (e) => {
@@ -2098,6 +2132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         lastDragPos = { x: 0, y: 0 };
+        stopAutoScroll();
         placeholder.remove();
         groceryList.classList.remove('no-transition');
         document.body.style.overflow = '';
