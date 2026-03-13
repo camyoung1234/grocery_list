@@ -8,21 +8,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentMode = 'home'; // 'home' or 'shop'
     let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
     let draggedElement = null;
-    let isDragStarted = false;
-    let dragType = null; // 'item' or 'section'
+    let dragType = null;
     let touchGhost = null;
     let placeholder = document.createElement('li');
     placeholder.className = 'drag-placeholder';
     let dragOffset = { x: 0, y: 0 };
+    let isDragStarted = false;
+    let dragUpdateFrame = null;
     let lastDragPos = { x: 0, y: 0 };
     let scrollAnimationFrame = null;
     let scrollSpeed = 0;
+    let relevantSiblings = []; // Performance: cache relevant elements for FLIP
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let deleteListMode = false; // Tracks whether we're in list-deletion mode
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
-    let dragUpdateFrame = null;
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
 
     // --- DOM Elements ---
@@ -1813,9 +1814,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.dataTransfer.setDragImage(emptyImg, 0, 0);
         }
 
+        const startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+
+        // Capture initial positions for FLIP animation (headers)
+        let headerInitialTops = new Map();
+        if (type === 'section') {
+            document.querySelectorAll('.section-header').forEach(h => {
+                headerInitialTops.set(h, h.getBoundingClientRect().top);
+            });
+        }
+
         // For mouse events, create the ghost immediately
         if (e.type === 'dragstart') {
-            createDragVisual(e, element, type);
+            createDragVisual(e, element, type, pristineRect);
         }
 
         // Maintain scrolling ability so auto-scroll works
@@ -1848,9 +1859,46 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
+            // Performance: cache relevant siblings once at drag start
+            relevantSiblings = Array.from(groceryList.children).filter(el => 
+                el.nodeType === 1 && 
+                !el.classList.contains('collapsed') && 
+                el !== draggedElement && 
+                el !== placeholder
+            );
+
             element.classList.add('dragging');
             element.classList.add('collapsed');
             element.style.pointerEvents = 'none'; // Prevent interfering with target detection
+
+            if (type === 'section') {
+                // Align the placeholder with the finger
+                groceryList.style.paddingTop = '60vh';
+                groceryList.style.paddingBottom = '60vh';
+                
+                // Use the placeholder as the anchor for alignment
+                const phRect = placeholder.getBoundingClientRect();
+                const desiredPhTop = startY - dragOffset.y;
+                window.scrollBy(0, phRect.top - desiredPhTop);
+
+                // FLIP Animation for headers
+                document.querySelectorAll('.section-header').forEach(h => {
+                    if (headerInitialTops.has(h)) {
+                        const newTop = h.getBoundingClientRect().top;
+                        const oldTop = headerInitialTops.get(h);
+                        const delta = oldTop - newTop;
+                        if (delta !== 0) {
+                            h.animate([
+                                { transform: `translateY(${delta}px)` },
+                                { transform: 'translateY(0)' }
+                            ], {
+                                duration: 400,
+                                easing: 'cubic-bezier(0.2, 0, 0, 1)'
+                            });
+                        }
+                    }
+                });
+            }
         }, 50);
     }
 
@@ -1858,13 +1906,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (isBefore && target.previousElementSibling === placeholder) return;
         if (!isBefore && target.nextElementSibling === placeholder) return;
 
-        const allElements = Array.from(groceryList.children);
+        // Use cached siblings for faster measurement
         const initialPositions = new Map();
-        
-        allElements.forEach(el => {
-            if (el.nodeType === 1 && !el.classList.contains('collapsed') && el !== draggedElement && el !== placeholder) {
-                initialPositions.set(el, el.getBoundingClientRect().top);
-            }
+        relevantSiblings.forEach(el => {
+            initialPositions.set(el, el.getBoundingClientRect().top);
         });
 
         if (isBefore) {
@@ -1873,21 +1918,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             target.after(placeholder);
         }
 
-        allElements.forEach(el => {
-            if (initialPositions.has(el)) {
-                const newTop = el.getBoundingClientRect().top;
-                const oldTop = initialPositions.get(el);
-                const delta = oldTop - newTop;
+        relevantSiblings.forEach(el => {
+            const newTop = el.getBoundingClientRect().top;
+            const oldTop = initialPositions.get(el);
+            const delta = oldTop - newTop;
 
-                if (delta !== 0) {
-                    el.animate([
-                        { transform: `translateY(${delta}px)` },
-                        { transform: 'translateY(0)' }
-                    ], {
-                        duration: 150,
-                        easing: 'ease-out'
-                    });
-                }
+            if (delta !== 0) {
+                el.animate([
+                    { transform: `translateY(${delta}px)` },
+                    { transform: 'translateY(0)' }
+                ], {
+                    duration: 150,
+                    easing: 'cubic-bezier(0.2, 0, 0, 1)'
+                });
             }
         });
     }
@@ -2053,10 +2096,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleDragEnd();
     });
 
-    function createDragVisual(point, element, type) {
+    function createDragVisual(point, element, type, initialRect) {
         if (touchGhost) touchGhost.remove();
 
-        const rect = element.getBoundingClientRect();
+        const rect = initialRect || element.getBoundingClientRect();
         dragOffset = {
             x: point.clientX - rect.left,
             y: point.clientY - rect.top
@@ -2078,8 +2121,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleTouchStart(e, element, type) {
-        handleDragStart(e, element, type);
-        createDragVisual(e.touches[0], element, type);
+        const initialRect = element.getBoundingClientRect();
+        handleDragStart(e, element, type, initialRect);
+        createDragVisual(e.touches[0], element, type, initialRect);
     }
 
     groceryList.addEventListener('touchmove', (e) => {
@@ -2189,6 +2233,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         lastDragPos = { x: 0, y: 0 };
         stopAutoScroll();
         placeholder.remove();
+
+        groceryList.style.paddingTop = '';
+        groceryList.style.paddingBottom = '';
         
         const collapsed = document.querySelectorAll('.collapsed');
         collapsed.forEach(el => el.classList.remove('collapsed'));
