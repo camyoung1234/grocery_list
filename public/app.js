@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
     let dragUpdateFrame = null;
+    const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -1100,7 +1101,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             groceryList.classList.remove('shop-selection-mode');
         }
 
-        const shopDefId = 'sec-s-def';
 
         // Pre-group items for shop mode
         const groupedMap = new Map();
@@ -1796,6 +1796,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleDragStart(e, element, type) {
+        if (currentMode !== 'home' && type === 'section' && element.dataset.id === shopDefId) {
+            e.preventDefault();
+            return;
+        }
         draggedElement = element;
         dragType = type;
 
@@ -1825,7 +1829,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             groceryList.classList.add('no-transition');
 
             // Initialize placeholder at starting position to prevent layout shift
-            placeholder.style.height = element.offsetHeight + 'px';
+            const phHeight = type === 'section' ? 50 : element.offsetHeight;
+            placeholder.style.height = phHeight + 'px';
             element.before(placeholder);
 
             if (type === 'item') {
@@ -1834,7 +1839,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (type === 'section') {
-                document.querySelectorAll('.section-items-list, .add-item-row, .add-section-row').forEach(el => {
+                document.querySelectorAll('.section-items-list').forEach(el => {
+                    el.innerHTML = '';
+                    el.classList.add('collapsed');
+                });
+                document.querySelectorAll('.add-item-row').forEach(el => {
                     el.classList.add('collapsed');
                 });
             }
@@ -1954,9 +1963,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 animatePlaceholderMove(target, isBefore);
             } else {
-                const rect = target.getBoundingClientRect();
-                const midpoint = rect.top + rect.height / 2;
-                animatePlaceholderMove(target, e.clientY < midpoint);
+                // Section reordering: Prevent dropping below "Add section" row
+                if (target.classList.contains('add-section-row')) {
+                    animatePlaceholderMove(target, true); // Always snap BEFORE
+                } else {
+                    const rect = target.getBoundingClientRect();
+                    const midpoint = rect.top + rect.height / 2;
+                    let isBefore = e.clientY < midpoint;
+
+                    // Shop Mode anchor: Cannot drop before Uncategorized
+                    if (currentMode !== 'home' && target.dataset.id === shopDefId && isBefore) {
+                        isBefore = false; // Force snap AFTER
+                    }
+
+                    animatePlaceholderMove(target, isBefore);
+                }
             }
         });
     });
@@ -1982,12 +2003,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const [moved] = sections.splice(oldIdx, 1);
 
                 // Ensure Uncategorized stays at top in Shop Mode
-                if (!isHome && newIdx === 0) {
-                    newIdx = 1;
+                if (!isHome) {
+                    newIdx = Math.max(1, newIdx);
                 }
 
-                const adjustedIdx = newIdx > oldIdx ? newIdx - 1 : newIdx;
-                sections.splice(adjustedIdx, 0, moved);
+                sections.splice(newIdx, 0, moved);
             }
         } else {
             // Item reordering
@@ -2112,9 +2132,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 animatePlaceholderMove(target, isBefore);
             } else {
-                const rect = target.getBoundingClientRect();
-                const midpoint = rect.top + rect.height / 2;
-                animatePlaceholderMove(target, touch.clientY < midpoint);
+                // Section reordering: Prevent dropping below "Add section" row
+                if (target.classList.contains('add-section-row')) {
+                    animatePlaceholderMove(target, true); // Always snap BEFORE
+                } else {
+                    const rect = target.getBoundingClientRect();
+                    const midpoint = rect.top + rect.height / 2;
+                    let isBefore = touch.clientY < midpoint;
+
+                    // Shop Mode anchor: Cannot drop before Uncategorized
+                    if (currentMode !== 'home' && target.dataset.id === shopDefId && isBefore) {
+                        isBefore = false; // Force snap AFTER
+                    }
+
+                    animatePlaceholderMove(target, isBefore);
+                }
             }
         });
     }, { passive: false });
