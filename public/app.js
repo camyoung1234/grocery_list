@@ -1860,11 +1860,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         if (!draggedElement) return;
 
-        // movement threshold to prevent jitter
-        const dist = Math.sqrt(Math.pow(e.clientX - lastDragPos.x, 2) + Math.pow(e.clientY - lastDragPos.y, 2));
-        if (dist < 5) return;
-        lastDragPos = { x: e.clientX, y: e.clientY };
-
         if (touchGhost) {
             touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
         }
@@ -2008,11 +2003,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     groceryList.addEventListener('touchmove', (e) => {
         if (!draggedElement) return;
         const touch = e.touches[0];
-
-        // movement threshold to prevent jitter
-        const dist = Math.sqrt(Math.pow(touch.clientX - lastDragPos.x, 2) + Math.pow(touch.clientY - lastDragPos.y, 2));
-        if (dist < 5) return;
-        lastDragPos = { x: touch.clientX, y: touch.clientY };
 
         if (touchGhost) {
             touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
