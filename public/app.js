@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
     let draggedElement = null;
     let dragType = null; // 'item' or 'section'
+    let touchGhost = null;
     let placeholder = document.createElement('li');
     placeholder.className = 'drag-placeholder';
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
@@ -1171,6 +1172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (canRename) {
                 const handle = createDragHandle();
+                handle.classList.add('section-drag-handle');
                 handle.addEventListener('dragstart', (e) => handleDragStart(e, sectionLi, 'section'));
                 handle.addEventListener('touchstart', (e) => handleTouchStart(e, sectionLi, 'section'), { passive: false });
                 header.appendChild(handle);
@@ -1207,19 +1209,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 header.appendChild(titleSpan);
             } else {
+                // Spacer for consistent alignment
+                const spacer = document.createElement('div');
+                spacer.className = 'drag-handle section-drag-handle spacer';
+                header.appendChild(spacer);
                 header.appendChild(titleSpan);
             }
 
 
 
-            // Reorder Controls or Merge Button
-            const reorderControls = document.createElement('div');
-            reorderControls.className = 'section-reorder-controls';
-
-            const arr = isHome ? currentList.homeSections : currentList.shopSections;
-            const idx = arr.findIndex(s => s.id === section.id);
-
             if (shopSelectionMode && !isHome) {
+                // Reorder Controls or Merge Button
+                const reorderControls = document.createElement('div');
+                reorderControls.className = 'section-reorder-controls';
+
                 // If we are in shop selection mode, show a "merge here" button instead of reorder arrows
                 const moveHereBtn = document.createElement('button');
                 moveHereBtn.className = 'move-here-btn';
@@ -1737,44 +1740,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.dataTransfer) {
             e.dataTransfer.setData('text/plain', element.dataset.id || '');
             e.dataTransfer.effectAllowed = 'move';
-            // Explicitly set drag image to avoid it disappearing when we hide the source
-            e.dataTransfer.setDragImage(element, 25, 25);
+
+            // For sections, show only the header in the ghost image.
+            const ghost = type === 'section' ? element.querySelector('.section-header') : element;
+            e.dataTransfer.setDragImage(ghost, 20, 25);
         }
 
-        if (type === 'section') {
-            // Hide items and add-item rows
-            document.querySelectorAll('.section-items-list, .add-item-row, .add-section-row').forEach(el => {
-                el.classList.add('collapsed');
-            });
-        } else {
-            // Hide add rows
-            document.querySelectorAll('.add-item-row, .add-section-row').forEach(el => {
-                el.classList.add('collapsed');
-            });
-        }
+        // Disable scrolling for mobile and desktop consistency
+        document.body.style.overflow = 'hidden';
 
-        // Hide original element space using a 0ms timeout to allow ghost image capture
+        // Use a small timeout to allow the browser to capture the drag image before we collapse elements.
         setTimeout(() => {
-            if (draggedElement === element) {
-                element.classList.add('dragging');
-                element.style.opacity = '0';
-                element.style.height = '0';
-                element.style.margin = '0';
-                element.style.padding = '0';
-                element.style.overflow = 'hidden';
+            if (draggedElement !== element) return;
 
-                // Disable transitions AFTER initial collapse to prevent lag during drag
-                setTimeout(() => {
-                    if (draggedElement) groceryList.classList.add('no-transition');
-                }, 300);
+            if (type === 'section') {
+                document.querySelectorAll('.section-items-list, .add-item-row, .add-section-row').forEach(el => {
+                    el.classList.add('collapsed');
+                });
+            } else {
+                document.querySelectorAll('.add-item-row, .add-section-row').forEach(el => {
+                    el.classList.add('collapsed');
+                });
             }
-        }, 0);
 
-        if (!e.dataTransfer) {
-            // Touch handling
-            // Disable scrolling
-            document.body.style.overflow = 'hidden';
-        }
+            element.classList.add('dragging');
+            element.classList.add('collapsed');
+            element.style.pointerEvents = 'none'; // Prevent interfering with target detection
+
+            // Disable animations on shifting siblings AFTER initial collapse to prevent drag lag
+            setTimeout(() => {
+                if (draggedElement) groceryList.classList.add('no-transition');
+            }, 350);
+        }, 50);
     }
 
     function animatePlaceholderMove(target, isBefore) {
@@ -1783,7 +1780,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Collect all potential elements that could move
         const selector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item';
-        const items = Array.from(groceryList.querySelectorAll(selector));
+        const items = Array.from(groceryList.querySelectorAll(selector)).filter(el => el !== draggedElement && !el.classList.contains('collapsed'));
 
         // Store current positions
         const positions = new Map();
@@ -1818,8 +1815,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         if (!draggedElement) return;
 
-        let target = e.target.closest(dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item');
+        let target = e.target.closest(dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list');
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
+
+        if (dragType === 'item' && target.classList.contains('section-items-list')) {
+            // Dropping into an empty section list
+            if (target.children.length === 0 || (target.children.length === 1 && target.children[0] === placeholder)) {
+                target.appendChild(placeholder);
+                return;
+            }
+            // If it's not empty, target should have been the grocery-item via closest()
+            return;
+        }
 
         const rect = target.getBoundingClientRect();
         const midpoint = rect.top + rect.height / 2;
@@ -1887,27 +1894,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveAppState();
 
         // Small delay before ending drag to ensure all drops complete across browsers
-        setTimeout(() => handleDragEnd(), 10);
+        setTimeout(() => handleDragEnd(), 0);
     });
 
     function handleTouchStart(e, element, type) {
-        // e.preventDefault(); // Prevent scrolling - wait, we might want scrolling until we actually start dragging
         handleDragStart(e, element, type);
+
+        const touch = e.touches[0];
+
+        // Create manual ghost for touch
+        if (touchGhost) touchGhost.remove();
+        touchGhost = element.cloneNode(true);
+        touchGhost.classList.add('touch-ghost');
+        touchGhost.classList.remove('dragging', 'collapsed');
+        touchGhost.style.width = element.offsetWidth + 'px';
+        touchGhost.style.height = (type === 'section' ? 50 : element.offsetHeight) + 'px';
+        touchGhost.style.left = touch.clientX - 25 + 'px';
+        touchGhost.style.top = touch.clientY - 25 + 'px';
+        document.body.appendChild(touchGhost);
     }
 
     groceryList.addEventListener('touchmove', (e) => {
         if (!draggedElement) return;
         const touch = e.touches[0];
 
-        // Disable pointer events on dragged element so we can detect target behind it
+        if (touchGhost) {
+            touchGhost.style.left = touch.clientX - 25 + 'px';
+            touchGhost.style.top = touch.clientY - 25 + 'px';
+        }
+
+        // Prevent scrolling during drag
+        if (e.cancelable) e.preventDefault();
+
+        // Disable pointer events so we can detect target behind it
+        const originalPointerEvents = draggedElement.style.pointerEvents;
         draggedElement.style.pointerEvents = 'none';
+        if (touchGhost) touchGhost.style.pointerEvents = 'none';
+
         const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
-        draggedElement.style.pointerEvents = '';
+
+        draggedElement.style.pointerEvents = originalPointerEvents;
 
         if (!targetElement) return;
 
-        const target = targetElement.closest(dragType === 'section' ? '.section-container' : '.grocery-item');
+        let target = targetElement.closest(dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list');
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
+
+        if (dragType === 'item' && target.classList.contains('section-items-list')) {
+            if (target.children.length === 0 || (target.children.length === 1 && target.children[0] === placeholder)) {
+                target.appendChild(placeholder);
+                return;
+            }
+            return;
+        }
 
         const rect = target.getBoundingClientRect();
         const midpoint = rect.top + rect.height / 2;
@@ -1921,12 +1960,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (touch.clientY > window.innerHeight - scrollThreshold) {
             window.scrollBy(0, 10);
         }
-
-        e.preventDefault(); // Prevent scrolling during drag
     }, { passive: false });
 
     groceryList.addEventListener('touchend', (e) => {
         if (!draggedElement) return;
+
+        if (touchGhost) {
+            touchGhost.remove();
+            touchGhost = null;
+        }
 
         // Reuse drop logic
         const dropEvent = new Event('drop');
@@ -1935,12 +1977,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleDragEnd() {
         if (draggedElement) {
-            draggedElement.classList.remove('dragging');
+            draggedElement.classList.remove('dragging', 'collapsed');
             draggedElement.style.opacity = '';
             draggedElement.style.height = '';
             draggedElement.style.margin = '';
             draggedElement.style.padding = '';
             draggedElement.style.overflow = '';
+            draggedElement.style.pointerEvents = '';
         }
 
         placeholder.remove();
@@ -1950,12 +1993,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const collapsed = document.querySelectorAll('.collapsed');
         if (collapsed.length > 0) {
             collapsed.forEach(el => el.classList.remove('collapsed'));
-            // Wait for height transition (0.3s) before re-rendering the whole list
+            // Small delay to allow show transition to start before re-rendering
             setTimeout(() => {
                 draggedElement = null;
                 dragType = null;
                 renderList();
-            }, 300);
+            }, 50);
         } else {
             draggedElement = null;
             dragType = null;

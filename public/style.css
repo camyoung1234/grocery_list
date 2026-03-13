@@ -92,13 +92,14 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 0 0 1rem;
-    /* 1rem left gutter to avoid back gesture */
+    padding: 1rem;
+    /* 1rem gutter for symmetry and to avoid mobile back gestures */
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    /* Full height on mobile */
+    box-sizing: border-box;
+    position: relative;
 }
 
 @media (min-width: 600px) {
@@ -492,14 +493,12 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    /* Space for delete btn */
-    padding: 0 1rem 0 0;
+    padding: 0;
     height: 50px;
     box-sizing: border-box;
     background: transparent;
     transition: var(--transition);
     flex-wrap: wrap;
-    /* Allow wrapping on small screens if needed */
     gap: 1rem;
     touch-action: pan-y;
 }
@@ -567,7 +566,7 @@ h1 {
 
 
 .section-container .grocery-item.shop-chip {
-    padding: 0 1rem 0 0;
+    padding: 0;
     height: 50px;
     background: transparent;
     border-radius: 0;
@@ -1421,10 +1420,10 @@ h1 {
 
 .section-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     border-bottom: none;
-    padding: 0 1rem 0 0;
+    padding: 0;
     margin-bottom: 0;
     height: 50px;
     user-select: none;
@@ -1441,6 +1440,7 @@ h1 {
     padding: 3px 0;
     /* Add matching vertical space to compensate for input border/padding */
 }
+
 
 @media (hover: hover) {
     .section-title:hover {
@@ -1743,16 +1743,34 @@ h1 {
     overflow: hidden !important;
     border: none !important;
     pointer-events: none;
-    transition: all 0.3s ease;
 }
 
-.section-items-list,
+.section-items-list {
+    max-height: 2000px;
+    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+    min-height: 10px; /* Ensure empty sections are targetable during drag */
+}
+
 .add-item-row,
 .add-section-row,
 .grocery-item,
 .section-header {
-    max-height: 1000px; /* Large enough for common use */
-    transition: all 0.3s ease;
+    height: 50px;
+    overflow: hidden;
+    transition: height 0.3s ease, max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+}
+
+.collapsed {
+    height: 0 !important;
+    max-height: 0 !important;
+    opacity: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+    pointer-events: none;
 }
 
 .dragging {
@@ -1767,5 +1785,22 @@ h1 {
 }
 
 .no-transition, .no-transition * {
+    transition: none !important;
+}
+
+/* Mobile Touch Ghost */
+.touch-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 10000;
+    opacity: 0.8;
+    background: var(--card-bg);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    border-radius: 8px;
+    overflow: hidden;
+    transform: scale(1.05);
+}
+
+.touch-ghost * {
     transition: none !important;
 }
