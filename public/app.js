@@ -1851,8 +1851,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (dragType === 'item' && target.classList.contains('section-items-list')) {
             // Drop into section list (empty or list background)
-            // Prepend puts it at the top, between header and "Add" button
-            target.prepend(placeholder);
+            // Position it at the end of items, but before the "+ Add item" row
+            const addRow = target.querySelector('.add-item-row');
+            if (addRow) {
+                addRow.before(placeholder);
+            } else {
+                target.prepend(placeholder);
+            }
             return;
         }
 
@@ -1991,7 +1996,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
         if (dragType === 'item' && target.classList.contains('section-items-list')) {
-            target.prepend(placeholder);
+            const addRow = target.querySelector('.add-item-row');
+            if (addRow) {
+                addRow.before(placeholder);
+            } else {
+                target.prepend(placeholder);
+            }
             return;
         }
 
