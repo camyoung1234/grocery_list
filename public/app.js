@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let placeholder = document.createElement('li');
     placeholder.className = 'drag-placeholder';
     let dragOffset = { x: 0, y: 0 };
+    let lastDragPos = { x: 0, y: 0 };
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let deleteListMode = false; // Tracks whether we're in list-deletion mode
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
@@ -1778,10 +1779,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             element.classList.add('collapsed');
             element.style.pointerEvents = 'none'; // Prevent interfering with target detection
 
-            // Disable animations on shifting siblings AFTER initial collapse to prevent drag lag
-            setTimeout(() => {
-                if (draggedElement) groceryList.classList.add('no-transition');
-            }, 350);
         }, 50);
     }
 
@@ -1790,18 +1787,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!isBefore && target.nextElementSibling === placeholder) return;
 
         // Collect all potential elements that could move
-        const selector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item';
-        const items = Array.from(groceryList.querySelectorAll(selector)).filter(el => {
-            if (el === draggedElement || el.classList.contains('collapsed')) return false;
-            // When dragging an item, "Add" rows are not valid targets and should not shift
-            if (dragType === 'item' && (el.classList.contains('add-item-row') || el.classList.contains('add-section-row'))) return false;
-            return true;
-        });
+        const allElements = Array.from(groceryList.querySelectorAll('.section-container, .grocery-item, .add-item-row, .add-section-row'));
+        if (!allElements.includes(placeholder)) allElements.push(placeholder);
 
-        // Store current positions
-        const positions = new Map();
-        items.forEach(el => {
-            positions.set(el, el.getBoundingClientRect().top);
+        // Store initial positions
+        const initialPositions = new Map();
+        allElements.forEach(el => {
+            if (!el.classList.contains('collapsed') && el !== draggedElement) {
+                initialPositions.set(el, el.getBoundingClientRect().top);
+            }
         });
 
         // Move the placeholder
@@ -1811,18 +1805,42 @@ document.addEventListener('DOMContentLoaded', async () => {
             target.after(placeholder);
         }
 
-        // Animate elements that shifted
-        items.forEach(el => {
-            const oldTop = positions.get(el);
-            const newTop = el.getBoundingClientRect().top;
-            const delta = oldTop - newTop;
+        // Calculate deltas and apply relative FLIP
+        const deltas = new Map();
+        allElements.forEach(el => {
+            if (initialPositions.has(el)) {
+                const newTop = el.getBoundingClientRect().top;
+                const oldTop = initialPositions.get(el);
+                deltas.set(el, oldTop - newTop);
+            }
+        });
 
-            if (delta !== 0) {
-                el.style.transition = 'none';
-                el.style.transform = `translateY(${delta}px)`;
-                void el.offsetHeight; // trigger reflow
-                el.style.transition = 'transform 0.2s ease';
-                el.style.transform = '';
+        deltas.forEach((delta, el) => {
+            if (delta === 0) return;
+
+            // Find displacement of nearest moving ancestor
+            let parentDisplacement = 0;
+            let p = el.parentElement;
+            while (p && p !== groceryList) {
+                if (deltas.has(p)) {
+                    parentDisplacement = deltas.get(p);
+                    break;
+                }
+                p = p.parentElement;
+            }
+
+            // The actual transform needs to subtract the parent's displacement
+            // because the layout engine already moved the child with the parent.
+            const relativeDelta = delta - parentDisplacement;
+
+            if (relativeDelta !== 0) {
+                el.animate([
+                    { transform: `translateY(${relativeDelta}px)` },
+                    { transform: 'translateY(0)' }
+                ], {
+                    duration: 200,
+                    easing: 'ease-out'
+                });
             }
         });
     }
@@ -1830,6 +1848,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     groceryList.addEventListener('dragover', (e) => {
         e.preventDefault();
         if (!draggedElement) return;
+
+        // movement threshold to prevent jitter
+        const dist = Math.sqrt(Math.pow(e.clientX - lastDragPos.x, 2) + Math.pow(e.clientY - lastDragPos.y, 2));
+        if (dist < 5) return;
+        lastDragPos = { x: e.clientX, y: e.clientY };
 
         if (touchGhost) {
             touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
@@ -1880,7 +1903,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const movedId = draggedElement.dataset.id;
 
             // Find new index based on placeholder position
-            const children = Array.from(groceryList.children).filter(el => el.classList.contains('section-container') || el === placeholder);
+            const children = Array.from(groceryList.children).filter(el => (el.classList.contains('section-container') && el !== draggedElement) || el === placeholder);
             let newIdx = children.indexOf(placeholder);
             const oldIdx = sections.findIndex(s => s.id === movedId);
 
@@ -1902,7 +1925,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (targetSection) {
                 const targetSectionId = targetSection.dataset.id;
                 const itemsUl = targetSection.querySelector('.section-items-list');
-                const children = Array.from(itemsUl.children).filter(el => el.classList.contains('grocery-item') || el === placeholder);
+                const children = Array.from(itemsUl.children).filter(el => (el.classList.contains('grocery-item') && el !== draggedElement) || el === placeholder);
                 const placeholderIdx = children.indexOf(placeholder);
 
                 let anchorId = null;
@@ -1962,6 +1985,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     groceryList.addEventListener('touchmove', (e) => {
         if (!draggedElement) return;
         const touch = e.touches[0];
+
+        // movement threshold to prevent jitter
+        const dist = Math.sqrt(Math.pow(touch.clientX - lastDragPos.x, 2) + Math.pow(touch.clientY - lastDragPos.y, 2));
+        if (dist < 5) return;
+        lastDragPos = { x: touch.clientX, y: touch.clientY };
 
         if (touchGhost) {
             touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
@@ -2048,6 +2076,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             touchGhost = null;
         }
 
+        lastDragPos = { x: 0, y: 0 };
         placeholder.remove();
         groceryList.classList.remove('no-transition');
         document.body.style.overflow = '';

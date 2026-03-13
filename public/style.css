@@ -118,7 +118,7 @@ header {
     justify-content: center;
     align-items: center;
     margin-bottom: 2rem;
-    padding: 0 1rem;
+    padding: 0;
     /* Restore horizontal padding */
 }
 
@@ -247,7 +247,7 @@ h1 {
     gap: 0.5rem;
     margin-bottom: 0;
     border-bottom: 1px solid var(--border-color);
-    padding: 0 1rem 0.8rem 1rem;
+    padding: 0 0 0.8rem 0;
     /* Restore horizontal padding */
 }
 
@@ -1668,7 +1668,7 @@ h1 {
     display: flex;
     background: var(--card-bg);
     border-top: 1px solid var(--border-color);
-    padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom));
+    padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom));
     gap: 1rem;
     z-index: 1000;
 }
