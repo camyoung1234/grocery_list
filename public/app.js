@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let touchGhost = null;
     let placeholder = document.createElement('li');
     placeholder.className = 'drag-placeholder';
+    let dragOffset = { x: 0, y: 0 };
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let deleteListMode = false; // Tracks whether we're in list-deletion mode
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
@@ -1741,9 +1742,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.dataTransfer.setData('text/plain', element.dataset.id || '');
             e.dataTransfer.effectAllowed = 'move';
 
-            // For sections, show only the header in the ghost image.
-            const ghost = type === 'section' ? element.querySelector('.section-header') : element;
-            e.dataTransfer.setDragImage(ghost, 20, 25);
+            // Hide native ghost so we can use our manual one
+            const emptyImg = new Image();
+            emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            e.dataTransfer.setDragImage(emptyImg, 0, 0);
+        }
+
+        // For mouse events, create the ghost immediately
+        if (e.type === 'dragstart') {
+            createDragVisual(e, element, type);
         }
 
         // Disable scrolling for mobile and desktop consistency
@@ -1758,10 +1765,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     el.classList.add('collapsed');
                 });
             } else {
-                document.querySelectorAll('.add-item-row, .add-section-row').forEach(el => {
-                    el.classList.add('collapsed');
-                });
+                // When dragging an item, keep the "Add" rows visible as per user request
+                // but we still want to collapse the dragged element itself if needed, 
+                // though handleDragStart handles the 'element' separately.
             }
+
+            // Initialize placeholder at starting position to prevent layout shift
+            placeholder.style.height = element.offsetHeight + 'px';
+            element.before(placeholder);
 
             element.classList.add('dragging');
             element.classList.add('collapsed');
@@ -1780,7 +1791,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Collect all potential elements that could move
         const selector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item';
-        const items = Array.from(groceryList.querySelectorAll(selector)).filter(el => el !== draggedElement && !el.classList.contains('collapsed'));
+        const items = Array.from(groceryList.querySelectorAll(selector)).filter(el => {
+            if (el === draggedElement || el.classList.contains('collapsed')) return false;
+            // When dragging an item, "Add" rows are not valid targets and should not shift
+            if (dragType === 'item' && (el.classList.contains('add-item-row') || el.classList.contains('add-section-row'))) return false;
+            return true;
+        });
 
         // Store current positions
         const positions = new Map();
@@ -1815,16 +1831,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         if (!draggedElement) return;
 
-        let target = e.target.closest(dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list');
+        if (touchGhost) {
+            touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
+        }
+
+        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list';
+        let target = e.target.closest(targetSelector);
+
+        // If dragging an item, redirect "Add item" row to its parent list
+        if (dragType === 'item' && target && target.classList.contains('add-item-row')) {
+            target = target.closest('.section-items-list');
+        }
+        // "Add section" row should still be ignored for items
+        if (dragType === 'item' && target && target.classList.contains('add-section-row')) {
+            target = null;
+        }
+
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
         if (dragType === 'item' && target.classList.contains('section-items-list')) {
-            // Dropping into an empty section list
-            if (target.children.length === 0 || (target.children.length === 1 && target.children[0] === placeholder)) {
-                target.appendChild(placeholder);
-                return;
-            }
-            // If it's not empty, target should have been the grocery-item via closest()
+            // Drop into section list (empty or list background)
+            // Prepend puts it at the top, between header and "Add" button
+            target.prepend(placeholder);
             return;
         }
 
@@ -1897,21 +1925,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => handleDragEnd(), 0);
     });
 
-    function handleTouchStart(e, element, type) {
-        handleDragStart(e, element, type);
-
-        const touch = e.touches[0];
-
-        // Create manual ghost for touch
+    function createDragVisual(point, element, type) {
         if (touchGhost) touchGhost.remove();
+
+        const rect = element.getBoundingClientRect();
+        dragOffset = {
+            x: point.clientX - rect.left,
+            y: point.clientY - rect.top
+        };
+
         touchGhost = element.cloneNode(true);
         touchGhost.classList.add('touch-ghost');
         touchGhost.classList.remove('dragging', 'collapsed');
+
+        // Lock width and height
         touchGhost.style.width = element.offsetWidth + 'px';
         touchGhost.style.height = (type === 'section' ? 50 : element.offsetHeight) + 'px';
-        touchGhost.style.left = touch.clientX - 25 + 'px';
-        touchGhost.style.top = touch.clientY - 25 + 'px';
+
+        // Lock horizontal position based on the original element's rect
+        touchGhost.style.left = rect.left + 'px';
+        touchGhost.style.top = (point.clientY - dragOffset.y) + 'px';
+
         document.body.appendChild(touchGhost);
+    }
+
+    function handleTouchStart(e, element, type) {
+        handleDragStart(e, element, type);
+        createDragVisual(e.touches[0], element, type);
     }
 
     groceryList.addEventListener('touchmove', (e) => {
@@ -1919,8 +1959,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const touch = e.touches[0];
 
         if (touchGhost) {
-            touchGhost.style.left = touch.clientX - 25 + 'px';
-            touchGhost.style.top = touch.clientY - 25 + 'px';
+            touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
         }
 
         // Prevent scrolling during drag
@@ -1937,14 +1976,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!targetElement) return;
 
-        let target = targetElement.closest(dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list');
+        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list';
+        let target = targetElement.closest(targetSelector);
+
+        // If dragging an item, redirect "Add item" row to its parent list
+        if (dragType === 'item' && target && target.classList.contains('add-item-row')) {
+            target = target.closest('.section-items-list');
+        }
+        // "Add section" row should still be ignored for items
+        if (dragType === 'item' && target && target.classList.contains('add-section-row')) {
+            target = null;
+        }
+
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
         if (dragType === 'item' && target.classList.contains('section-items-list')) {
-            if (target.children.length === 0 || (target.children.length === 1 && target.children[0] === placeholder)) {
-                target.appendChild(placeholder);
-                return;
-            }
+            target.prepend(placeholder);
             return;
         }
 
@@ -1984,6 +2031,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             draggedElement.style.padding = '';
             draggedElement.style.overflow = '';
             draggedElement.style.pointerEvents = '';
+        }
+
+        if (touchGhost) {
+            touchGhost.remove();
+            touchGhost = null;
         }
 
         placeholder.remove();

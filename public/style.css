@@ -389,9 +389,7 @@ h1 {
     color: var(--primary-color);
 }
 
-.add-item-row {
-    /* Inherit standard 1rem padding from .grocery-item */
-}
+
 
 .section-container .add-item-row {
     padding-top: 0.8rem;
@@ -1793,12 +1791,13 @@ h1 {
     position: fixed;
     pointer-events: none;
     z-index: 10000;
-    opacity: 0.8;
+    opacity: 1;
     background: var(--card-bg);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border-radius: var(--border-radius);
     overflow: hidden;
-    transform: scale(1.05);
+    transform: scale(1.02);
+    /* Ensure styles like borders from .grocery-item or .section-container are preserved if cloned */
 }
 
 .touch-ghost * {
