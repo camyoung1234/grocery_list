@@ -534,7 +534,7 @@ h1 {
     background: transparent;
     transition: var(--transition);
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.5rem;
     touch-action: pan-y;
 }
 
@@ -611,7 +611,7 @@ h1 {
     transition: background 0.2s ease, opacity 0.2s ease;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    gap: 1rem;
+    gap: 0.5rem;
     box-sizing: border-box;
     justify-content: flex-start;
 }
@@ -649,6 +649,7 @@ h1 {
     font-weight: 700;
     position: relative;
     overflow: hidden;
+    margin-left: 1rem;
 }
 
 .shop-qty-circle .qty-number,
@@ -920,6 +921,7 @@ h1 {
     align-items: center;
     position: relative;
     z-index: 10;
+    margin-left: 1rem;
 }
 
 .qty-combined-pill {
@@ -1462,6 +1464,7 @@ h1 {
     margin-bottom: 0;
     height: 50px;
     user-select: none;
+    gap: 0.5rem;
 }
 
 .section-title {
@@ -1578,6 +1581,9 @@ h1 {
     padding: 0;
     margin-top: 0;
     margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 /* Undo Row Styles & Animations */
