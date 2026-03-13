@@ -1799,7 +1799,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Move the placeholder
-        if (isBefore) {
+        if (target.classList.contains('section-items-list')) {
+            if (isBefore) {
+                target.prepend(placeholder);
+            } else {
+                const addRow = target.querySelector('.add-item-row');
+                if (addRow) {
+                    addRow.before(placeholder);
+                } else {
+                    target.appendChild(placeholder);
+                }
+            }
+        } else if (isBefore) {
             target.before(placeholder);
         } else {
             target.after(placeholder);
@@ -1858,12 +1869,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
         }
 
-        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list';
+        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list, .add-item-row';
         let target = e.target.closest(targetSelector);
 
+        let redirectedFromAdd = false;
         // If dragging an item, redirect "Add item" row to its parent list
         if (dragType === 'item' && target && target.classList.contains('add-item-row')) {
             target = target.closest('.section-items-list');
+            redirectedFromAdd = true;
         }
         // "Add section" row should still be ignored for items
         if (dragType === 'item' && target && target.classList.contains('add-section-row')) {
@@ -1873,15 +1886,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
         if (dragType === 'item' && target.classList.contains('section-items-list')) {
-            // Drop into section list (empty or list background)
-            // Position it at the end of items, but before the "+ Add item" row
-            const addRow = target.querySelector('.add-item-row');
-            if (addRow) {
-                addRow.before(placeholder);
+            const items = Array.from(target.querySelectorAll('.grocery-item:not(.add-item-row):not(.dragging)'));
+            
+            if (items.length > 0) {
+                // If section has items, only snap if outside the item block
+                const firstRect = items[0].getBoundingClientRect();
+                const lastRect = items[items.length - 1].getBoundingClientRect();
+
+                if (e.clientY < firstRect.top) {
+                    animatePlaceholderMove(items[0], true);
+                } else if (e.clientY > lastRect.bottom || redirectedFromAdd) {
+                    animatePlaceholderMove(items[items.length - 1], false);
+                }
+                // Else: Ignore the background hit when hovering between existing items
+                return;
             } else {
-                target.prepend(placeholder);
+                // Empty section: snap to top
+                animatePlaceholderMove(target, true);
+                return;
             }
-            return;
         }
 
         const rect = target.getBoundingClientRect();
@@ -2007,16 +2030,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         draggedElement.style.pointerEvents = originalPointerEvents;
 
-        if (!targetElement) return;
+        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list, .add-item-row';
+        let target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target) target = target.closest(targetSelector);
 
-        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-items-list';
-        let target = targetElement.closest(targetSelector);
-
-        // If dragging an item, redirect "Add item" row to its parent list
+        let redirectedFromAdd = false;
         if (dragType === 'item' && target && target.classList.contains('add-item-row')) {
             target = target.closest('.section-items-list');
+            redirectedFromAdd = true;
         }
-        // "Add section" row should still be ignored for items
         if (dragType === 'item' && target && target.classList.contains('add-section-row')) {
             target = null;
         }
@@ -2024,13 +2046,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
         if (dragType === 'item' && target.classList.contains('section-items-list')) {
-            const addRow = target.querySelector('.add-item-row');
-            if (addRow) {
-                addRow.before(placeholder);
+            const items = Array.from(target.querySelectorAll('.grocery-item:not(.add-item-row):not(.dragging)'));
+            
+            if (items.length > 0) {
+                const firstRect = items[0].getBoundingClientRect();
+                const lastRect = items[items.length - 1].getBoundingClientRect();
+
+                if (touch.clientY < firstRect.top) {
+                    animatePlaceholderMove(items[0], true);
+                } else if (touch.clientY > lastRect.bottom || redirectedFromAdd) {
+                    animatePlaceholderMove(items[items.length - 1], false);
+                }
+                return;
             } else {
-                target.prepend(placeholder);
+                animatePlaceholderMove(target, true);
+                return;
             }
-            return;
         }
 
         const rect = target.getBoundingClientRect();
