@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentMode = 'home'; // 'home' or 'shop'
     let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
     let draggedElement = null;
+    let isDragStarted = false;
     let dragType = null; // 'item' or 'section'
     let touchGhost = null;
     let placeholder = document.createElement('li');
@@ -1815,19 +1816,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Disable scrolling for mobile and desktop consistency
         document.body.style.overflow = 'hidden';
 
-        // Use a small timeout to allow the browser to capture the drag image before we collapse elements.
+        // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
         setTimeout(() => {
             if (draggedElement !== element) return;
-
-            if (type === 'section') {
-                document.querySelectorAll('.section-items-list, .add-item-row, .add-section-row').forEach(el => {
-                    el.classList.add('collapsed');
-                });
-            } else {
-                // When dragging an item, keep the "Add" rows visible as per user request
-                // but we still want to collapse the dragged element itself if needed, 
-                // though handleDragStart handles the 'element' separately.
-            }
+            
+            isDragStarted = true;
+            groceryList.classList.add('no-transition');
 
             // Initialize placeholder at starting position to prevent layout shift
             placeholder.style.height = element.offsetHeight + 'px';
@@ -1838,25 +1832,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 placeholder.classList.add('flattened-indent');
             }
 
+            if (type === 'section') {
+                document.querySelectorAll('.section-items-list, .add-item-row, .add-section-row').forEach(el => {
+                    el.classList.add('collapsed');
+                });
+            }
+
             element.classList.add('dragging');
             element.classList.add('collapsed');
             element.style.pointerEvents = 'none'; // Prevent interfering with target detection
-
         }, 50);
-    }
-
-    function getBaselineTop(el) {
-        const rect = el.getBoundingClientRect();
-        const style = window.getComputedStyle(el);
-        const transform = style.transform;
-        let translateY = 0;
-        
-        if (transform && transform !== 'none') {
-            const matrix = new DOMMatrix(transform);
-            translateY = matrix.m42;
-        }
-        
-        return rect.top - translateY;
     }
 
     function animatePlaceholderMove(target, isBefore) {
@@ -1867,8 +1852,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const initialPositions = new Map();
         
         allElements.forEach(el => {
-            if (el.nodeType === 1 && !el.classList.contains('collapsed') && el !== draggedElement) {
-                initialPositions.set(el, getBaselineTop(el));
+            if (el.nodeType === 1 && !el.classList.contains('collapsed') && el !== draggedElement && el !== placeholder) {
+                initialPositions.set(el, el.getBoundingClientRect().top);
             }
         });
 
@@ -1889,7 +1874,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         { transform: `translateY(${delta}px)` },
                         { transform: 'translateY(0)' }
                     ], {
-                        duration: 200,
+                        duration: 150,
                         easing: 'ease-out'
                     });
                 }
@@ -1933,7 +1918,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     groceryList.addEventListener('dragover', (e) => {
         e.preventDefault();
-        if (!draggedElement) return;
+        if (!draggedElement || !isDragStarted) return;
 
         if (touchGhost) {
             touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
@@ -2080,7 +2065,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     groceryList.addEventListener('touchmove', (e) => {
-        if (!draggedElement) return;
+        if (!draggedElement || !isDragStarted) return;
         const touch = e.touches[0];
 
         if (touchGhost) {
@@ -2162,6 +2147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             touchGhost.remove();
             touchGhost = null;
         }
+        isDragStarted = false;
 
         lastDragPos = { x: 0, y: 0 };
         stopAutoScroll();
