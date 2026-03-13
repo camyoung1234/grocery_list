@@ -1762,6 +1762,11 @@ h1 {
     cursor: grabbing;
 }
 
+.drag-handle.disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
 .drag-placeholder {
     height: 50px;
     box-sizing: border-box;
