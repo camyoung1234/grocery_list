@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
+    let dragUpdateFrame = null;
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -1926,37 +1927,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         updateAutoScroll(e.clientY);
 
-        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
-        let target = e.target.closest(targetSelector);
+        if (dragUpdateFrame) return;
+        dragUpdateFrame = requestAnimationFrame(() => {
+            dragUpdateFrame = null;
+            if (!draggedElement) return;
 
-        if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
+            let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
+            let target = e.target.closest(targetSelector);
 
-        if (dragType === 'item') {
-            const rect = target.getBoundingClientRect();
-            const midpoint = rect.top + rect.height / 2;
-            let isBefore = e.clientY < midpoint;
-            
-            // Restrict gaps: Never allow anything AFTER an "Add item" row 
-            // or BEFORE a "Section header" to prevent between-section parking.
-            if (target.classList.contains('add-item-row')) isBefore = true;
-            if (target.classList.contains('section-header')) isBefore = false;
+            if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
-            // Also prevent gaps between the last section and the "Add section" row
-            if (target.classList.contains('add-section-row')) {
-                target = target.previousElementSibling;
-                while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
-                if (!target) return;
-                isBefore = true; // Snap inside the last section (before its Add Item row)
+            if (dragType === 'item') {
+                const rect = target.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                let isBefore = e.clientY < midpoint;
+                
+                if (target.classList.contains('add-item-row')) isBefore = true;
+                if (target.classList.contains('section-header')) isBefore = false;
+
+                if (target.classList.contains('add-section-row')) {
+                    target = target.previousElementSibling;
+                    while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
+                    if (!target) return;
+                    isBefore = true;
+                }
+
+                animatePlaceholderMove(target, isBefore);
+            } else {
+                const rect = target.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                animatePlaceholderMove(target, e.clientY < midpoint);
             }
-
-            animatePlaceholderMove(target, isBefore);
-            return;
-        }
-
-        const rect = target.getBoundingClientRect();
-        const midpoint = rect.top + rect.height / 2;
-
-        animatePlaceholderMove(target, e.clientY < midpoint);
+        });
     });
 
     groceryList.addEventListener('drop', (e) => {
@@ -2148,6 +2150,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             touchGhost = null;
         }
         isDragStarted = false;
+
+        if (dragUpdateFrame) {
+            cancelAnimationFrame(dragUpdateFrame);
+            dragUpdateFrame = null;
+        }
 
         lastDragPos = { x: 0, y: 0 };
         stopAutoScroll();
