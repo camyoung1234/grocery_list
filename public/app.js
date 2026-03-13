@@ -275,23 +275,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Slide transition: out → switch → in
-        const slideOutClass = newMode === 'shop' ? 'slide-left' : 'slide-right';
-        const slideInClass = newMode === 'shop' ? 'slide-in-right' : 'slide-in-left';
+        // Material 3 Expressive Fade-through: out → switch → in
+        const fadeOutClass = 'm3-fade-out';
+        const fadeInClass = 'm3-fade-in';
 
-        groceryList.classList.add(slideOutClass);
+        groceryList.classList.add(fadeOutClass);
         groceryList.addEventListener('animationend', function onOut() {
             groceryList.removeEventListener('animationend', onOut);
-            groceryList.classList.remove(slideOutClass);
+            groceryList.classList.remove(fadeOutClass);
 
             doSwitch();
 
-            groceryList.classList.add(slideInClass);
+            groceryList.classList.add(fadeInClass);
             groceryList.addEventListener('animationend', function onIn() {
                 groceryList.removeEventListener('animationend', onIn);
-                groceryList.classList.remove(slideInClass);
+                groceryList.classList.remove(fadeInClass);
             });
-        });
+        }, { once: true });
     }
 
     // --- Mode Bar Switching ---

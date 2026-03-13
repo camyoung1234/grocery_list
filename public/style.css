@@ -422,7 +422,7 @@ h1 {
     padding-bottom: 60px;
 }
 
-/* Swipe slide transition */
+/* Swipe slide transition (Retained for potential legacy use) */
 @keyframes slideOutLeft {
     from {
         transform: translateX(0);
@@ -469,6 +469,43 @@ h1 {
         transform: translateX(0);
         opacity: 1;
     }
+}
+
+/* Material 3 Expressive Fade-through */
+/* According to M3, fade-through involves an outgoing element fading out (100% -> 0%) 
+   and an incoming element fading in (0% -> 100%) and slightly scaling in (92% -> 100%).
+   Timing: Exit 90ms, Enter 210ms. Total 300ms. */
+
+@keyframes m3FadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes m3FadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Outgoing animation */
+.m3-fade-out {
+    animation: m3FadeOut 90ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* Incoming animation */
+.m3-fade-in {
+    animation: m3FadeIn 210ms cubic-bezier(0, 0, 0.2, 1) forwards;
 }
 
 .grocery-list.slide-left {
