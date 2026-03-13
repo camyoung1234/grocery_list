@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
     let draggedElement = null;
     let dragType = null; // 'item' or 'section'
-    let placeholder = document.createElement('div');
+    let placeholder = document.createElement('li');
     placeholder.className = 'drag-placeholder';
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let deleteListMode = false; // Tracks whether we're in list-deletion mode
@@ -1240,45 +1240,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 reorderControls.appendChild(moveHereBtn);
                 header.appendChild(reorderControls);
-            } else if (isHome || section.id !== shopDefId) {
-                // Normal mode: show reordering arrows (except for Uncategorized in Shop Mode)
-                const upBtn = document.createElement('button');
-                upBtn.className = 'section-reorder-btn';
-                upBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-
-                // In Shop mode, Uncategorized is locked at index 0 and can't move. 
-                // So index 1 in Shop mode also can't move up.
-                const cannotMoveUp = isHome ? (idx === 0) : (idx <= 1);
-
-                if (cannotMoveUp) {
-                    upBtn.disabled = true;
-                }
-                upBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    // In Home mode, anything index > 0 can move up.
-                    // In Shop mode, index 1 cannot move up (protects Uncategorized at 0).
-                    const canMoveUp = isHome ? (idx > 0) : (idx > 1);
-                    if (canMoveUp) {
-                        swapSectionsAndAnimate(arr, idx, idx - 1);
-                    }
-                });
-
-                const downBtn = document.createElement('button');
-                downBtn.className = 'section-reorder-btn';
-                downBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                if (idx === arr.length - 1) {
-                    downBtn.disabled = true;
-                }
-                downBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (idx < arr.length - 1 && idx !== -1) {
-                        swapSectionsAndAnimate(arr, idx, idx + 1);
-                    }
-                });
-
-                reorderControls.appendChild(upBtn);
-                reorderControls.appendChild(downBtn);
-                header.appendChild(reorderControls);
             }
 
             sectionLi.appendChild(header);
@@ -1499,7 +1460,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Add "Add item" row for this section
             if (isHome) {
                 const addRow = document.createElement('li');
-                addRow.className = 'grocery-item add-item-row no-transition';
+                addRow.className = 'grocery-item add-item-row';
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
 
@@ -1533,7 +1494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Add "Add a section..." element at the bottom
         const addSecRow = document.createElement('li');
-        addSecRow.className = 'grocery-item add-section-row no-transition';
+        addSecRow.className = 'grocery-item add-section-row';
 
         const addSecContainer = document.createElement('form');
         addSecContainer.className = 'input-group inline-input-group';
@@ -1773,6 +1734,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         draggedElement = element;
         dragType = type;
 
+        if (e.dataTransfer) {
+            e.dataTransfer.setData('text/plain', element.dataset.id || '');
+            e.dataTransfer.effectAllowed = 'move';
+            // Explicitly set drag image to avoid it disappearing when we hide the source
+            e.dataTransfer.setDragImage(element, 25, 25);
+        }
+
         if (type === 'section') {
             // Hide items and add-item rows
             document.querySelectorAll('.section-items-list, .add-item-row, .add-section-row').forEach(el => {
@@ -1785,25 +1753,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        if (e.dataTransfer) {
-            e.dataTransfer.effectAllowed = 'move';
-            // Use a timeout to hide the original element so the ghost image is still created
-            setTimeout(() => {
-                element.classList.add('collapsed');
+        // Hide original element space using a 0ms timeout to allow ghost image capture
+        setTimeout(() => {
+            if (draggedElement === element) {
                 element.classList.add('dragging');
+                element.style.opacity = '0';
+                element.style.height = '0';
+                element.style.margin = '0';
+                element.style.padding = '0';
+                element.style.overflow = 'hidden';
+
                 // Disable transitions AFTER initial collapse to prevent lag during drag
                 setTimeout(() => {
                     if (draggedElement) groceryList.classList.add('no-transition');
                 }, 300);
-            }, 0);
-        } else {
+            }
+        }, 0);
+
+        if (!e.dataTransfer) {
             // Touch handling
-            element.classList.add('dragging');
-            element.classList.add('collapsed');
-            // Wait for collapse transition before disabling transitions
-            setTimeout(() => {
-                if (draggedElement) groceryList.classList.add('no-transition');
-            }, 300);
+            // Disable scrolling
+            document.body.style.overflow = 'hidden';
         }
     }
 
@@ -1811,19 +1781,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (isBefore && target.previousElementSibling === placeholder) return;
         if (!isBefore && target.nextElementSibling === placeholder) return;
 
-        const items = Array.from(groceryList.querySelectorAll(dragType === 'section' ? '.section-container' : '.grocery-item'));
-        const oldRects = items.map(el => ({ el, top: el.getBoundingClientRect().top }));
+        // Collect all potential elements that could move
+        const selector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item';
+        const items = Array.from(groceryList.querySelectorAll(selector));
 
+        // Store current positions
+        const positions = new Map();
+        items.forEach(el => {
+            positions.set(el, el.getBoundingClientRect().top);
+        });
+
+        // Move the placeholder
         if (isBefore) {
             target.before(placeholder);
         } else {
             target.after(placeholder);
         }
 
-        items.forEach((el, i) => {
-            const oldTop = oldRects[i].top;
+        // Animate elements that shifted
+        items.forEach(el => {
+            const oldTop = positions.get(el);
             const newTop = el.getBoundingClientRect().top;
             const delta = oldTop - newTop;
+
             if (delta !== 0) {
                 el.style.transition = 'none';
                 el.style.transform = `translateY(${delta}px)`;
@@ -1838,7 +1818,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         if (!draggedElement) return;
 
-        const target = e.target.closest(dragType === 'section' ? '.section-container' : '.grocery-item');
+        let target = e.target.closest(dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item');
         if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
         const rect = target.getBoundingClientRect();
@@ -1858,45 +1838,56 @@ document.addEventListener('DOMContentLoaded', async () => {
             const sectionsKey = isHome ? 'homeSections' : 'shopSections';
             const sections = currentList[sectionsKey];
             const movedId = draggedElement.dataset.id;
-            const targetElement = placeholder.nextElementSibling || placeholder.previousElementSibling;
 
-            if (targetElement) {
-                const targetId = targetElement.dataset.id;
-                const oldIdx = sections.findIndex(s => s.id === movedId);
-                let newIdx = sections.findIndex(s => s.id === targetId);
+            // Find new index based on placeholder position
+            const children = Array.from(groceryList.children).filter(el => el.classList.contains('section-container') || el === placeholder);
+            let newIdx = children.indexOf(placeholder);
+            const oldIdx = sections.findIndex(s => s.id === movedId);
 
-                if (placeholder.nextElementSibling === targetElement) {
-                    // Dropped before target
-                } else {
-                    newIdx++; // Dropped after target
+            if (oldIdx !== -1 && newIdx !== -1) {
+                const [moved] = sections.splice(oldIdx, 1);
+
+                // Ensure Uncategorized stays at top in Shop Mode
+                if (!isHome && newIdx === 0) {
+                    newIdx = 1;
                 }
 
-                if (oldIdx !== -1 && newIdx !== -1) {
-                    // Ensure Uncategorized stays at top in Shop Mode
-                    if (!isHome && newIdx === 0) {
-                        newIdx = 1;
-                    }
-                    const [moved] = sections.splice(oldIdx, 1);
-                    const adjustedIdx = newIdx > oldIdx ? newIdx - 1 : newIdx;
-                    sections.splice(adjustedIdx, 0, moved);
-                }
+                const adjustedIdx = newIdx > oldIdx ? newIdx - 1 : newIdx;
+                sections.splice(adjustedIdx, 0, moved);
             }
         } else {
             // Item reordering
             const movedId = draggedElement.dataset.id;
-            const targetElement = placeholder.nextElementSibling || placeholder.previousElementSibling;
+            const targetSection = placeholder.closest('.section-container');
+            if (targetSection) {
+                const targetSectionId = targetSection.dataset.id;
+                const itemsUl = targetSection.querySelector('.section-items-list');
+                const children = Array.from(itemsUl.children).filter(el => el.classList.contains('grocery-item') || el === placeholder);
+                const placeholderIdx = children.indexOf(placeholder);
 
-            if (targetElement) {
-                const targetId = targetElement.dataset.id;
-                const targetSectionId = targetElement.closest('.section-container')?.dataset.id;
+                let anchorId = null;
+                let isAtEnd = false;
 
-                // Handle dropping into empty section via its UL if necessary, but placeholder is usually enough
-                updateOrderInState(movedId, targetId, targetSectionId, targetElement.classList.contains('add-item-row'));
+                // If placeholder is not at the very end (before add row)
+                if (placeholderIdx < children.length - 1) {
+                    const nextEl = children[placeholderIdx + 1];
+                    if (nextEl.classList.contains('grocery-item') && !nextEl.classList.contains('add-item-row')) {
+                        anchorId = nextEl.dataset.id;
+                    } else {
+                        isAtEnd = true;
+                    }
+                } else {
+                    isAtEnd = true;
+                }
+
+                updateOrderInState(movedId, anchorId, targetSectionId, isAtEnd);
             }
         }
 
         saveAppState();
-        handleDragEnd();
+
+        // Small delay before ending drag to ensure all drops complete across browsers
+        setTimeout(() => handleDragEnd(), 10);
     });
 
     function handleTouchStart(e, element, type) {
@@ -1945,22 +1936,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     function handleDragEnd() {
         if (draggedElement) {
             draggedElement.classList.remove('dragging');
+            draggedElement.style.opacity = '';
+            draggedElement.style.height = '';
+            draggedElement.style.margin = '';
+            draggedElement.style.padding = '';
+            draggedElement.style.overflow = '';
         }
-        draggedElement = null;
-        dragType = null;
+
         placeholder.remove();
         groceryList.classList.remove('no-transition');
+        document.body.style.overflow = '';
 
-        document.querySelectorAll('.collapsed').forEach(el => {
-            el.classList.remove('collapsed');
-        });
-
-        renderList();
+        const collapsed = document.querySelectorAll('.collapsed');
+        if (collapsed.length > 0) {
+            collapsed.forEach(el => el.classList.remove('collapsed'));
+            // Wait for height transition (0.3s) before re-rendering the whole list
+            setTimeout(() => {
+                draggedElement = null;
+                dragType = null;
+                renderList();
+            }, 300);
+        } else {
+            draggedElement = null;
+            dragType = null;
+            renderList();
+        }
     }
 
     groceryList.addEventListener('dragend', handleDragEnd);
 
-    function updateOrderInState(movedId, anchorId, targetSectionId, isPlaceholder) {
+    function updateOrderInState(movedId, anchorId, targetSectionId, isAtEnd) {
         const currentList = getCurrentList();
         const isHome = currentMode === 'home';
         const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
@@ -1971,14 +1976,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const oldSectionId = movedItem[sectionIdKey];
 
-        if (isPlaceholder) {
+        if (isAtEnd) {
             movedItem[sectionIdKey] = targetSectionId;
             let sectionItems = currentList.items.filter(i => i[sectionIdKey] === targetSectionId && i.id !== movedId);
+            sectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
             sectionItems.push(movedItem);
             sectionItems.forEach((item, idx) => { item[indexKey] = idx; });
 
             if (oldSectionId !== targetSectionId) {
                 let oldSectionItems = currentList.items.filter(i => i[sectionIdKey] === oldSectionId);
+                oldSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
                 oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
             }
             return;
@@ -1997,16 +2004,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const oldIdx = oldSectionItems.findIndex(i => i.id === movedId);
             let newIdx = oldSectionItems.findIndex(i => i.id === anchorId);
 
-            // Check if dropped before or after anchor
-            const anchorEl = document.querySelector(`[data-id="${anchorId}"]`);
-            if (placeholder.previousElementSibling === anchorEl) {
-                newIdx++;
-            }
-
             if (oldIdx !== -1 && newIdx !== -1) {
                 const [moved] = oldSectionItems.splice(oldIdx, 1);
-                const adjustedIdx = newIdx > oldIdx ? newIdx - 1 : newIdx;
-                oldSectionItems.splice(adjustedIdx, 0, moved);
+                // After splice, if the original element was before the anchor,
+                // the anchor's index in the remaining array is still newIdx (or newIdx-1 if movedIdx < newIdx)
+                // Actually, finding anchor index AFTER splice is safer.
+                const finalNewIdx = oldSectionItems.findIndex(i => i.id === anchorId);
+                oldSectionItems.splice(finalNewIdx, 0, moved);
                 oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
             }
         } else {
@@ -2018,11 +2022,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             newSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
 
             let insertIdx = newSectionItems.findIndex(i => i.id === anchorId);
-            const anchorEl = document.querySelector(`[data-id="${anchorId}"]`);
-            if (placeholder.previousElementSibling === anchorEl) {
-                insertIdx++;
-            }
-
             if (insertIdx !== -1) {
                 newSectionItems.splice(insertIdx, 0, movedItem);
             } else {

@@ -1766,6 +1766,6 @@ h1 {
     transition: transform 0.2s ease, height 0.3s ease, opacity 0.3s ease;
 }
 
-.no-transition {
+.no-transition, .no-transition * {
     transition: none !important;
 }
