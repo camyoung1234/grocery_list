@@ -1744,7 +1744,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sections.forEach(section => {
             const header = section.querySelector('.section-header');
             const list = section.querySelector('.section-items-list');
-            const items = Array.from(list.querySelectorAll('.grocery-item, .add-item-row'));
+            const items = Array.from(list.querySelectorAll('.grocery-item, .add-item-row, .drag-placeholder'));
             
             // Mark items with their parent section ID for restoration
             if (header) {
@@ -2079,46 +2079,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Prevent scrolling during drag
         if (e.cancelable) e.preventDefault();
 
-        // Disable pointer events so we can detect target behind it
-        const originalPointerEvents = draggedElement.style.pointerEvents;
-        draggedElement.style.pointerEvents = 'none';
-        if (touchGhost) touchGhost.style.pointerEvents = 'none';
+        if (dragUpdateFrame) return;
+        dragUpdateFrame = requestAnimationFrame(() => {
+            dragUpdateFrame = null;
+            if (!draggedElement) return;
 
-        const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+            // Disable pointer events so we can detect target behind it
+            const originalPointerEvents = draggedElement.style.pointerEvents;
+            draggedElement.style.pointerEvents = 'none';
+            if (touchGhost) touchGhost.style.pointerEvents = 'none';
 
-        draggedElement.style.pointerEvents = originalPointerEvents;
+            let target = document.elementFromPoint(touch.clientX, touch.clientY);
 
-        let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
-        let target = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (target) target = target.closest(targetSelector);
+            draggedElement.style.pointerEvents = originalPointerEvents;
+            if (touchGhost) touchGhost.style.pointerEvents = '';
 
-        if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
+            let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
+            if (target) target = target.closest(targetSelector);
 
-        if (dragType === 'item') {
-            const rect = target.getBoundingClientRect();
-            const midpoint = rect.top + rect.height / 2;
-            let isBefore = touch.clientY < midpoint;
+            if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
-            if (target.classList.contains('add-item-row')) isBefore = true;
-            if (target.classList.contains('section-header')) isBefore = false;
+            if (dragType === 'item') {
+                const rect = target.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                let isBefore = touch.clientY < midpoint;
 
-            if (target.classList.contains('add-section-row')) {
-                target = target.previousElementSibling;
-                while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
-                if (!target) return;
-                isBefore = true;
+                if (target.classList.contains('add-item-row')) isBefore = true;
+                if (target.classList.contains('section-header')) isBefore = false;
+
+                if (target.classList.contains('add-section-row')) {
+                    target = target.previousElementSibling;
+                    while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
+                    if (!target) return;
+                    isBefore = true;
+                }
+
+                animatePlaceholderMove(target, isBefore);
+            } else {
+                const rect = target.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                animatePlaceholderMove(target, touch.clientY < midpoint);
             }
-
-            animatePlaceholderMove(target, isBefore);
-            return;
-        }
-
-        const rect = target.getBoundingClientRect();
-        const midpoint = rect.top + rect.height / 2;
-
-        animatePlaceholderMove(target, touch.clientY < midpoint);
-
-        // Auto-scroll logic is now handled by updateAutoScroll in the listener
+        });
     }, { passive: false });
 
     groceryList.addEventListener('touchend', (e) => {
