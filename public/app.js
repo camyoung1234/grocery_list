@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toolbarModeBtn = document.getElementById('toolbar-mode');
     const toolbarReorderBtn = document.getElementById('toolbar-reorder');
     const toolbarShareBtn = document.getElementById('toolbar-share');
+    const currentListNameSpan = document.getElementById('current-list-name');
+    const modeTextSpan = document.getElementById('mode-text');
 
     // Modal Elements
     const modalOverlay = document.getElementById('modal-overlay');
@@ -927,14 +929,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
         document.documentElement.style.setProperty('--primary-color', themeColor);
 
-        // Update toolbar mode icon
+        // Update list picker name
+        if (currentListNameSpan && currentList) {
+            currentListNameSpan.textContent = currentList.name;
+        }
+
+        // Update toolbar mode CTA
         if (toolbarModeBtn) {
             const icon = toolbarModeBtn.querySelector('i');
             if (currentMode === 'shop') {
-                icon.className = 'fas fa-home';
+                if (icon) icon.className = 'fas fa-home';
+                if (modeTextSpan) modeTextSpan.textContent = 'Home';
                 toolbarModeBtn.title = 'Switch to Home Mode';
             } else {
-                icon.className = 'fas fa-shopping-cart';
+                if (icon) icon.className = 'fas fa-shopping-cart';
+                if (modeTextSpan) modeTextSpan.textContent = 'Shop';
                 toolbarModeBtn.title = 'Switch to Store Mode';
             }
         }
