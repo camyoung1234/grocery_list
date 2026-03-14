@@ -629,15 +629,16 @@ h1 {
 }
 
 .section-container .grocery-item.shop-chip.completed {
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    background: transparent;
 }
 
 .shop-qty-circle {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--primary-color);
-    color: var(--card-bg);
+    background: transparent;
+    border: 2px solid var(--text-color);
+    color: var(--text-color);
     width: 22px;
     height: 22px;
     border-radius: 50%;
@@ -645,6 +646,13 @@ h1 {
     font-weight: 700;
     position: relative;
     overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.section-container .grocery-item.shop-chip.completed .shop-qty-circle {
+    background: var(--primary-color);
+    color: var(--card-bg);
+    border-color: var(--primary-color);
 }
 
 .shop-qty-circle .qty-number,
