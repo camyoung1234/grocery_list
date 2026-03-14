@@ -927,10 +927,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (toolbarModeBtn) {
             const icon = toolbarModeBtn.querySelector('i');
             if (currentMode === 'shop') {
-                icon.className = 'fas fa-shopping-cart';
+                icon.className = 'fas fa-home';
                 toolbarModeBtn.title = 'Switch to Home Mode';
             } else {
-                icon.className = 'fas fa-home';
+                icon.className = 'fas fa-shopping-cart';
                 toolbarModeBtn.title = 'Switch to Store Mode';
             }
         }

@@ -430,7 +430,7 @@ h1 {
     min-width: 0;
     overflow: visible;
     position: relative;
-    transition: margin 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .quantity-controls {
@@ -1697,12 +1697,18 @@ h1 {
 }
 
 .hide-drag-handles .drag-handle {
-    display: none !important;
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .hide-drag-handles .item-info,
 .hide-drag-handles .section-title {
     margin-left: 1rem;
+}
+
+.section-title {
+    transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Drag and Drop Styles */
@@ -1715,6 +1721,8 @@ h1 {
     color: var(--text-muted);
     cursor: grab;
     flex-shrink: 0;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    overflow: hidden;
 }
 
 .drag-handle:active {
