@@ -217,6 +217,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderList();
     }
 
+    function commitCheckedItems(currentList, sectionIdToExclude = null) {
+        const itemsToCommit = currentList.items.filter(item =>
+            item.shopCompleted && item.shopSectionId !== sectionIdToExclude
+        );
+
+        if (itemsToCommit.length === 0) return false;
+
+        // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
+        const sectionsMap = new Map();
+        itemsToCommit.forEach(item => {
+            if (!sectionsMap.has(item.shopSectionId)) {
+                sectionsMap.set(item.shopSectionId, []);
+            }
+            sectionsMap.get(item.shopSectionId).push(item);
+        });
+
+        sectionsMap.forEach(checkedItems => {
+            // Sort by check order (ascending - older checks first)
+            checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
+
+            // Extract their current indices and sort numerically
+            const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
+
+            // Re-assign sorted indices back to the items based on their check order
+            checkedItems.forEach((item, i) => {
+                item.shopIndex = indices[i];
+            });
+        });
+
+        itemsToCommit.forEach(item => {
+            item.haveCount = item.wantCount;
+            item.shopCompleted = false;
+            item.shopCheckOrder = null;
+        });
+
+        return true;
+    }
+
     // --- Mode Switching ---
     function switchMode(newMode, animate = false) {
         if (newMode === currentMode) return;
@@ -225,39 +263,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Auto-update "Have" counts and auto-sort when switching FROM Shop TO Home
             if (currentMode === 'shop' && newMode === 'home') {
                 const currentList = getCurrentList();
-
-                // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
-                const sectionsMap = new Map();
-                currentList.items.forEach(item => {
-                    if (item.shopCompleted) {
-                        if (!sectionsMap.has(item.shopSectionId)) {
-                            sectionsMap.set(item.shopSectionId, []);
-                        }
-                        sectionsMap.get(item.shopSectionId).push(item);
-                    }
-                });
-
-                sectionsMap.forEach(checkedItems => {
-                    // Sort by check order (ascending - older checks first)
-                    checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
-
-                    // Extract their current indices and sort numerically
-                    const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
-
-                    // Re-assign sorted indices back to the items based on their check order
-                    checkedItems.forEach((item, i) => {
-                        item.shopIndex = indices[i];
-                    });
-                });
-
-                currentList.items.forEach(item => {
-                    if (item.shopCompleted) {
-                        item.haveCount = item.wantCount;
-                        item.shopCompleted = false;
-                        item.shopCheckOrder = null;
-                    }
-                });
-                saveAppState();
+                if (commitCheckedItems(currentList)) {
+                    saveAppState();
+                }
             }
 
             // Clear shop selection mode on any mode switch
@@ -799,6 +807,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                 i.shopCompleted = newState;
                 i.shopCheckOrder = newState ? Date.now() : null;
             });
+
+            if (newState && currentMode === 'shop') {
+                // Incremental commitment: commit items in other sections
+                const otherCheckedItems = currentList.items.filter(i =>
+                    i.shopCompleted &&
+                    i.shopSectionId !== item.shopSectionId &&
+                    !sameNameItems.includes(i)
+                );
+
+                if (otherCheckedItems.length > 0) {
+                    saveAppState();
+                    renderList();
+
+                    otherCheckedItems.forEach(i => {
+                        const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                        if (el) {
+                            // Force a reflow if necessary, though adding class should be enough
+                            el.classList.add('collapsed');
+                        }
+                    });
+
+                    setTimeout(() => {
+                        commitCheckedItems(currentList, item.shopSectionId);
+                        saveAppState();
+                        renderList();
+                    }, 300);
+                    return;
+                }
+            }
             
             saveAppState();
             renderList();
@@ -1319,8 +1356,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (!isHome) {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    // Hide if 0-qty, not completed, and NOT in the Uncategorized section.
-                    if (toBuy <= 0 && !item.shopCompleted && section.id !== shopDefId) {
+                    // Hide if 0-qty and not completed
+                    if (toBuy <= 0 && !item.shopCompleted) {
                         li.classList.add('shop-hidden');
                     }
                 }
@@ -1451,8 +1488,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         } else {
                             // Normal behavior: toggle check off
                             toggleShopCompleted(item.id);
-                            item.shopCheckOrder = item.shopCompleted ? Date.now() : null;
-                            saveAppState();
                         }
                     });
 
