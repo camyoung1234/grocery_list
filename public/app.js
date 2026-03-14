@@ -1478,13 +1478,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
 
+                const plusIcon = document.createElement('div');
+                plusIcon.className = 'drag-handle add-row-plus';
+                plusIcon.innerHTML = '<i class="fas fa-plus"></i>';
+                addRow.appendChild(plusIcon);
+
+                const info = document.createElement('div');
+                info.className = 'item-info';
+
                 const inputContainer = document.createElement('form');
                 inputContainer.className = 'input-group inline-input-group';
 
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.className = 'inline-item-input add-item-input';
-                input.placeholder = '+ Add item';
+                input.placeholder = 'Add item';
+
+                plusIcon.addEventListener('click', () => input.focus());
 
                 const doAdd = (e) => {
                     e.preventDefault();
@@ -1492,11 +1502,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
                 inputContainer.addEventListener('submit', doAdd);
                 inputContainer.appendChild(input);
-                addRow.appendChild(inputContainer);
+                info.appendChild(inputContainer);
+                addRow.appendChild(info);
 
                 // Allow dropping ONTO the add row so we can drop files into an empty section
-                addRow.dataset.type = 'item-placeholder';
-                addRow.dataset.sectionId = section.id;
 
                 itemsUl.appendChild(addRow);
             }
@@ -1510,13 +1519,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addSecRow = document.createElement('li');
         addSecRow.className = 'grocery-item add-section-row';
 
+        const addSecPlusIcon = document.createElement('div');
+        addSecPlusIcon.className = 'drag-handle add-row-plus';
+        addSecPlusIcon.innerHTML = '<i class="fas fa-plus"></i>';
+        addSecRow.appendChild(addSecPlusIcon);
+
+        const addSecInfo = document.createElement('div');
+        addSecInfo.className = 'item-info';
+
         const addSecContainer = document.createElement('form');
         addSecContainer.className = 'input-group inline-input-group';
 
         const addSecInput = document.createElement('input');
         addSecInput.type = 'text';
-        addSecInput.placeholder = '+ Add section';
+        addSecInput.placeholder = 'Add section';
         addSecInput.className = 'inline-item-input add-section-input';
+
+        addSecPlusIcon.addEventListener('click', () => addSecInput.focus());
 
         const doAddSec = (e) => {
             if (e) e.preventDefault();
@@ -1530,7 +1549,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         addSecContainer.addEventListener('submit', doAddSec);
 
         addSecContainer.appendChild(addSecInput);
-        addSecRow.appendChild(addSecContainer);
+        addSecInfo.appendChild(addSecContainer);
+        addSecRow.appendChild(addSecInfo);
         groceryList.appendChild(addSecRow);
     }
 

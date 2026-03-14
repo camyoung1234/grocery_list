@@ -392,20 +392,22 @@ h1 {
 
 
 .section-container .add-item-row {
-    padding-top: 0.8rem;
+    padding-top: 0;
 }
 
 .add-item-input {
     line-height: 1.5rem;
-    padding: 3px 1rem;
+    padding: 3px 0 !important;
+    width: 100%;
 }
 
 .add-section-input {
     font-size: 1.2rem;
     font-weight: 700;
-    padding: 3px 0;
+    padding: 3px 0 !important;
     line-height: 1.5rem;
     margin: 0;
+    width: 100%;
 }
 
 .inline-item-input::placeholder {
@@ -1764,7 +1766,12 @@ h1 {
     flex-shrink: 0;
 }
 
-.drag-handle:active {
+.drag-handle.add-row-plus {
+    cursor: pointer;
+    color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
+}
+
+.drag-handle:active:not(.add-row-plus) {
     cursor: grabbing;
 }
 
@@ -1804,6 +1811,7 @@ h1 {
     height: 50px;
     overflow: hidden;
     transition: height 0.3s ease, max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+    flex-wrap: nowrap !important;
 }
 
 .collapsed {
