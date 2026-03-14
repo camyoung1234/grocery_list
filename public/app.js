@@ -1493,6 +1493,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 input.className = 'inline-item-input add-item-input';
                 input.placeholder = 'Add item';
 
+                plusIcon.addEventListener('click', () => input.focus());
+
                 const doAdd = (e) => {
                     e.preventDefault();
                     addItemToSection(section.id, input.value, isHome);
@@ -1503,8 +1505,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 addRow.appendChild(info);
 
                 // Allow dropping ONTO the add row so we can drop files into an empty section
-                addRow.dataset.type = 'item-placeholder';
-                addRow.dataset.sectionId = section.id;
 
                 itemsUl.appendChild(addRow);
             }
@@ -1533,6 +1533,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         addSecInput.type = 'text';
         addSecInput.placeholder = 'Add section';
         addSecInput.className = 'inline-item-input add-section-input';
+
+        addSecPlusIcon.addEventListener('click', () => addSecInput.focus());
 
         const doAddSec = (e) => {
             if (e) e.preventDefault();
