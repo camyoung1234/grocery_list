@@ -1217,10 +1217,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 header.appendChild(titleSpan);
             } else {
-                // Spacer for consistent alignment
-                const spacer = document.createElement('div');
-                spacer.className = 'drag-handle section-drag-handle spacer';
-                header.appendChild(spacer);
+                // Disabled drag handle for consistent alignment
+                const handle = createDragHandle();
+                handle.classList.add('section-drag-handle', 'disabled');
+                handle.draggable = false;
+                header.appendChild(handle);
                 header.appendChild(titleSpan);
             }
 

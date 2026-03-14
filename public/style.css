@@ -530,13 +530,13 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0;
+    padding: 0 1rem 0 0;
     height: 50px;
     box-sizing: border-box;
     background: transparent;
     transition: var(--transition);
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.5rem;
     touch-action: pan-y;
 }
 
@@ -603,7 +603,7 @@ h1 {
 
 
 .section-container .grocery-item.shop-chip {
-    padding: 0;
+    padding: 0 1rem 0 0;
     height: 50px;
     background: transparent;
     border-radius: 0;
@@ -613,7 +613,7 @@ h1 {
     transition: background 0.2s ease, opacity 0.2s ease;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    gap: 1rem;
+    gap: 0.5rem;
     box-sizing: border-box;
     justify-content: flex-start;
 }
@@ -651,6 +651,7 @@ h1 {
     font-weight: 700;
     position: relative;
     overflow: hidden;
+    margin-left: 1rem;
 }
 
 .shop-qty-circle .qty-number,
@@ -922,6 +923,7 @@ h1 {
     align-items: center;
     position: relative;
     z-index: 10;
+    margin-left: 1rem;
 }
 
 .qty-combined-pill {
@@ -1460,10 +1462,11 @@ h1 {
     justify-content: flex-start;
     align-items: center;
     border-bottom: none;
-    padding: 0;
+    padding: 0 1rem 0 0;
     margin-bottom: 0;
     height: 50px;
     user-select: none;
+    gap: 0.5rem;
 }
 
 .section-title {
@@ -1557,14 +1560,14 @@ h1 {
 }
 
 .section-container .grocery-item {
-    padding: 0;
+    padding: 0 1rem 0 0;
     height: 50px;
     box-sizing: border-box;
     border-radius: 0;
 }
 
 .section-container .add-item-row {
-    padding: 0;
+    padding: 0 1rem 0 0;
     height: 50px;
     box-sizing: border-box;
     display: flex;
@@ -1577,19 +1580,19 @@ h1 {
 /* Add a Section Row */
 .add-section-row {
     list-style: none;
-    padding: 0;
+    padding: 0 1rem 0 0;
     margin-top: 0;
     margin-bottom: 0;
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 0.5rem;
 }
 
 /* Undo Row Styles & Animations */
 .grocery-item.undo-row {
     background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
     border-radius: 0;
-    padding: 0;
+    padding: 0 1rem 0 0;
     height: 50px !important;
     box-sizing: border-box;
     margin-bottom: 0;
@@ -1646,7 +1649,7 @@ h1 {
     transition: all 0.2s ease;
     white-space: nowrap;
     margin-left: auto;
-    margin-right: 0.5rem;
+    margin-right: 0;
     box-shadow: 0 0 0 0 rgba(var(--primary-color), 0.4);
     animation: undoBtnFadeIn 0.4s ease-out, undo-pulse 2s infinite;
     height: 24px;
@@ -1770,6 +1773,11 @@ h1 {
 
 .drag-handle:active:not(.add-row-plus) {
     cursor: grabbing;
+}
+
+.drag-handle.disabled {
+    opacity: 0.3;
+    cursor: default;
 }
 
 .drag-placeholder {
