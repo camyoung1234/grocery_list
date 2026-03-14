@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     let currentMode = 'home'; // 'home' or 'shop'
-    let activeTabReorderId = null; // Tracks the ID of the list tab currently showing reorder arrows
+    let showDragHandles = false;
+    let listsMenuOpen = false;
     let draggedElement = null;
     let dragType = null;
     let touchGhost = null;
@@ -21,7 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let relevantSiblings = []; // Performance: cache relevant elements for FLIP
     let isSectionRestoration = false; // Flag to trigger drop animations
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
-    let deleteListMode = false; // Tracks whether we're in list-deletion mode
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
@@ -29,9 +29,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
-    const modeIndicator = document.getElementById('mode-indicator');
     const appContainer = document.querySelector('.app-container');
-    const tabsList = document.getElementById('tabs-list');
+    const listsMenu = document.getElementById('lists-menu');
+
+    // Toolbar Elements
+    const toolbarListsBtn = document.getElementById('toolbar-lists');
+    const toolbarModeBtn = document.getElementById('toolbar-mode');
+    const toolbarReorderBtn = document.getElementById('toolbar-reorder');
+    const toolbarShareBtn = document.getElementById('toolbar-share');
 
     // Modal Elements
     const modalOverlay = document.getElementById('modal-overlay');
@@ -55,10 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const importBtn = document.getElementById('import-btn');
     const exportBtn = document.getElementById('export-btn');
     const importInput = document.getElementById('import-input');
-
-    // Mode Bar Elements
-    const modeHomeBtn = document.getElementById('mode-home');
-    const modeShopBtn = document.getElementById('mode-shop');
 
     // Delete Modal Elements
     const deleteModalOverlay = document.getElementById('delete-modal-overlay');
@@ -213,7 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         updateModeUI();
-        renderTabs();
+        renderListsMenu();
         renderList();
     }
 
@@ -294,12 +295,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, { once: true });
     }
 
-    // --- Mode Bar Switching ---
-    if (modeHomeBtn) {
-        modeHomeBtn.addEventListener('click', () => switchMode('home', true));
+    // --- Toolbar Interactions ---
+    if (toolbarListsBtn) {
+        toolbarListsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleListsMenu();
+        });
     }
-    if (modeShopBtn) {
-        modeShopBtn.addEventListener('click', () => switchMode('shop', true));
+
+    if (toolbarModeBtn) {
+        toolbarModeBtn.addEventListener('click', () => {
+            const newMode = currentMode === 'home' ? 'shop' : 'home';
+            switchMode(newMode, true);
+        });
+    }
+
+    if (toolbarReorderBtn) {
+        toolbarReorderBtn.addEventListener('click', () => {
+            showDragHandles = !showDragHandles;
+            updateModeUI();
+        });
+    }
+
+    if (toolbarShareBtn) {
+        toolbarShareBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                const icon = toolbarShareBtn.querySelector('i');
+                const originalClass = icon.className;
+                icon.className = 'fas fa-check';
+                setTimeout(() => {
+                    icon.className = originalClass;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+            }
+        });
     }
 
     // --- Import / Export Logic ---
@@ -341,7 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         appState.currentListId = appState.lists[0] ? appState.lists[0].id : null;
                     }
                     saveAppState();
-                    renderTabs();
+                    renderListsMenu();
                     updateModeUI();
                     renderList();
                 } else {
@@ -627,7 +658,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         appState.lists.push(newList);
         appState.currentListId = newList.id;
         saveAppState();
-        renderTabs();
+        renderListsMenu();
         updateModeUI(); // Update theme color
         renderList();
     }
@@ -637,7 +668,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         appState.currentListId = id;
         saveAppState();
-        renderTabs();
+        renderListsMenu();
         updateModeUI(); // Apply the theme of the new list
         renderList();
     }
@@ -651,7 +682,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 list.name = newName;
                 if (newTheme) list.theme = newTheme;
                 saveAppState();
-                renderTabs();
+                renderListsMenu();
                 updateModeUI(); // Re-apply theme if current list changed
             }
         }, () => deleteListWithConfirmation(id, list.name));
@@ -724,7 +755,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 appState.currentListId = appState.lists[0].id;
             }
             saveAppState();
-            renderTabs();
+            renderListsMenu();
             updateModeUI();
             renderList();
         });
@@ -892,22 +923,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
         document.documentElement.style.setProperty('--primary-color', themeColor);
 
-        // Update mode indicator icon
-        if (modeIndicator) {
-            const icon = modeIndicator.querySelector('i');
+        // Update toolbar mode icon
+        if (toolbarModeBtn) {
+            const icon = toolbarModeBtn.querySelector('i');
             if (currentMode === 'shop') {
                 icon.className = 'fas fa-shopping-cart';
-                modeIndicator.title = 'Shop Mode';
+                toolbarModeBtn.title = 'Switch to Home Mode';
             } else {
                 icon.className = 'fas fa-home';
-                modeIndicator.title = 'Home Mode';
+                toolbarModeBtn.title = 'Switch to Store Mode';
             }
         }
 
-        // Update Mode Bar active state
-        if (modeHomeBtn && modeShopBtn) {
-            modeHomeBtn.classList.toggle('active', currentMode === 'home');
-            modeShopBtn.classList.toggle('active', currentMode === 'shop');
+        // Update reorder handle visibility
+        if (appContainer) {
+            appContainer.classList.toggle('hide-drag-handles', !showDragHandles);
+        }
+        if (toolbarReorderBtn) {
+            toolbarReorderBtn.classList.toggle('active', showDragHandles);
         }
     }
 
@@ -926,155 +959,61 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncToHash();
     }
 
-    function renderTabs() {
-        tabsList.innerHTML = '';
+    function renderListsMenu() {
+        if (!listsMenu) return;
+        listsMenu.innerHTML = '';
 
-        appState.lists.forEach((list, index) => {
-            const tab = document.createElement('div');
-            tab.className = `tab-item ${list.id === appState.currentListId ? 'active' : ''}`;
-            if (deleteListMode) {
-                tab.classList.add('delete-mode');
-            }
-            if (activeTabReorderId === list.id) {
-                tab.classList.add('reorder-active');
-            }
-            tab.dataset.id = list.id;
+        appState.lists.forEach((list) => {
+            const item = document.createElement('div');
+            item.className = `menu-item ${list.id === appState.currentListId ? 'active' : ''}`;
 
-            if (list.theme) {
-                tab.style.setProperty('--list-color', list.theme);
-            }
+            const swatch = document.createElement('div');
+            swatch.className = 'list-swatch';
+            swatch.style.background = list.theme || 'var(--theme-blue)';
 
-            const btnLeft = document.createElement('button');
-            btnLeft.className = 'tab-reorder-btn tab-left';
-            btnLeft.innerHTML = '<i class="fas fa-chevron-left"></i>';
-            btnLeft.disabled = index === 0;
+            const text = document.createElement('span');
+            text.textContent = list.name;
 
-            const btnRight = document.createElement('button');
-            btnRight.className = 'tab-reorder-btn tab-right';
-            btnRight.innerHTML = '<i class="fas fa-chevron-right"></i>';
-            btnRight.disabled = index === appState.lists.length - 1;
+            item.appendChild(swatch);
+            item.appendChild(text);
 
-            btnLeft.addEventListener('click', (e) => {
-                e.stopPropagation();
-                swapTabsAndAnimate(tab, -1);
-            });
-
-            btnRight.addEventListener('click', (e) => {
-                e.stopPropagation();
-                swapTabsAndAnimate(tab, 1);
-            });
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'tab-text';
-            nameSpan.textContent = list.name;
-
-            tab.appendChild(btnLeft);
-            tab.appendChild(nameSpan);
-
-            // Add trash icon for delete mode
-            const trashIcon = document.createElement('span');
-            trashIcon.className = 'tab-delete-icon';
-            trashIcon.innerHTML = '<i class="fas fa-trash"></i>';
-            tab.appendChild(trashIcon);
-
-            tab.appendChild(btnRight);
-
-            tab.addEventListener('click', (e) => {
-                if (e.target.closest('.tab-reorder-btn')) return;
-
-                // Delete mode: clicking a tab deletes it
-                if (deleteListMode) {
-                    deleteListWithConfirmation(list.id, list.name);
-                    return;
-                }
-
-                if (activeTabReorderId === list.id) {
-                    tab.classList.add('dismissing');
-                    activeTabReorderId = null;
-                    setTimeout(() => {
-                        tab.classList.remove('reorder-active', 'dismissing');
-                        renderTabs();
-                    }, 320);
-                    return;
-                } else if (activeTabReorderId) {
-                    activeTabReorderId = null;
-                    renderTabs();
-                    return;
-                }
+            item.addEventListener('click', () => {
                 switchList(list.id);
+                toggleListsMenu(false);
             });
 
-            // Double tap to edit list name and theme via modal
-            onDoubleTap(nameSpan, (e) => {
+            onLongPress(item, (e) => {
                 e.stopPropagation();
-                activeTabReorderId = null;
-                tab.classList.remove('reorder-active');
-
-                showModal('Edit List', list.name, true, list.theme, (newName, newTheme) => {
-                    if (newName && (newName !== list.name || newTheme !== list.theme)) {
-                        list.name = newName;
-                        if (newTheme) list.theme = newTheme;
-                        saveAppState();
-                        renderTabs();
-                        // If editing the current list, update theme color immediately
-                        if (list.id === appState.currentListId) {
-                            updateModeUI();
-                        }
-                    }
-                });
+                renameList(list.id);
             });
 
-            onLongPress(tab, (e) => {
-                const isActive = tab.classList.contains('reorder-active');
-                if (isActive) {
-                    // Dismiss
-                    tab.classList.add('dismissing');
-                    activeTabReorderId = null;
-                    setTimeout(() => {
-                        tab.classList.remove('reorder-active', 'dismissing');
-                        renderTabs();
-                    }, 320);
-                } else {
-                    // Close any other active tab reorder first (without animation for simplicity/speed)
-                    document.querySelectorAll('.tab-item.reorder-active').forEach(n => n.classList.remove('reorder-active'));
-                    tab.classList.add('reorder-active');
-                    activeTabReorderId = list.id;
-                }
-            });
-
-            // Remove context menu listener, using edit modal delete now.
-            // tab.addEventListener('contextmenu', (e) => {
-            //     e.preventDefault();
-            //     deleteListWithConfirmation(list.id, list.name);
-            // });
-
-            tabsList.appendChild(tab);
+            listsMenu.appendChild(item);
         });
 
-        // Add the "+" button at the end
-        const addBtn = document.createElement('button');
-        addBtn.id = 'add-tab-btn';
-        addBtn.className = 'add-tab-btn' + (deleteListMode ? ' delete-active' : '');
-        addBtn.innerHTML = deleteListMode ? '<i class="fas fa-times"></i>' : '<i class="fas fa-plus"></i>';
-        addBtn.title = deleteListMode ? 'Exit Delete Mode' : 'Create New List';
+        const divider = document.createElement('div');
+        divider.className = 'menu-divider';
+        listsMenu.appendChild(divider);
+
+        const addBtn = document.createElement('div');
+        addBtn.className = 'menu-item';
+        addBtn.innerHTML = '<i class="fas fa-plus"></i> <span>Create New List</span>';
         addBtn.addEventListener('click', () => {
-            if (deleteListMode) {
-                deleteListMode = false;
-                renderTabs();
-            } else {
-                showModal('Create New List', 'New List', true, 'var(--theme-blue)', (name, theme) => {
-                    if (name) addNewList(name, theme);
-                });
-            }
+            showModal('Create New List', 'New List', true, 'var(--theme-blue)', (name, theme) => {
+                if (name) addNewList(name, theme);
+            });
+            toggleListsMenu(false);
         });
+        listsMenu.appendChild(addBtn);
+    }
 
-        // Long-press on add button to enter delete mode
-        onLongPress(addBtn, () => {
-            deleteListMode = !deleteListMode;
-            renderTabs();
-        }, 300, { allowOnButtons: true });
-
-        tabsList.appendChild(addBtn);
+    function toggleListsMenu(force) {
+        listsMenuOpen = force !== undefined ? force : !listsMenuOpen;
+        if (listsMenu) {
+            listsMenu.classList.toggle('open', listsMenuOpen);
+        }
+        if (toolbarListsBtn) {
+            toolbarListsBtn.classList.toggle('active', listsMenuOpen);
+        }
     }
     function createDragHandle() {
         const handle = document.createElement('div');
@@ -1643,85 +1582,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return group;
     }
 
-    function swapTabsAndAnimate(tabNode, directionOffset) {
-        const allTabs = Array.from(document.querySelectorAll('.tab-item'));
-        const draggedIdx = allTabs.indexOf(tabNode);
-
-        if (draggedIdx === -1) return;
-
-        let targetIdx = draggedIdx + directionOffset;
-        if (targetIdx < 0 || targetIdx >= allTabs.length) return;
-
-        const targetNode = allTabs[targetIdx];
-        const movedId = tabNode.dataset.id;
-        const anchorId = targetNode.dataset.id;
-
-        // Capture bounding boxes internally
-        const preNodes = Array.from(document.querySelectorAll('.tab-item'));
-        const firstPositions = {};
-        preNodes.forEach(n => {
-            firstPositions[n.dataset.id] = n.getBoundingClientRect().left;
-        });
-
-        const targetInitialLeft = firstPositions[movedId] || 0;
-
-        // Reorder state
-        const oldIdx = appState.lists.findIndex(l => l.id === movedId);
-        const newIdx = appState.lists.findIndex(l => l.id === anchorId);
-        if (oldIdx !== -1 && newIdx !== -1) {
-            const [moved] = appState.lists.splice(oldIdx, 1);
-            appState.lists.splice(newIdx, 0, moved);
-            saveAppState();
-        }
-
-        renderTabs();
-
-        const postNodes = Array.from(document.querySelectorAll('.tab-item'));
-
-        // Adjust scroll position horizontally
-        const targetNewNode = postNodes.find(n => n.dataset.id === movedId);
-        if (targetNewNode) {
-            const targetNewLeft = targetNewNode.getBoundingClientRect().left;
-            const scrollDelta = targetNewLeft - targetInitialLeft;
-            tabsList.scrollBy(scrollDelta, 0);
-        }
-
-        // Apply FLIP animation
-        postNodes.forEach(n => {
-            const id = n.dataset.id;
-            if (firstPositions[id] !== undefined) {
-                const newLeft = n.getBoundingClientRect().left;
-                const deltaX = firstPositions[id] - newLeft;
-
-                if (deltaX !== 0) {
-                    if (id === movedId) {
-                        n.style.position = 'relative';
-                        n.style.zIndex = '20';
-                    } else {
-                        n.style.position = 'relative';
-                        n.style.zIndex = '10';
-                    }
-
-                    n.style.transform = `translateX(${deltaX}px)`;
-                    n.style.transition = 'none';
-
-                    requestAnimationFrame(() => {
-                        n.style.transform = '';
-                        n.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-                    });
-
-                    setTimeout(() => {
-                        n.style.position = '';
-                        n.style.zIndex = '';
-                        n.style.transition = '';
-                    }, 400);
-                }
-            }
-        });
-    }
 
 
-    // Close steppers on outside click
+    // Close menus on outside click
     document.addEventListener('click', (e) => {
         document.querySelectorAll('.qty-part.expanded').forEach(part => {
             if (!part.contains(e.target)) {
@@ -1730,18 +1593,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-
-        document.querySelectorAll('.tab-item.reorder-active').forEach(node => {
-            if (!node.contains(e.target) && !e.target.closest('.tab-reorder-btn')) {
-                node.classList.add('dismissing');
-                if (node.dataset.id === activeTabReorderId) activeTabReorderId = null;
-
-                setTimeout(() => {
-                    node.classList.remove('reorder-active', 'dismissing');
-                    renderTabs();
-                }, 320);
-            }
-        });
+        if (listsMenuOpen && !listsMenu.contains(e.target) && !toolbarListsBtn.contains(e.target)) {
+            toggleListsMenu(false);
+        }
     });
 
     function flattenList() {
@@ -1801,6 +1655,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleDragStart(e, element, type) {
+        if (!showDragHandles) {
+            e.preventDefault();
+            return;
+        }
         if (currentMode !== 'home' && type === 'section' && element.dataset.id === shopDefId) {
             e.preventDefault();
             return;
