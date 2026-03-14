@@ -275,14 +275,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Material 3 Expressive Fade-through: out → switch → in
-        const fadeOutClass = 'm3-fade-out';
-        const fadeInClass = 'm3-fade-in';
+        // Mode fade transition: out → scroll & switch → in
+        const fadeOutClass = 'mode-fade-out';
+        const fadeInClass = 'mode-fade-in';
 
         groceryList.classList.add(fadeOutClass);
         groceryList.addEventListener('animationend', function onOut() {
             groceryList.removeEventListener('animationend', onOut);
             groceryList.classList.remove(fadeOutClass);
+
+            // Scroll to top when current content is faded out
+            window.scrollTo(0, 0);
+            if (appContainer) appContainer.scrollTop = 0;
 
             doSwitch();
 
@@ -290,7 +294,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             groceryList.addEventListener('animationend', function onIn() {
                 groceryList.removeEventListener('animationend', onIn);
                 groceryList.classList.remove(fadeInClass);
-            });
+            }, { once: true });
         }, { once: true });
     }
 
