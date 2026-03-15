@@ -2032,3 +2032,7 @@ h1 {
 .touch-ghost * {
     transition: none !important;
 }
+
+.add-section-row.delete-target .add-section-input::placeholder {
+    color: var(--danger-color);
+}
