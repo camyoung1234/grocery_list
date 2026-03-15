@@ -1587,33 +1587,88 @@ h1 {
     pointer-events: none;
 }
 
-/* Floating Toolbar */
-.floating-toolbar {
+/* Bottom Toolbar */
+.bottom-toolbar {
     position: fixed;
-    bottom: 2rem;
+    bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    background: color-mix(in srgb, var(--card-bg) 80%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    padding: 0.5rem;
-    border-radius: 40px;
-    display: flex;
-    gap: 0.5rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-    border: 1px solid var(--border-color);
+    width: 100%;
+    max-width: 500px;
+    background: var(--card-bg);
+    padding: 0.75rem 1rem;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+    border-top: 1px solid var(--border-color);
     z-index: 2000;
+    box-sizing: border-box;
+}
+
+@media (min-width: 600px) {
+    .bottom-toolbar {
+        position: sticky;
+        border-bottom-left-radius: var(--border-radius);
+        border-bottom-right-radius: var(--border-radius);
+    }
+}
+
+.list-picker-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
     transition: var(--transition);
+    justify-self: start;
+    max-width: 140px;
+}
+
+.list-picker-btn span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.list-picker-btn i {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+}
+
+.list-picker-btn.open i {
+    transform: rotate(180deg);
+}
+
+@media (hover: hover) {
+    .list-picker-btn:hover {
+        background: var(--hover-bg);
+    }
+}
+
+.toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-self: end;
 }
 
 .toolbar-btn {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
     border: none;
     background: transparent;
     color: var(--text-color);
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1623,32 +1678,60 @@ h1 {
 
 @media (hover: hover) {
     .toolbar-btn:hover {
-        background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+        background: var(--hover-bg);
         color: var(--primary-color);
     }
 }
 
 .toolbar-btn:active {
-    transform: scale(0.9);
+    transform: scale(0.95);
 }
 
 .toolbar-btn.active {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color: var(--primary-color);
+}
+
+.toolbar-btn-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: var(--primary-color);
     color: white;
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+
+@media (hover: hover) {
+    .toolbar-btn-cta:hover {
+        filter: brightness(1.1);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px color-mix(in srgb, var(--primary-color) 40%, transparent);
+    }
+}
+
+.toolbar-btn-cta:active {
+    transform: translateY(0) scale(0.98);
 }
 
 /* Lists Menu */
 .lists-menu {
     position: fixed;
-    bottom: calc(2rem + 60px);
-    left: 50%;
-    transform: translateX(-50%) translateY(20px);
+    bottom: 70px;
+    left: 1rem;
+    transform: translateY(10px);
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     padding: 0.5rem;
-    min-width: 200px;
+    width: 200px;
     max-height: 40vh;
     overflow-y: auto;
     z-index: 1999;
@@ -1657,10 +1740,20 @@ h1 {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@media (min-width: 600px) {
+    .lists-menu {
+        left: 50%;
+        transform: translateX(-240px) translateY(10px);
+    }
+    .lists-menu.open {
+        transform: translateX(-240px) translateY(0);
+    }
+}
+
 .lists-menu.open {
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
 }
 
 .menu-item {

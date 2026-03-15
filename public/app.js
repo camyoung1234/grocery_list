@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toolbarModeBtn = document.getElementById('toolbar-mode');
     const toolbarReorderBtn = document.getElementById('toolbar-reorder');
     const toolbarShareBtn = document.getElementById('toolbar-share');
+    const currentListNameSpan = document.getElementById('current-list-name');
 
     // Modal Elements
     const modalOverlay = document.getElementById('modal-overlay');
@@ -927,14 +928,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
         document.documentElement.style.setProperty('--primary-color', themeColor);
 
-        // Update toolbar mode icon
+        // Update list picker name
+        if (currentListNameSpan && currentList) {
+            currentListNameSpan.textContent = currentList.name;
+        }
+
+        // Update toolbar mode CTA
         if (toolbarModeBtn) {
             const icon = toolbarModeBtn.querySelector('i');
             if (currentMode === 'shop') {
-                icon.className = 'fas fa-home';
+                if (icon) icon.className = 'fas fa-home';
                 toolbarModeBtn.title = 'Switch to Home Mode';
             } else {
-                icon.className = 'fas fa-shopping-cart';
+                if (icon) icon.className = 'fas fa-shopping-cart';
                 toolbarModeBtn.title = 'Switch to Store Mode';
             }
         }
@@ -1016,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             listsMenu.classList.toggle('open', listsMenuOpen);
         }
         if (toolbarListsBtn) {
-            toolbarListsBtn.classList.toggle('active', listsMenuOpen);
+            toolbarListsBtn.classList.toggle('open', listsMenuOpen);
         }
     }
     function createDragHandle() {
