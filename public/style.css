@@ -1699,13 +1699,28 @@ h1 {
     background: var(--primary-color);
     color: white;
     border: none;
-    width: 48px;
+    width: auto;
+    min-width: 95px;
+    padding: 0 1rem;
     height: 48px;
-    border-radius: 50%;
-    font-size: 1.2rem;
+    border-radius: 24px;
+    font-size: 1rem;
+    font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
     box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 30%, transparent);
+    gap: 0.6rem;
+}
+
+.toolbar-btn-cta i,
+.toolbar-btn-cta span {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+}
+
+.toolbar-btn-cta.mode-switching i,
+.toolbar-btn-cta.mode-switching span {
+    opacity: 0;
+    transform: scale(0.8);
 }
 
 @media (hover: hover) {
