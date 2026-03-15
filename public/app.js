@@ -1356,9 +1356,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         li.classList.add('selected');
                     }
 
+                    const info = document.createElement('div');
+                    info.className = 'item-info';
+
                     const textSpan = document.createElement('span');
                     textSpan.className = 'item-text';
                     textSpan.textContent = item.text;
+
+                    info.appendChild(textSpan);
 
                     const qtyCircle = document.createElement('div');
                     qtyCircle.className = 'shop-qty-circle';
@@ -1378,7 +1383,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     handle.addEventListener('touchstart', (e) => handleTouchStart(e, li, 'item'), { passive: false });
                     li.appendChild(handle);
 
-                    li.appendChild(textSpan);
+                    li.appendChild(info);
                     li.appendChild(qtyCircle);
 
                     // Full-chip click toggle for Shop Mode
