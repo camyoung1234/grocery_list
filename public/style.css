@@ -1857,16 +1857,14 @@ h1 {
 /* Lists Menu */
 .lists-menu {
     position: absolute;
-    bottom: 100%;
-    left: -1rem;
+    bottom: calc(100% + 0.5rem);
+    left: 0;
     width: 240px;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-bottom: none;
-    border-top-left-radius: var(--border-radius);
-    border-top-right-radius: var(--border-radius);
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.08);
-    padding: 0.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 0;
     max-height: 50vh;
     overflow-y: auto;
     z-index: 2000;
@@ -1874,12 +1872,11 @@ h1 {
     pointer-events: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateY(10px);
-    margin-bottom: -1px; /* Overlap toolbar border */
 }
 
 @media (min-width: 600px) {
     .lists-menu {
-        left: -1rem;
+        left: 0;
     }
 }
 
@@ -1893,12 +1890,21 @@ h1 {
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    padding: 0.8rem 1rem;
-    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
     cursor: pointer;
     transition: var(--transition);
     font-weight: 600;
     color: var(--text-color);
+}
+
+.menu-item:first-child {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.menu-item:last-child {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
 .menu-item:hover {
