@@ -24,28 +24,33 @@
 
 <body>
 
-    <div class="app-container">
-        <div class="tabs-container">
-            <div class="tabs-scroll" id="tabs-list">
-                <!-- Tabs injected by JS -->
-            </div>
-        </div>
-
+    <div class="app-container hide-drag-handles">
         <input type="file" id="import-input" accept=".json" class="hidden-input">
 
         <ul id="grocery-list" class="grocery-list">
             <!-- Items will be added here dynamically -->
         </ul>
 
-        <nav class="mode-bar">
-            <button class="mode-tab" id="mode-home" data-mode="home">
-                <i class="fas fa-home"></i>
-                <span>Home</span>
+        <div id="lists-menu" class="lists-menu"></div>
+
+        <nav class="bottom-toolbar">
+            <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists">
+                <span id="current-list-name">Loading...</span>
+                <i class="fas fa-chevron-down"></i>
             </button>
-            <button class="mode-tab" id="mode-shop" data-mode="shop">
+
+            <button class="toolbar-btn-cta" id="toolbar-mode" title="Toggle Mode">
                 <i class="fas fa-shopping-cart"></i>
-                <span>Store</span>
             </button>
+
+            <div class="toolbar-actions">
+                <button class="toolbar-btn" id="toolbar-reorder" title="Toggle Reordering">
+                    <i class="fas fa-grip-vertical"></i>
+                </button>
+                <button class="toolbar-btn" id="toolbar-share" title="Share List">
+                    <i class="fas fa-share-alt"></i>
+                </button>
+            </div>
         </nav>
     </div>
 
