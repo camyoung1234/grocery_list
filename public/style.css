@@ -1919,6 +1919,7 @@ h1 {
 
 .hide-drag-handles .add-item-row,
 .hide-drag-handles .add-section-row {
+    height: 0;
     max-height: 0;
     opacity: 0;
     padding-top: 0;
@@ -2023,7 +2024,7 @@ h1 {
 /* Smooth shifting during drag */
 .grocery-item,
 .section-container {
-    transition: transform 0.2s ease, height 0.3s ease, opacity 0.3s ease;
+    transition: transform 0.2s ease, height 0.3s ease, max-height 0.3s ease, opacity 0.3s ease;
 }
 
 .no-transition, .no-transition * {
