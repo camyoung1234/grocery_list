@@ -1919,10 +1919,11 @@ h1 {
 .hide-drag-handles .add-item-row,
 .hide-drag-handles .add-section-row {
     max-height: 0;
-    height: 0;
     opacity: 0;
-    padding: 0;
-    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
     border: none;
     pointer-events: none;
 }

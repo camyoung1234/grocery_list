@@ -160,6 +160,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
         currentMode = localStorage.getItem('grocery-mode') || 'home';
 
+        const storedEditMode = localStorage.getItem('grocery-edit-mode');
+        editMode = storedEditMode !== null ? JSON.parse(storedEditMode) : true;
+
         if (storedState && storedState.lists && storedState.lists.length > 0) {
             appState = storedState;
             // Migration for sections
@@ -324,8 +327,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (toolbarReorderBtn) {
         toolbarReorderBtn.addEventListener('click', () => {
+            // Find the row currently at the top of the viewport
+            const rows = Array.from(document.querySelectorAll('.grocery-item, .section-header'));
+            let topRow = null;
+            let topOffset = 0;
+
+            for (const row of rows) {
+                const rect = row.getBoundingClientRect();
+                if (rect.bottom > 0) {
+                    topRow = row;
+                    topOffset = rect.top;
+                    break;
+                }
+            }
+
             editMode = !editMode;
+            saveMode();
             updateModeUI();
+
+            // Maintain scroll position for the top row
+            if (topRow) {
+                const newRect = topRow.getBoundingClientRect();
+                const scrollDelta = newRect.top - topOffset;
+                window.scrollBy(0, scrollDelta);
+                if (appContainer) appContainer.scrollBy(0, scrollDelta);
+            }
         });
     }
 
@@ -1110,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function saveMode() {
         localStorage.setItem('grocery-mode', currentMode);
+        localStorage.setItem('grocery-edit-mode', JSON.stringify(editMode));
         syncToHash();
     }
 
