@@ -1806,9 +1806,9 @@ h1 {
 
 .mode-toggle {
     position: relative;
-    width: 90px;
-    height: 42px;
-    border-radius: 21px;
+    width: 72px;
+    height: 34px;
+    border-radius: 17px;
     background: color-mix(in srgb, var(--primary-color) 15%, var(--hover-bg));
     border: 2px solid var(--border-color);
     cursor: pointer;
@@ -1816,7 +1816,6 @@ h1 {
     display: flex;
     align-items: center;
     transition: var(--transition);
-    /* No overflow: hidden to prevent clipping thumb at edges */
 }
 
 .toggle-track {
@@ -1824,15 +1823,17 @@ h1 {
     width: 100%;
     justify-content: space-between;
     align-items: center;
-    padding: 0 14px;
+    padding: 0 10px;
     z-index: 1;
     box-sizing: border-box;
 }
 
 .toggle-track i {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
     transition: color 0.3s ease;
+    width: 14px;
+    text-align: center;
 }
 
 .mode-toggle.shop-active .fa-shopping-cart,
@@ -1842,10 +1843,10 @@ h1 {
 
 .toggle-thumb {
     position: absolute;
-    top: 4px;
-    left: 4px;
-    width: 30px;
-    height: 30px;
+    top: 5px;
+    left: 5px;
+    width: 24px;
+    height: 24px;
     background: var(--primary-color);
     border-radius: 50%;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1854,7 +1855,7 @@ h1 {
 }
 
 .mode-toggle.shop-active .toggle-thumb {
-    transform: translateX(48px);
+    transform: translateX(38px);
 }
 
 @media (hover: hover) {
@@ -1868,7 +1869,7 @@ h1 {
 }
 
 .mode-toggle.shop-active:active .toggle-thumb {
-    transform: translateX(48px) scale(0.9);
+    transform: translateX(38px) scale(0.9);
 }
 
 /* Lists Menu */
