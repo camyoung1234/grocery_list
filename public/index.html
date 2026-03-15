@@ -31,13 +31,15 @@
             <!-- Items will be added here dynamically -->
         </ul>
 
-        <div id="lists-menu" class="lists-menu"></div>
-
         <nav class="bottom-toolbar">
-            <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists">
-                <span id="current-list-name">Loading...</span>
-                <i class="fas fa-chevron-down"></i>
-            </button>
+            <div class="list-picker-container">
+                <div id="lists-menu" class="lists-menu"></div>
+                <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists">
+                    <div class="list-swatch" id="current-list-swatch"></div>
+                    <span id="current-list-name">Loading...</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
 
             <button class="toolbar-btn-cta" id="toolbar-mode" title="Toggle Mode">
                 <i class="fas fa-home"></i>
