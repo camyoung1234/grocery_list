@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toolbarReorderBtn = document.getElementById('toolbar-reorder');
     const toolbarShareBtn = document.getElementById('toolbar-share');
     const currentListNameSpan = document.getElementById('current-list-name');
-    const modeTextSpan = document.getElementById('mode-text');
 
     // Modal Elements
     const modalOverlay = document.getElementById('modal-overlay');
@@ -939,11 +938,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const icon = toolbarModeBtn.querySelector('i');
             if (currentMode === 'shop') {
                 if (icon) icon.className = 'fas fa-home';
-                if (modeTextSpan) modeTextSpan.textContent = 'Home';
                 toolbarModeBtn.title = 'Switch to Home Mode';
             } else {
                 if (icon) icon.className = 'fas fa-shopping-cart';
-                if (modeTextSpan) modeTextSpan.textContent = 'Shop';
                 toolbarModeBtn.title = 'Switch to Store Mode';
             }
         }
@@ -1025,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             listsMenu.classList.toggle('open', listsMenuOpen);
         }
         if (toolbarListsBtn) {
-            toolbarListsBtn.classList.toggle('active', listsMenuOpen);
+            toolbarListsBtn.classList.toggle('open', listsMenuOpen);
         }
     }
     function createDragHandle() {
