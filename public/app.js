@@ -1905,12 +1905,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         input.placeholder = 'Delete';
                         input.disabled = true;
                     }
-                    const container = addSecRow.querySelector('.input-group');
-                    if (container && !container.querySelector('.fa-trash')) {
-                        const icon = document.createElement('i');
-                        icon.className = 'fas fa-trash';
-                        icon.style.marginRight = '0.5rem';
-                        container.prepend(icon);
+                    const plusIcon = addSecRow.querySelector('.add-row-plus');
+                    if (plusIcon) {
+                        plusIcon.innerHTML = '<i class="fas fa-trash"></i>';
                     }
                 }
             }
@@ -2358,8 +2355,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 input.placeholder = '+ Add section';
                 input.disabled = false;
             }
-            const trashIcons = addSecRow.querySelectorAll('.input-group .fa-trash');
-            trashIcons.forEach(icon => icon.remove());
+            const plusIcon = addSecRow.querySelector('.add-row-plus');
+            if (plusIcon) {
+                plusIcon.innerHTML = '<i class="fas fa-plus"></i>';
+            }
         }
 
         renderList();

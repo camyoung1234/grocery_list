@@ -20,5 +20,9 @@
   "homepage": "https://github.com/camyoung1234/grocery_list#readme",
   "devDependencies": {
     "wrangler": "^4.71.0"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.58.2",
+    "playwright": "^1.58.2"
   }
 }
