@@ -680,6 +680,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 startY = e.touches[0].clientY;
             }
 
+            if (options.onStart) options.onStart(e);
+
             pressTimer = setTimeout(() => {
                 if (isPressing) {
                     isPressing = false;
@@ -689,6 +691,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         const cancelPress = () => {
+            if (isPressing && options.onCancel) options.onCancel();
             isPressing = false;
             clearTimeout(pressTimer);
         };
@@ -1366,9 +1369,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
 
-            sectionItems.forEach(item => {
+            sectionItems.forEach((item, idx) => {
                 const li = document.createElement('li');
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${item.shopCompleted && !isHome ? 'completed' : ''}`;
+
+                if (!isHome && !item.pendingDelete) {
+                    const isSelected = selectedShopItems.has(item.id);
+                    if (isSelected) {
+                        const prevItem = sectionItems[idx - 1];
+                        const nextItem = sectionItems[idx + 1];
+                        if (prevItem && selectedShopItems.has(prevItem.id)) li.classList.add('sel-top');
+                        if (nextItem && selectedShopItems.has(nextItem.id)) li.classList.add('sel-bottom');
+                    }
+                }
+
                 if (isSectionRestoration) li.classList.add('restoring-item');
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
@@ -1556,6 +1570,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                         shopSelectionMode = true;
                         selectedShopItems.add(item.id);
                         renderList();
+                    }, 600, {
+                        onStart: (e) => {
+                            const rect = li.getBoundingClientRect();
+                            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+                            const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+                            const fill = document.createElement('div');
+                            fill.className = 'long-press-fill';
+                            fill.style.left = x + 'px';
+                            fill.style.top = y + 'px';
+                            li.appendChild(fill);
+                        },
+                        onCancel: () => {
+                            li.querySelectorAll('.long-press-fill').forEach(f => {
+                                f.style.opacity = '0';
+                                setTimeout(() => f.remove(), 300);
+                            });
+                        }
                     });
                 }
 

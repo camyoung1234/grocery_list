@@ -458,7 +458,18 @@ h1 {
 
 /* Shop Mode Selection State - High specificity to override base/hover */
 .section-container .grocery-item.shop-chip.selected {
-    background: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent) !important;
+    border-radius: 12px;
+}
+
+.section-container .grocery-item.shop-chip.selected.sel-top {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.section-container .grocery-item.shop-chip.selected.sel-bottom {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 /* Hide 0-qty items in shop mode (except Uncategorized) via CSS as requested */
@@ -467,13 +478,14 @@ h1 {
 }
 
 .section-container .grocery-item.shop-chip.selected .item-text {
-    color: white;
+    color: var(--primary-color);
     font-weight: 700;
 }
 
 .section-container .grocery-item.shop-chip.selected .shop-qty-circle {
-    background: white;
+    background: transparent;
     color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 
@@ -2031,4 +2043,29 @@ h1 {
 
 .touch-ghost * {
     transition: none !important;
+}
+
+/* Long Press Radial Fill */
+.long-press-fill {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    transform: translate(-50%, -50%) scale(0);
+    animation: long-press-fill-animation 0.6s ease-out forwards;
+    transition: opacity 0.3s ease;
+}
+
+@keyframes long-press-fill-animation {
+    from {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 1;
+    }
+    to {
+        transform: translate(-50%, -50%) scale(40);
+        opacity: 1;
+    }
 }
