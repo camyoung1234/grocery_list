@@ -943,22 +943,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Update toolbar mode CTA
         if (toolbarModeBtn) {
             const icon = toolbarModeBtn.querySelector('i');
-            const modeText = document.getElementById('mode-text');
 
-            const updateButtonContent = () => {
-                if (currentMode === 'shop') {
-                    if (icon) icon.className = 'fas fa-shopping-cart';
-                    if (modeText) modeText.textContent = 'Store';
-                    toolbarModeBtn.title = 'Switch to Home Mode';
-                } else {
-                    if (icon) icon.className = 'fas fa-home';
-                    if (modeText) modeText.textContent = 'Home';
-                    toolbarModeBtn.title = 'Switch to Store Mode';
-                }
-            };
-
-            // Always update button content to match currentMode
-            updateButtonContent();
+            if (currentMode === 'shop') {
+                if (icon) icon.className = 'fas fa-shopping-cart';
+                toolbarModeBtn.title = 'Switch to Home Mode';
+            } else {
+                if (icon) icon.className = 'fas fa-home';
+                toolbarModeBtn.title = 'Switch to Store Mode';
+            }
         }
 
         // Update reorder handle visibility
