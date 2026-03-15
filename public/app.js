@@ -883,22 +883,97 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (newInlineInput) newInlineInput.focus();
     }
 
-    function toggleShopCompleted(id) {
+    function createSparks(x, y) {
+        const count = 8;
+        const color = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
+
+        for (let i = 0; i < count; i++) {
+            const spark = document.createElement('div');
+            spark.className = 'spark-particle';
+            spark.style.backgroundColor = color;
+            spark.style.left = x + 'px';
+            spark.style.top = y + 'px';
+            
+            document.body.appendChild(spark);
+            
+            const angle = (i / count) * Math.PI * 2;
+            const velocity = 30 + Math.random() * 40;
+            const destinationX = Math.cos(angle) * velocity;
+            const destinationY = Math.sin(angle) * velocity;
+
+            spark.animate([
+                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                { transform: `translate(calc(-50% + ${destinationX}px), calc(-50% + ${destinationY}px)) scale(0)`, opacity: 0 }
+            ], {
+                duration: 600,
+                easing: 'cubic-bezier(0, .9, .57, 1)',
+                fill: 'forwards'
+            }).onfinish = () => spark.remove();
+        }
+    }
+
+    let isTogglingShop = false;
+    async function toggleShopCompleted(id) {
+        if (isTogglingShop) return;
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
-        if (item) {
-            // Find all items with the same name to toggle them together (Grouping requirement)
-            const sameNameItems = currentList.items.filter(i => i.text === item.text);
-            const newState = !item.shopCompleted;
-            
-            sameNameItems.forEach(i => {
-                i.shopCompleted = newState;
-                i.shopCheckOrder = newState ? Date.now() : null;
-            });
-            
-            saveAppState();
-            renderList();
+        if (!item) return;
+
+        const sameNameItems = currentList.items.filter(i => i.text === item.text);
+        const newState = !item.shopCompleted;
+
+        // Find all DOM elements for grouped items
+        const elements = [];
+        sameNameItems.forEach(i => {
+            const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+            if (el) elements.push(el);
+        });
+
+        try {
+            isTogglingShop = true;
+            if (newState) {
+                // Completion sequence
+                elements.forEach(el => el.classList.add('is-completing'));
+
+                // Wait for strike-through + circle fill (0.4s + 0.3s)
+                await new Promise(r => setTimeout(r, 700));
+
+                // Trigger sparks
+                elements.forEach(el => {
+                    const circle = el.querySelector('.shop-qty-circle');
+                    if (circle) {
+                        const rect = circle.getBoundingClientRect();
+                        createSparks(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                    }
+                });
+
+                // Wait for sparks to be visible
+                await new Promise(r => setTimeout(r, 100));
+
+                sameNameItems.forEach(i => {
+                    i.shopCompleted = true;
+                    i.shopCheckOrder = Date.now();
+                });
+            } else {
+                // Undo sequence
+                elements.forEach(el => {
+                    el.classList.remove('completed'); // Instantly remove completed state to trigger reverse transitions
+                    el.classList.add('is-undoing');
+                });
+
+                await new Promise(r => setTimeout(r, 300));
+
+                sameNameItems.forEach(i => {
+                    i.shopCompleted = false;
+                    i.shopCheckOrder = null;
+                });
+            }
+        } finally {
+            isTogglingShop = false;
         }
+
+        saveAppState();
+        renderList();
     }
 
     function deleteItem(id) {
@@ -1465,8 +1540,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         } else {
                             // Normal behavior: toggle check off
                             toggleShopCompleted(item.id);
-                            item.shopCheckOrder = item.shopCompleted ? Date.now() : null;
-                            saveAppState();
                         }
                     });
 

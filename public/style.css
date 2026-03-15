@@ -535,6 +535,100 @@ h1 {
     border-color: var(--primary-color);
 }
 
+/* Flare Animation Styles */
+.shop-chip .item-info::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 0;
+    height: 2px;
+    background-color: var(--text-muted);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 5;
+    pointer-events: none;
+}
+
+.shop-chip.is-completing .item-info::after,
+.shop-chip.completed .item-info::after {
+    width: calc(100% + 1rem);
+}
+
+.shop-chip.is-undoing .item-info::after {
+    width: 0;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.shop-chip.is-undoing .shop-qty-circle::before {
+    width: 0 !important;
+    height: 0 !important;
+    transition: width 0.2s ease-in, height 0.2s ease-in !important;
+}
+
+.shop-chip.is-undoing .shop-qty-circle .qty-number {
+    transform: scale(1) translateY(0) !important;
+    opacity: 1 !important;
+    transition: all 0.2s ease-in !important;
+}
+
+.shop-chip.is-undoing .shop-qty-circle .check-icon {
+    transform: scale(0.5) translateY(10px) !important;
+    opacity: 0 !important;
+    transition: all 0.2s ease-in !important;
+}
+
+.shop-qty-circle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+}
+
+.shop-chip.is-completing .shop-qty-circle::before {
+    width: 100%;
+    height: 100%;
+    transition-delay: 0.4s;
+}
+
+.shop-chip.completed .shop-qty-circle::before {
+    width: 100%;
+    height: 100%;
+}
+
+.shop-chip.is-completing .shop-qty-circle .qty-number {
+    transition-delay: 0.4s;
+    transform: scale(0.5) translateY(-10px);
+    opacity: 0;
+}
+
+.shop-chip.is-completing .shop-qty-circle .check-icon {
+    transition-delay: 0.4s;
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+.spark-particle {
+    position: fixed;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    pointer-events: none;
+    z-index: 10000;
+}
+
+/* Disable default strike-through for shop chips to use flare */
+.shop-chip.completed .item-text::after {
+    width: 0 !important;
+}
+
 .shop-qty-circle .qty-number,
 .shop-qty-circle .check-icon {
     position: absolute;
