@@ -1557,6 +1557,7 @@ h1 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    box-sizing: border-box;
 }
 
 .add-section-row.delete-target {
@@ -1924,7 +1925,8 @@ h1 {
     padding-bottom: 0;
     margin-top: 0;
     margin-bottom: 0;
-    border: none;
+    border-top-width: 0;
+    border-bottom-width: 0;
     pointer-events: none;
 }
 
@@ -1996,7 +1998,7 @@ h1 {
     height: 50px;
     max-height: 50px;
     overflow: hidden;
-    transition: height 0.3s ease, max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     flex-wrap: nowrap !important;
 }
 
