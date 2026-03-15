@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     let currentMode = 'home'; // 'home' or 'shop'
-    let showDragHandles = false;
+    let editMode = true;
     let listsMenuOpen = false;
     let draggedElement = null;
     let dragType = null;
@@ -159,6 +159,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
         const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
         currentMode = localStorage.getItem('grocery-mode') || 'home';
+
+        const storedEditMode = localStorage.getItem('grocery-edit-mode');
+        editMode = storedEditMode !== null ? JSON.parse(storedEditMode) : true;
 
         if (storedState && storedState.lists && storedState.lists.length > 0) {
             appState = storedState;
@@ -324,8 +327,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (toolbarReorderBtn) {
         toolbarReorderBtn.addEventListener('click', () => {
-            showDragHandles = !showDragHandles;
+            // Find the row currently at the top of the viewport
+            const rows = Array.from(document.querySelectorAll('.grocery-item, .section-header'));
+            let topRow = null;
+            let topOffset = 0;
+
+            for (const row of rows) {
+                const rect = row.getBoundingClientRect();
+                if (rect.bottom > 0) {
+                    topRow = row;
+                    topOffset = rect.top;
+                    break;
+                }
+            }
+
+            editMode = !editMode;
+            saveMode();
             updateModeUI();
+
+            // Maintain scroll position for the top row
+            if (topRow) {
+                const newRect = topRow.getBoundingClientRect();
+                const scrollDelta = newRect.top - topOffset;
+                window.scrollBy(0, scrollDelta);
+                if (appContainer) appContainer.scrollBy(0, scrollDelta);
+            }
         });
     }
 
@@ -1090,10 +1116,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Update reorder handle visibility
         if (appContainer) {
-            appContainer.classList.toggle('hide-drag-handles', !showDragHandles);
+            appContainer.classList.toggle('hide-drag-handles', !editMode);
         }
         if (toolbarReorderBtn) {
-            toolbarReorderBtn.classList.toggle('active', showDragHandles);
+            toolbarReorderBtn.classList.toggle('active', editMode);
+            toolbarReorderBtn.title = editMode ? 'Exit Edit Mode' : 'Enter Edit Mode';
         }
     }
 
@@ -1109,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function saveMode() {
         localStorage.setItem('grocery-mode', currentMode);
+        localStorage.setItem('grocery-edit-mode', JSON.stringify(editMode));
         syncToHash();
     }
 
@@ -1566,7 +1594,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
             // Add "Add item" row for this section
-            if (isHome) {
+            {
                 const addRow = document.createElement('li');
                 addRow.className = 'grocery-item add-item-row';
                 if (isSectionRestoration) addRow.classList.add('restoring-item');
@@ -1831,7 +1859,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleDragStart(e, element, type) {
-        if (!showDragHandles) {
+        if (!editMode) {
             e.preventDefault();
             return;
         }

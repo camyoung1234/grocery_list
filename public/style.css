@@ -1557,6 +1557,7 @@ h1 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    box-sizing: border-box;
 }
 
 .add-section-row.delete-target {
@@ -1916,6 +1917,19 @@ h1 {
     pointer-events: none;
 }
 
+.hide-drag-handles .add-item-row,
+.hide-drag-handles .add-section-row {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    pointer-events: none;
+}
+
 .hide-drag-handles .item-info,
 .hide-drag-handles .section-title {
     margin-left: 1rem;
@@ -1982,8 +1996,9 @@ h1 {
 .grocery-item,
 .section-header {
     height: 50px;
+    max-height: 50px;
     overflow: hidden;
-    transition: height 0.3s ease, max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     flex-wrap: nowrap !important;
 }
 
