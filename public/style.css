@@ -1586,6 +1586,24 @@ h1 {
     gap: 0.5rem;
 }
 
+.add-section-row.delete-target {
+    color: var(--danger-color);
+}
+
+.add-section-row.delete-target i {
+    color: var(--danger-color);
+}
+
+.add-section-row.delete-target.drag-over {
+    background-color: var(--danger-color) !important;
+    color: white !important;
+}
+
+.add-section-row.delete-target.drag-over i,
+.add-section-row.delete-target.drag-over .add-section-input::placeholder {
+    color: white !important;
+}
+
 /* Undo Row Styles & Animations */
 .grocery-item.undo-row {
     background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));

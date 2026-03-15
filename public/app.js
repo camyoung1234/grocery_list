@@ -534,6 +534,66 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     deleteCancelBtn.addEventListener('click', hideDeleteModal);
 
+    // --- Section Delete Modal Logic ---
+    function showSectionDeleteModal(sectionId, sectionName, isHome) {
+        const currentList = getCurrentList();
+        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+        const itemsInSection = currentList.items.filter(i => i[sectionIdKey] === sectionId).length;
+
+        sectionDeleteModalTitle.textContent = `Delete ${sectionName}?`;
+        sectionDeleteModalText.textContent = `This section contains ${itemsInSection} item${itemsInSection === 1 ? '' : 's'}. What would you like to do?`;
+
+        currentSectionDeleteOnlyCallback = () => deleteSection(sectionId, false, isHome);
+        currentSectionDeleteAllCallback = () => deleteSection(sectionId, true, isHome);
+
+        sectionDeleteModalOverlay.classList.add('visible');
+    }
+
+    function hideSectionDeleteModal() {
+        sectionDeleteModalOverlay.classList.remove('visible');
+        currentSectionDeleteOnlyCallback = null;
+        currentSectionDeleteAllCallback = null;
+    }
+
+    function deleteSection(sectionId, deleteAllItems, isHome) {
+        const currentList = getCurrentList();
+        const sectionsKey = isHome ? 'homeSections' : 'shopSections';
+        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
+
+        if (deleteAllItems) {
+            currentList.items = currentList.items.filter(i => i[sectionIdKey] !== sectionId);
+        } else {
+            const fallbackSection = getOrCreateUncategorizedSection(isHome);
+            currentList.items.forEach(i => {
+                if (i[sectionIdKey] === sectionId) {
+                    i[sectionIdKey] = fallbackSection.id;
+                }
+            });
+            // Re-index target section
+            const targetItems = currentList.items.filter(i => i[sectionIdKey] === fallbackSection.id);
+            targetItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
+            targetItems.forEach((item, idx) => { item[indexKey] = idx; });
+        }
+
+        currentList[sectionsKey] = currentList[sectionsKey].filter(s => s.id !== sectionId);
+
+        saveAppState();
+        renderList();
+        hideSectionDeleteModal();
+    }
+
+    sectionDeleteOnlyBtn.addEventListener('click', () => {
+        if (currentSectionDeleteOnlyCallback) currentSectionDeleteOnlyCallback();
+    });
+    sectionDeleteAllBtn.addEventListener('click', () => {
+        if (currentSectionDeleteAllCallback) currentSectionDeleteAllCallback();
+    });
+    sectionDeleteCancelBtn.addEventListener('click', hideSectionDeleteModal);
+    sectionDeleteModalOverlay.addEventListener('mousedown', (e) => {
+        if (e.target === sectionDeleteModalOverlay) hideSectionDeleteModal();
+    });
+
 
     // --- Helper ---
     function onDoubleTap(element, callback) {
@@ -1830,7 +1890,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // For mouse events, create the ghost immediately
         if (e.type === 'dragstart') {
-            createDragVisual(e, element, type, pristineRect);
+            createDragVisual(e, element, type);
         }
 
         // Maintain scrolling ability so auto-scroll works
@@ -1861,6 +1921,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.querySelectorAll('.add-item-row').forEach(el => {
                     el.classList.add('collapsed');
                 });
+
+                // Change "Add section" to "Delete"
+                const addSecRow = document.querySelector('.add-section-row');
+                if (addSecRow) {
+                    addSecRow.classList.add('delete-target');
+                    const input = addSecRow.querySelector('.add-section-input');
+                    if (input) {
+                        input.placeholder = 'Delete';
+                        input.disabled = true;
+                    }
+                    const container = addSecRow.querySelector('.input-group');
+                    if (container && !container.querySelector('.fa-trash')) {
+                        const icon = document.createElement('i');
+                        icon.className = 'fas fa-trash';
+                        icon.style.marginRight = '0.5rem';
+                        container.prepend(icon);
+                    }
+                }
             }
 
             // Performance: cache relevant siblings once at drag start
@@ -1991,6 +2069,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
             let target = e.target.closest(targetSelector);
 
+            // Handle delete target visual state
+            document.querySelectorAll('.delete-target').forEach(el => el.classList.remove('drag-over'));
+            if (target && target.classList.contains('delete-target')) {
+                target.classList.add('drag-over');
+            }
+
             if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
             if (dragType === 'item') {
@@ -2012,7 +2096,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 // Section reordering: Prevent dropping below "Add section" row
                 if (target.classList.contains('add-section-row')) {
-                    animatePlaceholderMove(target, true); // Always snap BEFORE
+                    // Do nothing - the placeholder shouldn't move to/below the stationary delete target
                 } else {
                     const rect = target.getBoundingClientRect();
                     const midpoint = rect.top + rect.height / 2;
@@ -2037,6 +2121,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const currentList = getCurrentList();
 
         if (dragType === 'section') {
+            const target = e.target.closest('.add-section-row.delete-target');
+            if (target) {
+                const movedId = draggedElement.dataset.id;
+                const section = (isHome ? currentList.homeSections : currentList.shopSections).find(s => s.id === movedId);
+                if (section) {
+                    showSectionDeleteModal(section.id, section.name, isHome);
+                }
+                handleDragEnd();
+                return;
+            }
+
             const sectionsKey = isHome ? 'homeSections' : 'shopSections';
             const sections = currentList[sectionsKey];
             const movedId = draggedElement.dataset.id;
@@ -2161,6 +2256,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
             if (target) target = target.closest(targetSelector);
 
+            // Handle delete target visual state
+            document.querySelectorAll('.delete-target').forEach(el => el.classList.remove('drag-over'));
+            if (target && target.classList.contains('delete-target')) {
+                target.classList.add('drag-over');
+            }
+
             if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
             if (dragType === 'item') {
@@ -2182,7 +2283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 // Section reordering: Prevent dropping below "Add section" row
                 if (target.classList.contains('add-section-row')) {
-                    animatePlaceholderMove(target, true); // Always snap BEFORE
+                    // Do nothing - the placeholder shouldn't move to/below the stationary delete target
                 } else {
                     const rect = target.getBoundingClientRect();
                     const midpoint = rect.top + rect.height / 2;
@@ -2201,6 +2302,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     groceryList.addEventListener('touchend', (e) => {
         if (!draggedElement) return;
+
+        // Manually detect if dropped on delete target for touch since e.target won't work correctly with touch-ghost
+        const touch = e.changedTouches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.add-section-row.delete-target');
+
+        if (target && dragType === 'section') {
+            const isHome = currentMode === 'home';
+            const movedId = draggedElement.dataset.id;
+            const currentList = getCurrentList();
+            const section = (isHome ? currentList.homeSections : currentList.shopSections).find(s => s.id === movedId);
+            if (section) {
+                showSectionDeleteModal(section.id, section.name, isHome);
+            }
+            handleDragEnd();
+            return;
+        }
 
         if (touchGhost) {
             touchGhost.remove();
@@ -2258,6 +2375,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         draggedElement = null;
         dragType = null;
         
+        // Ensure "Add section" row is fully restored if it was transformed
+        const addSecRow = document.querySelector('.add-section-row');
+        if (addSecRow) {
+            addSecRow.classList.remove('delete-target', 'drag-over');
+            const input = addSecRow.querySelector('.add-section-input');
+            if (input) {
+                input.placeholder = '+ Add section';
+                input.disabled = false;
+            }
+            const trashIcons = addSecRow.querySelectorAll('.input-group .fa-trash');
+            trashIcons.forEach(icon => icon.remove());
+        }
+
         renderList();
         isSectionRestoration = false; // Reset
 
