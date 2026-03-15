@@ -1230,8 +1230,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Toggle global reorder/selection classes
         if (!isHome && shopSelectionMode) {
             groceryList.classList.add('shop-selection-mode');
+            appContainer.classList.add('hide-drag-handles');
         } else {
             groceryList.classList.remove('shop-selection-mode');
+            // Only remove hide-drag-handles if showDragHandles is true
+            if (!showDragHandles) {
+                appContainer.classList.add('hide-drag-handles');
+            } else {
+                appContainer.classList.remove('hide-drag-handles');
+            }
         }
 
 
@@ -1405,9 +1412,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
 
-            sectionItems.forEach(item => {
+            sectionItems.forEach((item, idx) => {
                 const li = document.createElement('li');
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${item.shopCompleted && !isHome ? 'completed' : ''}`;
+
+                if (!isHome && !item.pendingDelete) {
+                    const isSelected = selectedShopItems.has(item.id);
+                    if (isSelected) {
+                        li.classList.add('selected');
+                        const prevItem = sectionItems[idx - 1];
+                        const nextItem = sectionItems[idx + 1];
+                        if (prevItem && selectedShopItems.has(prevItem.id)) li.classList.add('sel-top');
+                        if (nextItem && selectedShopItems.has(nextItem.id)) li.classList.add('sel-bottom');
+                    }
+                }
+
                 if (isSectionRestoration) li.classList.add('restoring-item');
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
@@ -1532,12 +1551,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
-                    // Check if selected
-                    const isSelected = selectedShopItems.has(item.id);
-                    if (isSelected) {
-                        li.classList.add('selected');
-                    }
-
                     const info = document.createElement('div');
                     info.className = 'item-info';
 
@@ -1570,31 +1583,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
-                        if (shopSelectionMode) {
-                            // Toggle selection
+                        if (shopSelectionMode || showDragHandles) {
+                            // Selection Mode
                             if (selectedShopItems.has(item.id)) {
                                 selectedShopItems.delete(item.id);
-                                li.classList.remove('selected');
                                 // Auto-exit if empty
                                 if (selectedShopItems.size === 0) {
                                     shopSelectionMode = false;
-                                    renderList(); // re-render to restore section arrows
                                 }
                             } else {
+                                shopSelectionMode = true;
                                 selectedShopItems.add(item.id);
-                                li.classList.add('selected');
                             }
+                            renderList();
                         } else {
-                            // Normal behavior: toggle check off
+                            // Regular Shop Mode: toggle completion
                             toggleShopCompleted(item.id);
                         }
-                    });
-
-                    onLongPress(li, (e) => {
-                        // Enter selection mode
-                        shopSelectionMode = true;
-                        selectedShopItems.add(item.id);
-                        renderList();
                     });
                 }
 

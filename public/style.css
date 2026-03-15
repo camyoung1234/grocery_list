@@ -458,7 +458,18 @@ h1 {
 
 /* Shop Mode Selection State - High specificity to override base/hover */
 .section-container .grocery-item.shop-chip.selected {
-    background: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent) !important;
+    border-radius: 12px;
+}
+
+.section-container .grocery-item.shop-chip.selected.sel-top {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.section-container .grocery-item.shop-chip.selected.sel-bottom {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 /* Hide 0-qty items in shop mode (except Uncategorized) via CSS as requested */
@@ -467,13 +478,14 @@ h1 {
 }
 
 .section-container .grocery-item.shop-chip.selected .item-text {
-    color: white;
+    color: var(--primary-color);
     font-weight: 700;
 }
 
 .section-container .grocery-item.shop-chip.selected .shop-qty-circle {
-    background: white;
+    background: transparent;
     color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 
@@ -1496,6 +1508,19 @@ h1 {
     opacity: 1;
     gap: 0.2rem;
     pointer-events: auto;
+}
+
+.shop-selection-mode .drag-handle {
+    width: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.shop-selection-mode .item-info,
+.shop-selection-mode .section-title {
+    margin-left: 1rem !important;
 }
 
 .move-here-btn {
