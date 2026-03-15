@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     let currentMode = 'home'; // 'home' or 'shop'
-    let showDragHandles = false;
+    let editMode = true;
     let listsMenuOpen = false;
     let draggedElement = null;
     let dragType = null;
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (toolbarReorderBtn) {
         toolbarReorderBtn.addEventListener('click', () => {
-            showDragHandles = !showDragHandles;
+            editMode = !editMode;
             updateModeUI();
         });
     }
@@ -1090,10 +1090,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Update reorder handle visibility
         if (appContainer) {
-            appContainer.classList.toggle('hide-drag-handles', !showDragHandles);
+            appContainer.classList.toggle('hide-drag-handles', !editMode);
         }
         if (toolbarReorderBtn) {
-            toolbarReorderBtn.classList.toggle('active', showDragHandles);
+            toolbarReorderBtn.classList.toggle('active', editMode);
+            toolbarReorderBtn.title = editMode ? 'Exit Edit Mode' : 'Enter Edit Mode';
         }
     }
 
@@ -1566,7 +1567,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
             // Add "Add item" row for this section
-            if (isHome) {
+            {
                 const addRow = document.createElement('li');
                 addRow.className = 'grocery-item add-item-row';
                 if (isSectionRestoration) addRow.classList.add('restoring-item');
@@ -1831,7 +1832,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleDragStart(e, element, type) {
-        if (!showDragHandles) {
+        if (!editMode) {
             e.preventDefault();
             return;
         }

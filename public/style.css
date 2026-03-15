@@ -1916,6 +1916,17 @@ h1 {
     pointer-events: none;
 }
 
+.hide-drag-handles .add-item-row,
+.hide-drag-handles .add-section-row {
+    max-height: 0;
+    height: 0;
+    opacity: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+    pointer-events: none;
+}
+
 .hide-drag-handles .item-info,
 .hide-drag-handles .section-title {
     margin-left: 1rem;
@@ -1982,6 +1993,7 @@ h1 {
 .grocery-item,
 .section-header {
     height: 50px;
+    max-height: 50px;
     overflow: hidden;
     transition: height 0.3s ease, max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
     flex-wrap: nowrap !important;
