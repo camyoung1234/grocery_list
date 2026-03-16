@@ -1128,6 +1128,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             toolbarReorderBtn.classList.toggle('active', editMode);
             toolbarReorderBtn.title = editMode ? 'Exit Edit Mode' : 'Enter Edit Mode';
         }
+
+        // Update zero-qty visibility classes
+        const isHome = currentMode === 'home';
+        const hideZeroQty = !isHome && !editMode;
+        if (appContainer) {
+            appContainer.classList.toggle('hide-zero-qty', hideZeroQty);
+            appContainer.classList.toggle('hide-drag-handles', !editMode);
+        }
     }
 
     function saveAppState() {
@@ -1227,10 +1235,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sections = currentList[sectionsKey] || [];
 
         // Toggle global reorder/selection classes
-        const hideZeroQty = !isHome && !editMode;
-        appContainer.classList.toggle('hide-zero-qty', hideZeroQty);
-        appContainer.classList.toggle('hide-drag-handles', !editMode);
-
         if (!isHome && shopSelectionMode) {
             groceryList.classList.add('shop-selection-mode');
             appContainer.classList.add('hide-drag-handles');
