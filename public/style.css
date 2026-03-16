@@ -556,7 +556,7 @@ h1 {
 }
 
 /* Flare Animation Styles */
-.shop-chip .item-info::after {
+.shop-chip .item-text::after {
     content: '';
     position: absolute;
     left: 0;
@@ -569,16 +569,16 @@ h1 {
     pointer-events: none;
 }
 
-.shop-chip.is-completing .item-info::after {
-    width: calc(100% + 1rem);
+.shop-chip.is-completing .item-text::after {
+    width: 100%;
     transition-delay: 0.3s;
 }
 
-.shop-chip.completed .item-info::after {
-    width: calc(100% + 1rem);
+.shop-chip.completed .item-text::after {
+    width: 100%;
 }
 
-.shop-chip.is-undoing .item-info::after {
+.shop-chip.is-undoing .item-text::after {
     width: 0;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
@@ -649,10 +649,6 @@ h1 {
 .shop-chip.is-completing .item-text,
 .shop-chip.completed .item-text {
     color: var(--text-muted) !important;
-}
-
-.shop-chip.completed .item-text::after {
-    width: 0 !important;
 }
 
 .shop-qty-circle .qty-number,
