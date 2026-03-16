@@ -441,7 +441,7 @@ h1 {
     /* Changed from hidden to allow expansion overlay */
     position: relative;
     z-index: 10;
-    transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 
@@ -1512,10 +1512,10 @@ h1 {
     pointer-events: auto;
 }
 
-.shop-selection-mode .drag-handle {
-    opacity: 0 !important;
+.shop-selection-mode .drag-handle:not(.add-row-plus) {
+    opacity: 0.3 !important;
     pointer-events: none !important;
-    transform: translate(-50%, -50%) scale(0.5) !important;
+    transform: translate(-50%, -50%) scale(1) !important;
 }
 
 .move-here-btn {
@@ -2048,8 +2048,7 @@ h1 {
     pointer-events: none;
 }
 
-.hide-drag-handles .shop-qty-circle,
-.shop-selection-mode .shop-qty-circle {
+.hide-drag-handles .shop-qty-circle {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
     pointer-events: auto;
@@ -2185,14 +2184,15 @@ h1 {
     color: var(--text-muted);
     font-size: 1.2rem;
     cursor: pointer;
-    width: 40px;
+    width: 0;
     height: 50px;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
+    overflow: hidden;
 }
 
 @media (hover: hover) {
@@ -2204,6 +2204,7 @@ h1 {
 
 .home-mode:not(.hide-drag-handles) .item-delete-btn,
 .home-mode:not(.hide-drag-handles) .section-delete-btn {
+    width: 40px;
     opacity: 1;
     transform: scale(1);
     pointer-events: auto;
@@ -2211,7 +2212,9 @@ h1 {
 
 
 .home-mode:not(.hide-drag-handles) .quantity-controls {
+    width: 0;
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
+    overflow: hidden;
 }
