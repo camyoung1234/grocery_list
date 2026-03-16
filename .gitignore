@@ -5,4 +5,8 @@ node_modules/
 # GitHub App credentials
 gha-creds-*.json
 
+# Test and development artifacts
 server.log
+wrangler.log 
+test-results/ 
+.last-run.json
