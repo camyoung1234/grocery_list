@@ -6,3 +6,6 @@ node_modules/
 gha-creds-*.json
 
 server.log
+wrangler.log
+test-results/
+.last-run.json
