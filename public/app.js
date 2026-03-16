@@ -1670,7 +1670,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
             // Add "Add item" row for this section
-            {
+            if (isHome) {
                 const addRow = document.createElement('li');
                 addRow.className = 'grocery-item add-item-row';
                 if (isSectionRestoration) addRow.classList.add('restoring-item');
