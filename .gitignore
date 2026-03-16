@@ -7,6 +7,6 @@ gha-creds-*.json
 
 # Test and development artifacts
 server.log
-wrangler.log 
-test-results/ 
+wrangler.log
+test-results/
 .last-run.json
