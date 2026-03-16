@@ -535,10 +535,12 @@ h1 {
     border-radius: 50%;
     font-size: 0.75rem;
     font-weight: 700;
-    position: relative;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-left: 1rem;
 }
 
 .section-container .grocery-item.shop-chip.completed .shop-qty-circle {
@@ -906,7 +908,6 @@ h1 {
     align-items: center;
     position: relative;
     z-index: 10;
-    margin-left: 1rem;
 }
 
 .qty-combined-pill {
@@ -1511,16 +1512,9 @@ h1 {
 }
 
 .shop-selection-mode .drag-handle {
-    width: 0 !important;
     opacity: 0 !important;
     pointer-events: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-.shop-selection-mode .item-info,
-.shop-selection-mode .section-title {
-    margin-left: 1rem !important;
+    transform: translate(-50%, -50%) scale(0.5) !important;
 }
 
 .move-here-btn {
@@ -1956,9 +1950,9 @@ h1 {
 }
 
 .hide-drag-handles .drag-handle {
-    width: 0;
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translate(-50%, -50%) scale(0.5) !important;
 }
 
 .hide-drag-handles .add-item-row,
@@ -1975,13 +1969,18 @@ h1 {
     pointer-events: none;
 }
 
-.hide-drag-handles .item-info,
-.hide-drag-handles .section-title {
-    margin-left: 1rem;
-}
-
 .section-title {
     transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.left-action {
+    width: 40px;
+    height: 50px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 /* Drag and Drop Styles */
@@ -1994,8 +1993,12 @@ h1 {
     color: var(--text-muted);
     cursor: grab;
     flex-shrink: 0;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .drag-handle.add-row-plus {
@@ -2010,6 +2013,19 @@ h1 {
 .drag-handle.disabled {
     opacity: 0.3;
     cursor: default;
+}
+
+.shop-qty-circle {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+    pointer-events: none;
+}
+
+.hide-drag-handles .shop-qty-circle,
+.shop-selection-mode .shop-qty-circle {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
 }
 
 .drag-placeholder {
