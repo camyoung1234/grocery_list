@@ -1255,7 +1255,7 @@ h1 {
 }
 
 .custom-theme-dropdown.open .theme-trigger .dropdown-arrow path {
-    d: path('M6 10L12 4L18 10');
+    d: path('M6 14L12 8L18 14');
 }
 
 .theme-options {
@@ -1801,7 +1801,7 @@ h1 {
 }
 
 .list-picker-btn.open .dropdown-arrow path {
-    d: path('M6 10L12 4L18 10');
+    d: path('M6 14L12 8L18 14');
 }
 
 @media (hover: hover) {
