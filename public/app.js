@@ -1140,6 +1140,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (appContainer) {
             appContainer.classList.toggle('hide-zero-qty', hideZeroQty);
             appContainer.classList.toggle('hide-drag-handles', !editMode);
+            appContainer.classList.toggle('home-mode', isHome);
+            appContainer.classList.toggle('shop-mode', !isHome);
         }
     }
 
@@ -1380,6 +1382,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 header.appendChild(titleSpan);
             }
 
+            if (isHome) {
+                const secDeleteBtn = document.createElement('button');
+                secDeleteBtn.className = 'section-delete-btn';
+                secDeleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                secDeleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showSectionDeleteModal(section.id, section.name, isHome);
+                });
+                header.appendChild(secDeleteBtn);
+            }
+
 
 
             if (shopSelectionMode && !isHome) {
@@ -1569,6 +1582,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     controls.appendChild(createCombinedQtyControl(item));
 
                     li.appendChild(controls);
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'item-delete-btn';
+                    deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deleteItem(item.id);
+                    });
+                    li.appendChild(deleteBtn);
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
