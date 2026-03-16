@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Toolbar Elements
     const toolbarListsBtn = document.getElementById('toolbar-lists');
+    const currentListSwatch = document.getElementById('current-list-swatch');
     const toolbarModeBtn = document.getElementById('toolbar-mode');
     const toolbarReorderBtn = document.getElementById('toolbar-reorder');
     const toolbarShareBtn = document.getElementById('toolbar-share');
@@ -316,6 +317,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.stopPropagation();
             toggleListsMenu();
         });
+
+        onLongPress(toolbarListsBtn, (e) => {
+            e.stopPropagation();
+            renameList(appState.currentListId);
+        }, 300, { allowOnButtons: true });
     }
 
     if (toolbarModeBtn) {
@@ -1099,9 +1105,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
         document.documentElement.style.setProperty('--primary-color', themeColor);
 
-        // Update list picker name
-        if (currentListNameSpan && currentList) {
-            currentListNameSpan.textContent = currentList.name;
+        // Update list picker name and swatch
+        if (currentList) {
+            if (currentListNameSpan) currentListNameSpan.textContent = currentList.name;
+            if (currentListSwatch) currentListSwatch.style.background = currentList.theme || 'var(--theme-blue)';
         }
 
         // Update toolbar mode CTA
@@ -1147,40 +1154,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!listsMenu) return;
         listsMenu.innerHTML = '';
 
-        appState.lists.forEach((list) => {
-            const item = document.createElement('div');
-            item.className = `menu-item ${list.id === appState.currentListId ? 'active' : ''}`;
-
-            const swatch = document.createElement('div');
-            swatch.className = 'list-swatch';
-            swatch.style.background = list.theme || 'var(--theme-blue)';
-
-            const text = document.createElement('span');
-            text.textContent = list.name;
-
-            item.appendChild(swatch);
-            item.appendChild(text);
-
-            item.addEventListener('click', () => {
-                switchList(list.id);
-                toggleListsMenu(false);
-            });
-
-            onLongPress(item, (e) => {
-                e.stopPropagation();
-                renameList(list.id);
-            });
-
-            listsMenu.appendChild(item);
-        });
-
-        const divider = document.createElement('div');
-        divider.className = 'menu-divider';
-        listsMenu.appendChild(divider);
-
         const addBtn = document.createElement('div');
         addBtn.className = 'menu-item';
-        addBtn.innerHTML = '<i class="fas fa-plus"></i> <span>Create New List</span>';
+        addBtn.innerHTML = '<i class="fas fa-plus" style="width: 12px; text-align: center;"></i> <span>Create New List</span>';
         addBtn.addEventListener('click', () => {
             showModal('Create New List', 'New List', true, 'var(--theme-blue)', (name, theme) => {
                 if (name) addNewList(name, theme);
@@ -1188,6 +1164,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             toggleListsMenu(false);
         });
         listsMenu.appendChild(addBtn);
+
+        const otherLists = appState.lists.filter(l => l.id !== appState.currentListId);
+
+        if (otherLists.length > 0) {
+            const divider = document.createElement('div');
+            divider.className = 'menu-divider';
+            listsMenu.appendChild(divider);
+
+            otherLists.forEach((list) => {
+                const item = document.createElement('div');
+                item.className = 'menu-item';
+
+                const swatch = document.createElement('div');
+                swatch.className = 'list-swatch';
+                swatch.style.background = list.theme || 'var(--theme-blue)';
+
+                const text = document.createElement('span');
+                text.textContent = list.name;
+
+                item.appendChild(swatch);
+                item.appendChild(text);
+
+                item.addEventListener('click', () => {
+                    switchList(list.id);
+                    toggleListsMenu(false);
+                });
+
+                onLongPress(item, (e) => {
+                    e.stopPropagation();
+                    renameList(list.id);
+                });
+
+                listsMenu.appendChild(item);
+            });
+        }
     }
 
     function toggleListsMenu(force) {
@@ -1222,8 +1233,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Toggle global reorder/selection classes
         if (!isHome && shopSelectionMode) {
             groceryList.classList.add('shop-selection-mode');
+            appContainer.classList.add('hide-drag-handles');
         } else {
             groceryList.classList.remove('shop-selection-mode');
+            // Only remove hide-drag-handles if editMode is true
+            if (!editMode) {
+                appContainer.classList.add('hide-drag-handles');
+            } else {
+                appContainer.classList.remove('hide-drag-handles');
+            }
         }
 
 
@@ -1397,13 +1415,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
 
-            sectionItems.forEach(item => {
+            sectionItems.forEach((item, idx) => {
                 const li = document.createElement('li');
                 const isAnimating = animatingItems.get(item.id);
                 const isCompleted = item.shopCompleted && isAnimating !== 'undoing';
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${isCompleted && !isHome ? 'completed' : ''}`;
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
+
+                if (!isHome && !item.pendingDelete) {
+                    const isSelected = selectedShopItems.has(item.id);
+                    if (isSelected) {
+                        li.classList.add('selected');
+                        const prevItem = sectionItems[idx - 1];
+                        const nextItem = sectionItems[idx + 1];
+                        if (prevItem && selectedShopItems.has(prevItem.id)) li.classList.add('sel-top');
+                        if (nextItem && selectedShopItems.has(nextItem.id)) li.classList.add('sel-bottom');
+                    }
+                }
 
                 if (isSectionRestoration) li.classList.add('restoring-item');
                 li.dataset.id = item.id;
@@ -1529,12 +1558,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
-                    // Check if selected
-                    const isSelected = selectedShopItems.has(item.id);
-                    if (isSelected) {
-                        li.classList.add('selected');
-                    }
-
                     const info = document.createElement('div');
                     info.className = 'item-info';
 
@@ -1567,31 +1590,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
-                        if (shopSelectionMode) {
-                            // Toggle selection
+                        if (shopSelectionMode || editMode) {
+                            // Selection Mode
                             if (selectedShopItems.has(item.id)) {
                                 selectedShopItems.delete(item.id);
-                                li.classList.remove('selected');
                                 // Auto-exit if empty
                                 if (selectedShopItems.size === 0) {
                                     shopSelectionMode = false;
-                                    renderList(); // re-render to restore section arrows
                                 }
                             } else {
+                                shopSelectionMode = true;
                                 selectedShopItems.add(item.id);
-                                li.classList.add('selected');
                             }
+                            renderList();
                         } else {
-                            // Normal behavior: toggle check off
+                            // Regular Shop Mode: toggle completion
                             toggleShopCompleted(item.id);
                         }
-                    });
-
-                    onLongPress(li, (e) => {
-                        // Enter selection mode
-                        shopSelectionMode = true;
-                        selectedShopItems.add(item.id);
-                        renderList();
                     });
                 }
 
