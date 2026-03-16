@@ -640,6 +640,11 @@ h1 {
 }
 
 /* Disable default strike-through for shop chips to use flare */
+.shop-chip.is-completing .item-text,
+.shop-chip.completed .item-text {
+    color: var(--text-muted) !important;
+}
+
 .shop-chip.completed .item-text::after {
     width: 0 !important;
 }
