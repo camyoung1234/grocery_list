@@ -472,10 +472,6 @@ h1 {
     border-bottom-right-radius: 0;
 }
 
-/* Hide 0-qty items in shop mode (except Uncategorized) via CSS as requested */
-.section-container .grocery-item.shop-chip.shop-hidden {
-    display: none;
-}
 
 .section-container .grocery-item.shop-chip.selected .item-text {
     color: var(--primary-color);
@@ -498,7 +494,7 @@ h1 {
     width: 100%;
     flex: 0 0 auto;
     cursor: pointer;
-    transition: background 0.2s ease, opacity 0.2s ease;
+    transition: background 0.2s ease, opacity 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     gap: 0.5rem;
@@ -2075,10 +2071,15 @@ h1 {
     background: var(--hover-bg) !important;
 }
 
-/* Smooth shifting during drag */
+/* Smooth shifting during drag and mode transitions */
 .grocery-item,
+.section-container,
+.section-header {
+    transition: transform 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .section-container {
-    transition: transform 0.2s ease, height 0.3s ease, max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 2000px; /* Base max-height for transitions */
 }
 
 .no-transition, .no-transition * {
@@ -2105,4 +2106,35 @@ h1 {
 
 .add-section-row.delete-target .add-section-input::placeholder {
     color: var(--danger-color);
+}
+
+.hide-zero-qty .zero-qty-item,
+.hide-zero-qty .zero-qty-section .section-header {
+    height: 0;
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.hide-zero-qty .zero-qty-section {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    overflow: hidden;
+}
+
+.hide-zero-qty .zero-qty-section .section-items-list {
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    min-height: 0;
 }
