@@ -1517,7 +1517,7 @@ h1 {
     pointer-events: auto;
 }
 
-.shop-selection-mode .drag-handle {
+.shop-selection-mode .drag-handle:not(.add-row-plus) {
     opacity: 0.3 !important;
     pointer-events: none !important;
     transform: translate(-50%, -50%) scale(1) !important;
@@ -2036,8 +2036,7 @@ h1 {
     pointer-events: none;
 }
 
-.hide-drag-handles .shop-qty-circle,
-.shop-selection-mode .shop-qty-circle {
+.hide-drag-handles .shop-qty-circle {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
     pointer-events: auto;
