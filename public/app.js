@@ -1005,6 +1005,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 sameNameItems.forEach(i => {
                     i.shopCompleted = true;
                     i.shopCheckOrder = Date.now();
+
+                    // Manually update classes to maintain state without renderList()
+                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    if (el) {
+                        el.classList.remove('is-completing');
+                        el.classList.add('completed');
+                        // Ensure it's not hidden as zero-qty since it's now completed
+                        el.classList.remove('zero-qty-item');
+                    }
                 });
             } else {
                 // Undo sequence
@@ -1013,6 +1022,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                 sameNameItems.forEach(i => {
                     i.shopCompleted = false;
                     i.shopCheckOrder = null;
+
+                    // Manually update classes
+                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    if (el) {
+                        el.classList.remove('is-undoing');
+                        // If it becomes zero-qty again, hide it
+                        const toBuy = Math.max(0, i.wantCount - i.haveCount);
+                        if (toBuy <= 0 && !editMode) {
+                            el.classList.add('zero-qty-item');
+                        }
+                    }
+                });
+
+                // Check if sections should be hidden manually
+                const sectionIds = new Set(sameNameItems.map(i => i.shopSectionId));
+                sectionIds.forEach(sectionId => {
+                    const sectionLi = document.querySelector(`.section-container[data-id="${sectionId}"]`);
+                    if (sectionLi) {
+                        // In shop mode, we group by name, so we need to check group visibility
+                        // But for a quick manual fix, we can just check if there are any chips without .zero-qty-item
+                        const visibleItems = sectionLi.querySelectorAll('.grocery-item:not(.zero-qty-item)');
+                        if (visibleItems.length === 0) {
+                            sectionLi.classList.add('zero-qty-section');
+                        } else {
+                            sectionLi.classList.remove('zero-qty-section');
+                        }
+                    }
                 });
             }
         } finally {
@@ -1020,7 +1056,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         saveAppState();
-        renderList();
+
+        // Only re-render if no other items are currently animating to prevent jump
+        if (animatingItems.size === 0) {
+            renderList();
+        }
     }
 
     function deleteItem(id) {
