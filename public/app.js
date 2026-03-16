@@ -1126,13 +1126,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Update reorder handle visibility
-        if (appContainer) {
-            appContainer.classList.toggle('hide-drag-handles', !editMode);
-        }
         if (toolbarReorderBtn) {
             toolbarReorderBtn.classList.toggle('active', editMode);
             toolbarReorderBtn.title = editMode ? 'Exit Edit Mode' : 'Enter Edit Mode';
+        }
+
+        // Update zero-qty visibility classes
+        const isHome = currentMode === 'home';
+        const hideZeroQty = !isHome && !editMode;
+        if (appContainer) {
+            appContainer.classList.toggle('hide-zero-qty', hideZeroQty);
+            appContainer.classList.toggle('hide-drag-handles', !editMode);
         }
     }
 
@@ -1249,12 +1253,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             appContainer.classList.add('hide-drag-handles');
         } else {
             groceryList.classList.remove('shop-selection-mode');
-            // Only remove hide-drag-handles if editMode is true
-            if (!editMode) {
-                appContainer.classList.add('hide-drag-handles');
-            } else {
-                appContainer.classList.remove('hide-drag-handles');
-            }
         }
 
 
@@ -1307,19 +1305,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
-            const totalItemsInSection = sectionItems.length;
-
-            if (!isHome && section.id === shopDefId) {
-                // In shop mode, Uncategorized is only visible if at least one item is in the section
-                if (totalItemsInSection === 0) {
-                    return; // Skip rendering Uncategorized
-                }
-            }
 
             const sectionLi = document.createElement('li');
             sectionLi.className = 'section-container';
             sectionLi.dataset.id = section.id;
             sectionLi.dataset.type = 'section';
+
+            if (!isHome) {
+                const hasVisibleItems = sectionItems.some(item => {
+                    const toBuy = item.wantCount - item.haveCount;
+                    return toBuy > 0 || item.shopCompleted || item.pendingDelete;
+                });
+                sectionLi.classList.toggle('zero-qty-section', !hasVisibleItems);
+            }
 
             // Section Header
             const header = document.createElement('div');
@@ -1491,10 +1489,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (!isHome) {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    // Hide if 0-qty, not completed, and NOT in the Uncategorized section.
-                    if (toBuy <= 0 && !item.shopCompleted && section.id !== shopDefId) {
-                        li.classList.add('shop-hidden');
-                    }
+                    const isZeroQty = toBuy <= 0 && !item.shopCompleted && !item.pendingDelete;
+                    li.classList.toggle('zero-qty-item', isZeroQty);
                 }
 
 
@@ -1932,15 +1928,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             createDragVisual(e, element, type);
         }
 
-        // Maintain scrolling ability so auto-scroll works
-
-
-        // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
-        setTimeout(() => {
+        const startDragging = () => {
             if (draggedElement !== element) return;
             
             isDragStarted = true;
             groceryList.classList.add('no-transition');
+            document.body.style.overflow = 'hidden';
 
             // Initialize placeholder at starting position to prevent layout shift
             const phHeight = type === 'section' ? 50 : element.offsetHeight;
@@ -2017,7 +2010,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
             }
-        }, 50);
+        };
+
+        if (e.type === 'touchstart') {
+            startDragging();
+        } else {
+            // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
+            setTimeout(startDragging, 50);
+        }
     }
 
     function animatePlaceholderMove(target, isBefore) {
@@ -2257,8 +2257,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleTouchStart(e, element, type) {
         const initialRect = element.getBoundingClientRect();
-        handleDragStart(e, element, type, initialRect);
         createDragVisual(e.touches[0], element, type, initialRect);
+        handleDragStart(e, element, type, initialRect);
     }
 
     groceryList.addEventListener('touchmove', (e) => {

@@ -20,6 +20,21 @@
     <meta name="apple-mobile-web-app-title" content="Groceries">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
+    <script>
+        (function() {
+            try {
+                const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
+                if (storedState && storedState.lists && storedState.currentListId) {
+                    const currentList = storedState.lists.find(l => l.id === storedState.currentListId);
+                    if (currentList && currentList.theme) {
+                        document.documentElement.style.setProperty('--primary-color', currentList.theme);
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to early-initialize theme:', e);
+            }
+        })();
+    </script>
 </head>
 
 <body>
@@ -37,7 +52,9 @@
                 <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists">
                     <div class="list-swatch" id="current-list-swatch"></div>
                     <span id="current-list-name">Loading...</span>
-                    <i class="fas fa-chevron-down"></i>
+                    <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 10L12 16L18 10"></path>
+                    </svg>
                 </button>
             </div>
 
@@ -72,7 +89,9 @@
                     <div class="theme-trigger" id="theme-trigger">
                         <div class="theme-swatch" id="current-theme-swatch"></div>
                         <span id="current-theme-name">Blue</span>
-                        <i class="fas fa-chevron-down"></i>
+                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 10L12 16L18 10"></path>
+                        </svg>
                     </div>
                     <div class="theme-options" id="theme-options">
                         <!-- Options injected by JS -->
