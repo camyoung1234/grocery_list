@@ -543,6 +543,7 @@ h1 {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.section-container .grocery-item.shop-chip.is-completing .shop-qty-circle,
 .section-container .grocery-item.shop-chip.completed .shop-qty-circle {
     background: var(--primary-color);
     color: var(--card-bg);
