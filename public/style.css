@@ -519,6 +519,19 @@ h1 {
     background: transparent;
 }
 
+.shop-chip .item-text {
+    transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shop-chip.is-completing .item-text,
+.shop-chip.completed .item-text {
+    color: var(--text-muted) !important;
+}
+
+.shop-chip.is-undoing .item-text {
+    transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
 .shop-qty-circle {
     display: flex;
     align-items: center;
