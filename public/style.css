@@ -1518,9 +1518,9 @@ h1 {
 }
 
 .shop-selection-mode .drag-handle {
-    opacity: 0 !important;
+    opacity: 0.3 !important;
     pointer-events: none !important;
-    transform: translate(-50%, -50%) scale(0.5) !important;
+    transform: translate(-50%, -50%) scale(1) !important;
 }
 
 .move-here-btn {
