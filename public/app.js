@@ -1468,6 +1468,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (item.pendingDelete) {
                     li.classList.add('undo-row');
+
+                    if (isHome) {
+                        const prevItem = sectionItems[idx - 1];
+                        const nextItem = sectionItems[idx + 1];
+                        if (prevItem && prevItem.pendingDelete) li.classList.add('sel-top');
+                        if (nextItem && nextItem.pendingDelete) li.classList.add('sel-bottom');
+                    }
+
                     li.dataset.id = item.id;
                     li.dataset.type = 'item';
                     li.dataset.sectionId = section.id;

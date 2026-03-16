@@ -441,7 +441,7 @@ h1 {
     /* Changed from hidden to allow expansion overlay */
     position: relative;
     z-index: 10;
-    transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 
@@ -915,12 +915,6 @@ h1 {
 }
 
 /* Quantity Controls (Home Mode - Combined Expandable) */
-.quantity-controls {
-    display: flex;
-    align-items: center;
-    position: relative;
-    z-index: 10;
-}
 
 .qty-combined-pill {
     display: flex;
@@ -1610,8 +1604,8 @@ h1 {
 
 /* Undo Row Styles & Animations */
 .grocery-item.undo-row {
-    background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
-    border-radius: 0;
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent) !important;
+    border-radius: 12px;
     padding: 0 1rem 0 0;
     height: 50px !important;
     box-sizing: border-box;
@@ -1654,6 +1648,16 @@ h1 {
     display: flex;
     align-items: center;
     min-width: 0;
+}
+
+.grocery-item.undo-row.sel-top {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.grocery-item.undo-row.sel-bottom {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 
@@ -2172,7 +2176,7 @@ h1 {
 /* Delete buttons for Home Mode */
 .item-delete-btn,
 .section-delete-btn {
-    display: none;
+    display: flex;
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -2182,7 +2186,10 @@ h1 {
     height: 50px;
     align-items: center;
     justify-content: center;
-    transition: var(--transition);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    opacity: 0;
+    transform: scale(0.5);
+    pointer-events: none;
 }
 
 @media (hover: hover) {
@@ -2194,9 +2201,14 @@ h1 {
 
 .home-mode:not(.hide-drag-handles) .item-delete-btn,
 .home-mode:not(.hide-drag-handles) .section-delete-btn {
-    display: flex;
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
 }
 
+
 .home-mode:not(.hide-drag-handles) .quantity-controls {
-    display: none;
+    opacity: 0;
+    transform: scale(0.5);
+    pointer-events: none;
 }
