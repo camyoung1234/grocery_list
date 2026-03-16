@@ -2073,7 +2073,7 @@ h1 {
 }
 
 .section-items-list {
-    max-height: 2000px;
+    max-height: 10000px;
     transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
     min-height: 10px; /* Ensure empty sections are targetable during drag */
 }
@@ -2115,7 +2115,7 @@ h1 {
 }
 
 .section-container {
-    max-height: 2000px; /* Base max-height for transitions */
+    max-height: 10000px; /* Base max-height for transitions */
 }
 
 .no-transition, .no-transition * {
