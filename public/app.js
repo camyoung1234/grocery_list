@@ -1295,7 +1295,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Toggle global reorder/selection classes
         if (!isHome && shopSelectionMode) {
             groceryList.classList.add('shop-selection-mode');
-            appContainer.classList.add('hide-drag-handles');
         } else {
             groceryList.classList.remove('shop-selection-mode');
         }
