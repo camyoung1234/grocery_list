@@ -979,10 +979,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (newState) {
                 // Completion sequence
-                // Wait for strike-through + circle fill (0.4s + 0.3s)
-                await new Promise(r => setTimeout(r, 700));
+                // 1. Circle fills (check icon appears) immediately (takes 0.3s)
+                // 2. Strike-through starts after 0.3s (takes 0.4s)
+                // Total duration: 0.7s
+                await new Promise(r => setTimeout(r, 300));
 
-                // Trigger sparks
+                // Trigger sparks after circle fill
                 sameNameItems.forEach(i => {
                     const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
                     if (el) {
@@ -994,8 +996,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
 
-                // Wait for sparks to be visible
-                await new Promise(r => setTimeout(r, 100));
+                // Wait for strike-through to complete (0.4s more)
+                await new Promise(r => setTimeout(r, 400));
 
                 sameNameItems.forEach(i => {
                     i.shopCompleted = true;
@@ -1218,6 +1220,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         return handle;
     }
 
+    function createLeftAction(children = []) {
+        const leftAction = document.createElement('div');
+        leftAction.className = 'left-action';
+        if (Array.isArray(children)) {
+            children.forEach(child => leftAction.appendChild(child));
+        } else if (children) {
+            leftAction.appendChild(children);
+        }
+        return leftAction;
+    }
+
     function renderList() {
         groceryList.innerHTML = '';
         const currentList = getCurrentList();
@@ -1320,14 +1333,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const canRename = isHome || section.id !== shopDefId;
 
             if (canRename) {
-                const leftAction = document.createElement('div');
-                leftAction.className = 'left-action';
                 const handle = createDragHandle();
                 handle.classList.add('section-drag-handle');
                 handle.addEventListener('dragstart', (e) => handleDragStart(e, sectionLi, 'section'));
                 handle.addEventListener('touchstart', (e) => handleTouchStart(e, sectionLi, 'section'), { passive: false });
-                leftAction.appendChild(handle);
-                header.appendChild(leftAction);
+                header.appendChild(createLeftAction(handle));
 
                 onDoubleTap(titleSpan, (e) => {
                     e.stopPropagation();
@@ -1362,13 +1372,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 header.appendChild(titleSpan);
             } else {
                 // Disabled drag handle for consistent alignment
-                const leftAction = document.createElement('div');
-                leftAction.className = 'left-action';
                 const handle = createDragHandle();
                 handle.classList.add('section-drag-handle', 'disabled');
                 handle.draggable = false;
-                leftAction.appendChild(handle);
-                header.appendChild(leftAction);
+                header.appendChild(createLeftAction(handle));
                 header.appendChild(titleSpan);
             }
 
@@ -1451,9 +1458,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.dataset.type = 'item';
                     li.dataset.sectionId = section.id;
 
-                    const leftAction = document.createElement('div');
-                    leftAction.className = 'left-action';
-                    li.appendChild(leftAction);
+                    li.appendChild(createLeftAction());
 
                     // Standard item text layout
                     const info = document.createElement('div');
@@ -1496,13 +1501,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.innerHTML = '';
 
                 if (isHome) {
-                    const leftAction = document.createElement('div');
-                    leftAction.className = 'left-action';
                     const handle = createDragHandle();
                     handle.addEventListener('dragstart', (e) => handleDragStart(e, li, 'item'));
                     handle.addEventListener('touchstart', (e) => handleTouchStart(e, li, 'item'), { passive: false });
-                    leftAction.appendChild(handle);
-                    li.appendChild(leftAction);
+                    li.appendChild(createLeftAction(handle));
 
                     const info = document.createElement('div');
                     info.className = 'item-info';
@@ -1593,14 +1595,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     qtyCircle.appendChild(qtyNumber);
                     qtyCircle.appendChild(checkIcon);
 
-                    const leftAction = document.createElement('div');
-                    leftAction.className = 'left-action';
                     const handle = createDragHandle();
                     handle.addEventListener('dragstart', (e) => handleDragStart(e, li, 'item'));
                     handle.addEventListener('touchstart', (e) => handleTouchStart(e, li, 'item'), { passive: false });
-                    leftAction.appendChild(handle);
-                    leftAction.appendChild(qtyCircle);
-                    li.appendChild(leftAction);
+                    li.appendChild(createLeftAction([handle, qtyCircle]));
 
                     li.appendChild(info);
 
@@ -1640,13 +1638,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
 
-                const leftAction = document.createElement('div');
-                leftAction.className = 'left-action';
                 const plusIcon = document.createElement('div');
                 plusIcon.className = 'drag-handle add-row-plus';
                 plusIcon.innerHTML = '<i class="fas fa-plus"></i>';
-                leftAction.appendChild(plusIcon);
-                addRow.appendChild(leftAction);
+                addRow.appendChild(createLeftAction(plusIcon));
 
                 const info = document.createElement('div');
                 info.className = 'item-info';
@@ -1684,13 +1679,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addSecRow = document.createElement('li');
         addSecRow.className = 'grocery-item add-section-row';
 
-        const addSecLeftAction = document.createElement('div');
-        addSecLeftAction.className = 'left-action';
         const addSecPlusIcon = document.createElement('div');
         addSecPlusIcon.className = 'drag-handle add-row-plus';
         addSecPlusIcon.innerHTML = '<i class="fas fa-plus"></i>';
-        addSecLeftAction.appendChild(addSecPlusIcon);
-        addSecRow.appendChild(addSecLeftAction);
+        addSecRow.appendChild(createLeftAction(addSecPlusIcon));
 
         const addSecInfo = document.createElement('div');
         addSecInfo.className = 'item-info';

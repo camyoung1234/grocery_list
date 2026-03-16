@@ -563,7 +563,11 @@ h1 {
     pointer-events: none;
 }
 
-.shop-chip.is-completing .item-info::after,
+.shop-chip.is-completing .item-info::after {
+    width: calc(100% + 1rem);
+    transition-delay: 0.3s;
+}
+
 .shop-chip.completed .item-info::after {
     width: calc(100% + 1rem);
 }
@@ -608,7 +612,6 @@ h1 {
 .shop-chip.is-completing .shop-qty-circle::before {
     width: 100%;
     height: 100%;
-    transition-delay: 0.4s;
 }
 
 .shop-chip.completed .shop-qty-circle::before {
@@ -617,13 +620,11 @@ h1 {
 }
 
 .shop-chip.is-completing .shop-qty-circle .qty-number {
-    transition-delay: 0.4s;
     transform: scale(0.5) translateY(-10px);
     opacity: 0;
 }
 
 .shop-chip.is-completing .shop-qty-circle .check-icon {
-    transition-delay: 0.4s;
     transform: scale(1) translateY(0);
     opacity: 1;
 }
