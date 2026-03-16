@@ -270,6 +270,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             shopSelectionMode = false;
             selectedShopItems.clear();
 
+            // Exit edit mode when switching modes
+            editMode = false;
+
             currentMode = newMode;
             saveMode();
             updateModeUI();
