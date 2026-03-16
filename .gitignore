@@ -6,3 +6,5 @@ node_modules/
 gha-creds-*.json
 
 server.log
+test-results/
+.last-run.json
