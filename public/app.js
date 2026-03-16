@@ -951,38 +951,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    let isTogglingShop = false;
+    let animatingItems = new Map(); // id -> 'completing' | 'undoing'
     async function toggleShopCompleted(id) {
-        if (isTogglingShop) return;
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
         const sameNameItems = currentList.items.filter(i => i.text === item.text);
+        if (sameNameItems.some(i => animatingItems.has(i.id))) return;
+
         const newState = !item.shopCompleted;
 
-        // Find all DOM elements for grouped items
-        const elements = [];
-        sameNameItems.forEach(i => {
-            const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
-            if (el) elements.push(el);
-        });
-
         try {
-            isTogglingShop = true;
+            sameNameItems.forEach(i => animatingItems.set(i.id, newState ? 'completing' : 'undoing'));
+
+            sameNameItems.forEach(i => {
+                const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                if (el) {
+                    if (newState) {
+                        el.classList.add('is-completing');
+                    } else {
+                        el.classList.remove('completed');
+                        el.classList.add('is-undoing');
+                    }
+                }
+            });
+
             if (newState) {
                 // Completion sequence
-                elements.forEach(el => el.classList.add('is-completing'));
-
                 // Wait for strike-through + circle fill (0.4s + 0.3s)
                 await new Promise(r => setTimeout(r, 700));
 
                 // Trigger sparks
-                elements.forEach(el => {
-                    const circle = el.querySelector('.shop-qty-circle');
-                    if (circle) {
-                        const rect = circle.getBoundingClientRect();
-                        createSparks(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                sameNameItems.forEach(i => {
+                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    if (el) {
+                        const circle = el.querySelector('.shop-qty-circle');
+                        if (circle) {
+                            const rect = circle.getBoundingClientRect();
+                            createSparks(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                        }
                     }
                 });
 
@@ -995,11 +1003,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             } else {
                 // Undo sequence
-                elements.forEach(el => {
-                    el.classList.remove('completed'); // Instantly remove completed state to trigger reverse transitions
-                    el.classList.add('is-undoing');
-                });
-
                 await new Promise(r => setTimeout(r, 300));
 
                 sameNameItems.forEach(i => {
@@ -1008,7 +1011,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         } finally {
-            isTogglingShop = false;
+            sameNameItems.forEach(i => animatingItems.delete(i.id));
         }
 
         saveAppState();
@@ -1414,7 +1417,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             sectionItems.forEach((item, idx) => {
                 const li = document.createElement('li');
-                li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${item.shopCompleted && !isHome ? 'completed' : ''}`;
+                const isAnimating = animatingItems.get(item.id);
+                const isCompleted = item.shopCompleted && isAnimating !== 'undoing';
+                li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${isCompleted && !isHome ? 'completed' : ''}`;
+                if (isAnimating === 'completing') li.classList.add('is-completing');
+                if (isAnimating === 'undoing') li.classList.add('is-undoing');
 
                 if (!isHome && !item.pendingDelete) {
                     const isSelected = selectedShopItems.has(item.id);
