@@ -1233,8 +1233,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             appContainer.classList.add('hide-drag-handles');
         } else {
             groceryList.classList.remove('shop-selection-mode');
-            // Only remove hide-drag-handles if showDragHandles is true
-            if (!showDragHandles) {
+            // Only remove hide-drag-handles if editMode is true
+            if (!editMode) {
                 appContainer.classList.add('hide-drag-handles');
             } else {
                 appContainer.classList.remove('hide-drag-handles');
@@ -1583,7 +1583,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
-                        if (shopSelectionMode || showDragHandles) {
+                        if (shopSelectionMode || editMode) {
                             // Selection Mode
                             if (selectedShopItems.has(item.id)) {
                                 selectedShopItems.delete(item.id);
