@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
+    let pendingCommitments = new Map(); // Tracks timeout IDs for delayed shop item commitment
+    let commitmentStartTimes = new Map(); // Tracks when commitment animation started (for re-render sync)
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
 
     // --- DOM Elements ---
@@ -228,6 +230,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (newMode === currentMode) return;
 
         const doSwitch = () => {
+            // Clear any pending delayed commitments on mode switch
+            pendingCommitments.forEach(timer => clearTimeout(timer));
+            pendingCommitments.clear();
+            commitmentStartTimes.clear();
+            animatingItems.clear();
+
             // Auto-update "Have" counts and auto-sort when switching FROM Shop TO Home
             if (currentMode === 'shop' && newMode === 'home') {
                 const currentList = getCurrentList();
@@ -770,6 +778,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     function switchList(id) {
         if (appState.currentListId === id) return; // Fix double tap bug by preventing instantly unmounting the target 
 
+        // Clear any pending delayed commitments on list switch
+        pendingCommitments.forEach(timer => clearTimeout(timer));
+        pendingCommitments.clear();
+        commitmentStartTimes.clear();
+        animatingItems.clear();
+
         appState.currentListId = id;
         saveAppState();
         renderListsMenu();
@@ -958,9 +972,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!item) return;
 
         const sameNameItems = currentList.items.filter(i => i.text === item.text);
-        if (sameNameItems.some(i => animatingItems.has(i.id))) return;
 
-        const newState = !item.shopCompleted;
+        // Allow interrupting a 'committing' state
+        const isInterruptingCommit = sameNameItems.some(i => animatingItems.get(i.id) === 'committing');
+        if (!isInterruptingCommit && sameNameItems.some(i => animatingItems.has(i.id))) return;
+
+        const newState = isInterruptingCommit ? false : !item.shopCompleted;
 
         try {
             sameNameItems.forEach(i => animatingItems.set(i.id, newState ? 'completing' : 'undoing'));
@@ -1001,8 +1018,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                     i.shopCompleted = true;
                     i.shopCheckOrder = Date.now();
                 });
+
+                // Start delayed commitment
+                sameNameItems.forEach(i => animatingItems.set(i.id, 'committing'));
+                commitmentStartTimes.set(item.text, Date.now());
+                const commitTimer = setTimeout(() => finalizeCommitment(item.text), 5000);
+                pendingCommitments.set(item.text, commitTimer);
+
+                // Return early from finally block to keep 'committing' state
+                saveAppState();
+                renderList();
+                return;
             } else {
                 // Undo sequence
+                if (pendingCommitments.has(item.text)) {
+                    clearTimeout(pendingCommitments.get(item.text));
+                    pendingCommitments.delete(item.text);
+                    commitmentStartTimes.delete(item.text);
+                }
+
                 await new Promise(r => setTimeout(r, 300));
 
                 sameNameItems.forEach(i => {
@@ -1011,7 +1045,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         } finally {
-            sameNameItems.forEach(i => animatingItems.delete(i.id));
+            // Only cleanup if we are not moving into 'committing' state
+            if (newState === false || !item.shopCompleted) {
+                sameNameItems.forEach(i => animatingItems.delete(i.id));
+            }
         }
 
         saveAppState();
@@ -1069,6 +1106,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             actuallyRemoveItem(id);
         }
+    }
+
+    function finalizeCommitment(itemName) {
+        const currentList = getCurrentList();
+        if (!currentList) return;
+
+        const sameNameItems = currentList.items.filter(i => i.text === itemName);
+
+        // Find rows and add 'collapsing' class
+        sameNameItems.forEach(item => {
+            const el = document.querySelector(`.grocery-item[data-id="${item.id}"]`);
+            if (el) el.classList.add('collapsing');
+        });
+
+        // Wait for collapse transition (300ms)
+        setTimeout(() => {
+            sameNameItems.forEach(item => {
+                item.haveCount = item.wantCount;
+                item.shopCompleted = false;
+                item.shopCheckOrder = null;
+                animatingItems.delete(item.id);
+            });
+            pendingCommitments.delete(itemName);
+            commitmentStartTimes.delete(itemName);
+            saveAppState();
+            renderList();
+        }, 300);
     }
 
     function actuallyRemoveItem(id) {
@@ -1422,6 +1486,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${isCompleted && !isHome ? 'completed' : ''}`;
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
+                if (isAnimating === 'committing') {
+                    li.classList.add('is-committing');
+                    const startTime = commitmentStartTimes.get(item.text);
+                    if (startTime) {
+                        const elapsed = (Date.now() - startTime) / 1000;
+                        const delay = -elapsed;
+                        li.style.setProperty('--commitment-delay', `${delay}s`);
+                    }
+                }
 
                 if (!isHome && !item.pendingDelete) {
                     const isSelected = selectedShopItems.has(item.id);
@@ -1476,8 +1549,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (!isHome) {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    // Hide if 0-qty, not completed, and NOT in the Uncategorized section.
-                    if (toBuy <= 0 && !item.shopCompleted && section.id !== shopDefId) {
+                    // Hide if 0-qty, not completed, and NOT currently committing.
+                    if (toBuy <= 0 && !item.shopCompleted && animatingItems.get(item.id) !== 'committing') {
                         li.classList.add('shop-hidden');
                     }
                 }
@@ -1577,8 +1650,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const checkIcon = document.createElement('i');
                     checkIcon.className = 'fas fa-check check-icon';
 
+                    const qtyWrapper = document.createElement('div');
+                    qtyWrapper.className = 'shop-qty-wrapper';
+
                     qtyCircle.appendChild(qtyNumber);
                     qtyCircle.appendChild(checkIcon);
+
+                    const ringSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    ringSvg.setAttribute("class", "commit-ring-svg");
+                    ringSvg.setAttribute("viewBox", "0 0 22 22");
+                    const ringCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    ringCircle.setAttribute("class", "commit-ring-circle");
+                    ringCircle.setAttribute("cx", "11");
+                    ringCircle.setAttribute("cy", "11");
+                    ringCircle.setAttribute("r", "10");
+                    ringSvg.appendChild(ringCircle);
+
+                    qtyWrapper.appendChild(qtyCircle);
+                    qtyWrapper.appendChild(ringSvg);
 
                     const handle = createDragHandle();
                     handle.addEventListener('dragstart', (e) => handleDragStart(e, li, 'item'));
@@ -1586,7 +1675,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.appendChild(handle);
 
                     li.appendChild(info);
-                    li.appendChild(qtyCircle);
+                    li.appendChild(qtyWrapper);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {

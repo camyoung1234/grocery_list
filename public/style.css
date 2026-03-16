@@ -532,6 +532,14 @@ h1 {
     transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
+.shop-qty-wrapper {
+    position: relative;
+    margin-left: 1rem;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
 .shop-qty-circle {
     display: flex;
     align-items: center;
@@ -547,7 +555,47 @@ h1 {
     position: relative;
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-left: 1rem;
+    margin-left: 0;
+}
+
+.commit-ring-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 22px;
+    height: 22px;
+    pointer-events: none;
+    transform: rotate(-90deg);
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.grocery-item.is-committing .commit-ring-svg {
+    opacity: 1;
+}
+
+.commit-ring-circle {
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 62.83;
+    stroke-dashoffset: 62.83;
+}
+
+.grocery-item.is-committing .commit-ring-circle {
+    animation: commit-ring-progress 5s linear forwards;
+    animation-delay: var(--commitment-delay, 0s);
+}
+
+@keyframes commit-ring-progress {
+    from {
+        stroke-dashoffset: 62.83;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
 }
 
 .section-container .grocery-item.shop-chip.completed .shop-qty-circle {
@@ -1723,6 +1771,7 @@ h1 {
 
 .grocery-item.collapsing {
     height: 0 !important;
+    max-height: 0 !important;
     min-height: 0 !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
