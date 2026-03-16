@@ -979,10 +979,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (newState) {
                 // Completion sequence
-                // Wait for strike-through + circle fill (0.4s + 0.3s)
-                await new Promise(r => setTimeout(r, 700));
+                // 1. Circle fills (check icon appears) immediately (takes 0.3s)
+                // 2. Strike-through starts after 0.3s (takes 0.4s)
+                // Total duration: 0.7s
+                await new Promise(r => setTimeout(r, 300));
 
-                // Trigger sparks
+                // Trigger sparks after circle fill
                 sameNameItems.forEach(i => {
                     const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
                     if (el) {
@@ -994,8 +996,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
 
-                // Wait for sparks to be visible
-                await new Promise(r => setTimeout(r, 100));
+                // Wait for strike-through to complete (0.4s more)
+                await new Promise(r => setTimeout(r, 400));
 
                 sameNameItems.forEach(i => {
                     i.shopCompleted = true;
@@ -1222,6 +1224,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         return handle;
     }
 
+    function createLeftAction(children = []) {
+        const leftAction = document.createElement('div');
+        leftAction.className = 'left-action';
+        if (Array.isArray(children)) {
+            children.forEach(child => leftAction.appendChild(child));
+        } else if (children) {
+            leftAction.appendChild(children);
+        }
+        return leftAction;
+    }
+
     function renderList() {
         groceryList.innerHTML = '';
         const currentList = getCurrentList();
@@ -1322,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 handle.classList.add('section-drag-handle');
                 handle.addEventListener('dragstart', (e) => handleDragStart(e, sectionLi, 'section'));
                 handle.addEventListener('touchstart', (e) => handleTouchStart(e, sectionLi, 'section'), { passive: false });
-                header.appendChild(handle);
+                header.appendChild(createLeftAction(handle));
 
                 onDoubleTap(titleSpan, (e) => {
                     e.stopPropagation();
@@ -1360,7 +1373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const handle = createDragHandle();
                 handle.classList.add('section-drag-handle', 'disabled');
                 handle.draggable = false;
-                header.appendChild(handle);
+                header.appendChild(createLeftAction(handle));
                 header.appendChild(titleSpan);
             }
 
@@ -1443,6 +1456,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.dataset.type = 'item';
                     li.dataset.sectionId = section.id;
 
+                    li.appendChild(createLeftAction());
+
                     // Standard item text layout
                     const info = document.createElement('div');
                     info.className = 'item-info';
@@ -1485,7 +1500,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const handle = createDragHandle();
                     handle.addEventListener('dragstart', (e) => handleDragStart(e, li, 'item'));
                     handle.addEventListener('touchstart', (e) => handleTouchStart(e, li, 'item'), { passive: false });
-                    li.appendChild(handle);
+                    li.appendChild(createLeftAction(handle));
 
                     const info = document.createElement('div');
                     info.className = 'item-info';
@@ -1579,10 +1594,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const handle = createDragHandle();
                     handle.addEventListener('dragstart', (e) => handleDragStart(e, li, 'item'));
                     handle.addEventListener('touchstart', (e) => handleTouchStart(e, li, 'item'), { passive: false });
-                    li.appendChild(handle);
+                    li.appendChild(createLeftAction([handle, qtyCircle]));
 
                     li.appendChild(info);
-                    li.appendChild(qtyCircle);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
@@ -1623,7 +1637,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const plusIcon = document.createElement('div');
                 plusIcon.className = 'drag-handle add-row-plus';
                 plusIcon.innerHTML = '<i class="fas fa-plus"></i>';
-                addRow.appendChild(plusIcon);
+                addRow.appendChild(createLeftAction(plusIcon));
 
                 const info = document.createElement('div');
                 info.className = 'item-info';
@@ -1664,7 +1678,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addSecPlusIcon = document.createElement('div');
         addSecPlusIcon.className = 'drag-handle add-row-plus';
         addSecPlusIcon.innerHTML = '<i class="fas fa-plus"></i>';
-        addSecRow.appendChild(addSecPlusIcon);
+        addSecRow.appendChild(createLeftAction(addSecPlusIcon));
 
         const addSecInfo = document.createElement('div');
         addSecInfo.className = 'item-info';
