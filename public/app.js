@@ -1124,10 +1124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Update reorder handle visibility
-        if (appContainer) {
-            appContainer.classList.toggle('hide-drag-handles', !editMode);
-        }
         if (toolbarReorderBtn) {
             toolbarReorderBtn.classList.toggle('active', editMode);
             toolbarReorderBtn.title = editMode ? 'Exit Edit Mode' : 'Enter Edit Mode';
@@ -1231,17 +1227,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sections = currentList[sectionsKey] || [];
 
         // Toggle global reorder/selection classes
+        const hideZeroQty = !isHome && !editMode;
+        appContainer.classList.toggle('hide-zero-qty', hideZeroQty);
+        appContainer.classList.toggle('hide-drag-handles', !editMode);
+
         if (!isHome && shopSelectionMode) {
             groceryList.classList.add('shop-selection-mode');
             appContainer.classList.add('hide-drag-handles');
         } else {
             groceryList.classList.remove('shop-selection-mode');
-            // Only remove hide-drag-handles if editMode is true
-            if (!editMode) {
-                appContainer.classList.add('hide-drag-handles');
-            } else {
-                appContainer.classList.remove('hide-drag-handles');
-            }
         }
 
 
@@ -1294,19 +1288,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
-            const totalItemsInSection = sectionItems.length;
-
-            if (!isHome && section.id === shopDefId) {
-                // In shop mode, Uncategorized is only visible if at least one item is in the section
-                if (totalItemsInSection === 0) {
-                    return; // Skip rendering Uncategorized
-                }
-            }
 
             const sectionLi = document.createElement('li');
             sectionLi.className = 'section-container';
             sectionLi.dataset.id = section.id;
             sectionLi.dataset.type = 'section';
+
+            if (!isHome) {
+                const hasVisibleItems = sectionItems.some(item => {
+                    const toBuy = item.wantCount - item.haveCount;
+                    return toBuy > 0 || item.shopCompleted || item.pendingDelete;
+                });
+                sectionLi.classList.toggle('zero-qty-section', !hasVisibleItems);
+            }
 
             // Section Header
             const header = document.createElement('div');
@@ -1476,10 +1470,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (!isHome) {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    // Hide if 0-qty, not completed, and NOT in the Uncategorized section.
-                    if (toBuy <= 0 && !item.shopCompleted && section.id !== shopDefId) {
-                        li.classList.add('shop-hidden');
-                    }
+                    const isZeroQty = toBuy <= 0 && !item.shopCompleted && !item.pendingDelete;
+                    li.classList.toggle('zero-qty-item', isZeroQty);
                 }
 
 

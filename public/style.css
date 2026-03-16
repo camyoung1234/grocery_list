@@ -472,10 +472,6 @@ h1 {
     border-bottom-right-radius: 0;
 }
 
-/* Hide 0-qty items in shop mode (except Uncategorized) via CSS as requested */
-.section-container .grocery-item.shop-chip.shop-hidden {
-    display: none;
-}
 
 .section-container .grocery-item.shop-chip.selected .item-text {
     color: var(--primary-color);
@@ -2095,4 +2091,27 @@ h1 {
 
 .add-section-row.delete-target .add-section-input::placeholder {
     color: var(--danger-color);
+}
+
+.hide-zero-qty .zero-qty-item,
+.hide-zero-qty .zero-qty-section .section-header {
+    height: 0;
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.hide-zero-qty .zero-qty-section .section-items-list {
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    min-height: 0;
 }
