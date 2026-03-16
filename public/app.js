@@ -1911,15 +1911,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             createDragVisual(e, element, type);
         }
 
-        // Maintain scrolling ability so auto-scroll works
-
-
-        // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
-        setTimeout(() => {
+        const startDragging = () => {
             if (draggedElement !== element) return;
             
             isDragStarted = true;
             groceryList.classList.add('no-transition');
+            document.body.style.overflow = 'hidden';
 
             // Initialize placeholder at starting position to prevent layout shift
             const phHeight = type === 'section' ? 50 : element.offsetHeight;
@@ -1996,7 +1993,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
             }
-        }, 50);
+        };
+
+        if (e.type === 'touchstart') {
+            startDragging();
+        } else {
+            // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
+            setTimeout(startDragging, 50);
+        }
     }
 
     function animatePlaceholderMove(target, isBefore) {
@@ -2236,8 +2240,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleTouchStart(e, element, type) {
         const initialRect = element.getBoundingClientRect();
-        handleDragStart(e, element, type, initialRect);
         createDragVisual(e.touches[0], element, type, initialRect);
+        handleDragStart(e, element, type, initialRect);
     }
 
     groceryList.addEventListener('touchmove', (e) => {
