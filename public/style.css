@@ -1249,15 +1249,13 @@ h1 {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
-.theme-trigger i {
+.theme-trigger .dropdown-arrow {
     margin-left: auto;
-    font-size: 0.8rem;
     color: var(--text-muted);
-    transition: transform 0.3s ease;
 }
 
-.custom-theme-dropdown.open .theme-trigger i {
-    transform: rotate(180deg);
+.custom-theme-dropdown.open .theme-trigger .dropdown-arrow path {
+    d: path('M6 10L12 4L18 10');
 }
 
 .theme-options {
@@ -1798,14 +1796,12 @@ h1 {
     text-overflow: ellipsis;
 }
 
-.list-picker-btn i {
-    font-size: 0.8rem;
+.list-picker-btn .dropdown-arrow {
     color: var(--text-muted);
-    transition: transform 0.3s ease;
 }
 
-.list-picker-btn.open i {
-    transform: rotate(180deg);
+.list-picker-btn.open .dropdown-arrow path {
+    d: path('M6 10L12 4L18 10');
 }
 
 @media (hover: hover) {
@@ -1887,6 +1883,16 @@ h1 {
 
 .toolbar-btn-cta:active {
     transform: translateY(0) scale(0.98);
+}
+
+.dropdown-arrow {
+    width: 0.8rem;
+    height: 0.8rem;
+    display: block;
+}
+
+.dropdown-arrow path {
+    transition: d 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Lists Menu */
