@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
+    let syncTimeout = null; // Debounce timer for URL hash sync
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
 
     // --- DOM Elements ---
@@ -89,24 +90,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentSectionDeleteAllCallback = null;
 
     // --- URL Hash State Sync ---
-    async function syncToHash() {
-        try {
-            const payload = JSON.stringify({
-                appState: JSON.parse(localStorage.getItem('grocery-app-state') || 'null'),
-                mode: localStorage.getItem('grocery-mode') || 'home'
-            });
-            const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'));
-            const compressed = await new Response(stream).arrayBuffer();
-            const bytes = new Uint8Array(compressed);
-            let binary = '';
-            for (let i = 0; i < bytes.length; i++) {
-                binary += String.fromCharCode(bytes[i]);
+    function syncToHash() {
+        if (syncTimeout) clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(async () => {
+            try {
+                const payload = JSON.stringify({
+                    appState: JSON.parse(localStorage.getItem('grocery-app-state') || 'null'),
+                    mode: localStorage.getItem('grocery-mode') || 'home'
+                });
+                const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'));
+                const compressed = await new Response(stream).arrayBuffer();
+                const bytes = new Uint8Array(compressed);
+
+                // Optimized conversion to binary string using chunks to avoid stack overflow
+                let binary = '';
+                const CHUNK_SIZE = 0x8000;
+                for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+                    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE));
+                }
+
+                const hash = btoa(binary);
+                history.replaceState(null, '', '#' + hash);
+            } catch (e) {
+                console.warn('Failed to sync state to URL hash:', e);
+            } finally {
+                syncTimeout = null;
             }
-            const hash = btoa(binary);
-            history.replaceState(null, '', '#' + hash);
-        } catch (e) {
-            console.warn('Failed to sync state to URL hash:', e);
-        }
+        }, 100);
     }
 
     // Restore state from URL hash (if present) before reading localStorage
@@ -1911,7 +1921,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 want.part.classList.remove('delete-mode');
             }
 
-            saveAppState();
+            if (!isInit) {
+                saveAppState();
+            }
         };
 
         // Initialize UI state
