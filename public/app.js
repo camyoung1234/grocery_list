@@ -1696,10 +1696,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         });
                     });
 
-                    // Prevent click on name from triggering row selection/completion
-                    textSpan.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                    });
 
                     info.appendChild(textSpan);
 
