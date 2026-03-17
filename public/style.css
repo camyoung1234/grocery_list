@@ -434,7 +434,7 @@ h1 {
 .quantity-controls {
     display: flex;
     align-items: center;
-    width: 104px;
+    width: 52px;
     /* Fix width to enable transition */
     opacity: 1;
     overflow: visible;
@@ -912,7 +912,8 @@ h1 {
 
 /* Quantity Controls (Home Mode - Combined Expandable) */
 
-.qty-combined-pill {
+.qty-combined-pill,
+.qty-single-pill {
     display: flex;
     align-items: center;
     background: color-mix(in srgb, var(--primary-color) 15%, transparent);
@@ -923,12 +924,14 @@ h1 {
 }
 
 @media (hover: hover) {
-    .qty-combined-pill:hover {
+    .qty-combined-pill:hover,
+    .qty-single-pill:hover {
         background: color-mix(in srgb, var(--primary-color) 25%, transparent);
     }
 }
 
-.qty-combined-pill.active {
+.qty-combined-pill.active,
+.qty-single-pill.active {
     background: color-mix(in srgb, var(--primary-color) 25%, transparent);
     /* Offset the exact width added by the two 26px buttons so the layout width is unchanged */
     margin-left: -52px;
@@ -2211,7 +2214,8 @@ h1 {
 }
 
 
-.home-mode:not(.hide-drag-handles) .quantity-controls {
+.home-mode.edit-mode-on .quantity-controls,
+.shop-mode:not(.edit-mode-on) .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);

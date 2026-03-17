@@ -361,6 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             editMode = !editMode;
             saveMode();
             updateModeUI();
+            renderList();
 
             // Maintain scroll position for the top row
             if (topRow) {
@@ -1203,6 +1204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function updateModeUI() {
+        renderList();
         const currentList = getCurrentList();
         const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
         document.documentElement.style.setProperty('--primary-color', themeColor);
@@ -1239,7 +1241,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             appContainer.classList.toggle('hide-drag-handles', !editMode);
             appContainer.classList.toggle('home-mode', isHome);
             appContainer.classList.toggle('shop-mode', !isHome);
+            appContainer.classList.toggle('edit-mode-on', editMode);
         }
+        renderList();
     }
 
     function saveAppState() {
@@ -1649,7 +1653,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const controls = document.createElement('div');
                     controls.className = 'quantity-controls';
 
-                    controls.appendChild(createCombinedQtyControl(item));
+                    controls.appendChild(createSingleQtyControl(item, 'have'));
 
                     li.appendChild(controls);
 
@@ -1712,6 +1716,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.appendChild(createLeftAction([handle, qtyCircle]));
 
                     li.appendChild(info);
+
+                    const controls = document.createElement('div');
+                    controls.className = 'quantity-controls';
+
+                    if (!item.pendingDelete) {
+                        controls.appendChild(createSingleQtyControl(item, 'want', () => {
+                            const currentList = getCurrentList();
+                            if (item.allIds && item.allIds.length > 0) {
+                                item.allIds.forEach((id, idx) => {
+                                    const actualItem = currentList.items.find(i => i.id === id);
+                                    if (actualItem) {
+                                        actualItem.wantCount = (idx === 0) ? item.wantCount : 0;
+                                    }
+                                });
+                                saveAppState();
+                                renderList();
+                            } else {
+                                saveAppState();
+                                renderList();
+                            }
+                        }));
+                    }
+                    li.appendChild(controls);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
@@ -1857,7 +1884,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (p !== part) {
                     p.classList.remove('expanded');
                     // Also remove active from the other pill if it's not our own parent
-                    const otherGroup = p.closest('.qty-combined-pill');
+                    const otherGroup = p.closest('.qty-combined-pill, .qty-single-pill');
                     if (otherGroup && otherGroup !== group) {
                         otherGroup.classList.remove('active');
                     }
@@ -1870,66 +1897,66 @@ document.addEventListener('DOMContentLoaded', async () => {
         return { part, valSpan, btnMinus, btnPlus };
     }
 
-    function createCombinedQtyControl(item) {
+    function createSingleQtyControl(item, type, onUpdate) {
         const group = document.createElement('div');
-        group.className = 'qty-combined-pill';
+        group.className = 'qty-single-pill';
 
-        const have = createQtyPart(group, item.haveCount, 'have');
-        const want = createQtyPart(group, item.wantCount, 'want');
+        const value = type === 'have' ? item.haveCount : item.wantCount;
+        const part = createQtyPart(group, value, type);
 
-        const separator = document.createElement('span');
-        separator.className = 'qty-divider';
-        separator.textContent = '/';
-
-        group.appendChild(have.part);
-        group.appendChild(separator);
-        group.appendChild(want.part);
+        group.appendChild(part.part);
 
         const updateUI = (isInit = false) => {
-            const oldHave = have.valSpan.textContent;
-            const oldWant = want.valSpan.textContent;
+            const currentVal = type === 'have' ? item.haveCount : item.wantCount;
+            const oldVal = part.valSpan.textContent;
 
-            have.valSpan.textContent = item.haveCount;
-            want.valSpan.textContent = item.wantCount;
+            part.valSpan.textContent = currentVal;
 
-            if (!isInit) {
-                if (oldHave !== String(item.haveCount)) {
-                    have.valSpan.classList.remove('pop-animate');
-                    void have.valSpan.offsetWidth; // Trigger reflow
-                    have.valSpan.classList.add('pop-animate');
-                }
-                if (oldWant !== String(item.wantCount)) {
-                    want.valSpan.classList.remove('pop-animate');
-                    void want.valSpan.offsetWidth; // Trigger reflow
-                    want.valSpan.classList.add('pop-animate');
-                }
+            if (!isInit && oldVal !== String(currentVal)) {
+                part.valSpan.classList.remove('pop-animate');
+                void part.valSpan.offsetWidth; // Trigger reflow
+                part.valSpan.classList.add('pop-animate');
             }
 
-            if (item.wantCount === 0) {
-                want.part.classList.add('delete-mode');
-            } else {
-                want.part.classList.remove('delete-mode');
+            if (type === 'want') {
+                if (item.wantCount === 0) {
+                    part.part.classList.add('delete-mode');
+                } else {
+                    part.part.classList.remove('delete-mode');
+                }
             }
 
             saveAppState();
+            if (onUpdate) onUpdate();
         };
 
         // Initialize UI state
         updateUI(true);
 
-        have.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount = Math.max(0, item.haveCount - 1); updateUI(); });
-        have.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount++; updateUI(); });
-
-        want.btnMinus.addEventListener('click', (e) => {
+        part.btnMinus.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (item.wantCount === 0) {
-                deleteItem(item.id);
+            if (type === 'have') {
+                item.haveCount = Math.max(0, item.haveCount - 1);
             } else {
-                item.wantCount = Math.max(0, item.wantCount - 1);
-                updateUI();
+                if (item.wantCount === 0) {
+                    deleteItem(item.id);
+                    return;
+                } else {
+                    item.wantCount = Math.max(0, item.wantCount - 1);
+                }
             }
+            updateUI();
         });
-        want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.wantCount++; updateUI(); });
+
+        part.btnPlus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (type === 'have') {
+                item.haveCount++;
+            } else {
+                item.wantCount++;
+            }
+            updateUI();
+        });
 
         return group;
     }
