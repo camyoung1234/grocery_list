@@ -325,6 +325,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.stopPropagation();
             renameList(appState.currentListId);
         }, 300, { allowOnButtons: true });
+
+        if (currentListNameSpan) {
+            onDoubleTap(currentListNameSpan, (e) => {
+                if (!editMode) return;
+                e.stopPropagation();
+                renameList(appState.currentListId);
+            });
+        }
     }
 
     if (toolbarModeBtn) {
@@ -795,6 +803,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, () => deleteListWithConfirmation(id, list.name));
     }
 
+    function startInlineItemEdit(item, info, nameSpan, onSave) {
+        // Turn into text input
+        const container = document.createElement('div');
+        container.className = 'dynamic-edit-container item-edit-container';
+
+        const mirror = document.createElement('span');
+        mirror.className = 'inline-mirror-span item-mirror';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = item.text;
+        input.size = 1;
+        input.className = 'inline-edit-input';
+
+        const syncMirror = () => {
+            mirror.textContent = input.value || ' ';
+        };
+        input.addEventListener('input', syncMirror);
+        syncMirror(); // Initial sync
+
+        const saveName = () => {
+            const newName = input.value.trim();
+            if (newName && newName !== item.text) {
+                if (onSave) {
+                    onSave(newName);
+                } else {
+                    item.text = newName;
+                    saveAppState();
+                }
+            }
+            renderList();
+        };
+
+        input.addEventListener('blur', saveName);
+        input.addEventListener('keydown', (ke) => {
+            if (ke.key === 'Enter') {
+                input.blur();
+            } else if (ke.key === 'Escape') {
+                renderList();
+            }
+        });
+
+        container.appendChild(mirror);
+        container.appendChild(input);
+        info.replaceChild(container, nameSpan);
+        input.focus();
+        input.setSelectionRange(0, input.value.length);
+    }
+
     function renameItem(id) {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
@@ -1247,6 +1304,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     renameList(list.id);
                 });
 
+                onDoubleTap(text, (e) => {
+                    if (!editMode) return;
+                    e.stopPropagation();
+                    renameList(list.id);
+                });
+
                 listsMenu.appendChild(item);
             });
         }
@@ -1382,6 +1445,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 header.appendChild(createLeftAction(handle));
 
                 onDoubleTap(titleSpan, (e) => {
+                    if (!editMode) return;
                     e.stopPropagation();
 
                     const input = document.createElement('input');
@@ -1573,50 +1637,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     nameSpan.textContent = item.text;
 
                     onDoubleTap(nameSpan, (e) => {
+                        if (!editMode) return;
                         e.stopPropagation();
-
-                        // Turn into text input
-                        const container = document.createElement('div');
-                        container.className = 'dynamic-edit-container item-edit-container';
-
-                        const mirror = document.createElement('span');
-                        mirror.className = 'inline-mirror-span item-mirror';
-
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.value = item.text;
-                        input.size = 1;
-                        input.className = 'inline-edit-input';
-
-                        const syncMirror = () => {
-                            mirror.textContent = input.value || ' ';
-                        };
-                        input.addEventListener('input', syncMirror);
-                        syncMirror(); // Initial sync
-
-                        const saveName = () => {
-                            const newName = input.value.trim();
-                            if (newName && newName !== item.text) {
-                                item.text = newName;
-                                saveAppState();
-                            }
-                            renderList();
-                        };
-
-                        input.addEventListener('blur', saveName);
-                        input.addEventListener('keydown', (ke) => {
-                            if (ke.key === 'Enter') {
-                                input.blur();
-                            } else if (ke.key === 'Escape') {
-                                renderList();
-                            }
-                        });
-
-                        container.appendChild(mirror);
-                        container.appendChild(input);
-                        info.replaceChild(container, nameSpan);
-                        input.focus();
-                        input.setSelectionRange(0, input.value.length);
+                        startInlineItemEdit(item, info, nameSpan);
                     });
 
                     info.appendChild(nameSpan);
@@ -1647,6 +1670,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const textSpan = document.createElement('span');
                     textSpan.className = 'item-text';
                     textSpan.textContent = item.text;
+
+                    onDoubleTap(textSpan, (e) => {
+                        if (!editMode) return;
+                        e.stopPropagation();
+                        startInlineItemEdit(item, info, textSpan, (newName) => {
+                            const currentList = getCurrentList();
+                            // Update all items in this group
+                            currentList.items.forEach(i => {
+                                if (i.text === item.text) {
+                                    i.text = newName;
+                                }
+                            });
+                            saveAppState();
+                        });
+                    });
+
+                    // Prevent click on name from triggering row selection/completion
+                    textSpan.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                    });
 
                     info.appendChild(textSpan);
 
