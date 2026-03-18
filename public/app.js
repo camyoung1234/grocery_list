@@ -1130,14 +1130,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderList();
     }
 
-    function clearCheckmarks() {
+    async function clearCheckmarks() {
         const currentList = getCurrentList();
         if (!currentList) return;
 
-        currentList.items.forEach(item => {
-            if (item.shopCompleted) {
-                item.shopCompleted = false;
-                item.shopCheckOrder = null;
+        const itemsToUncheck = currentList.items.filter(item => item.shopCompleted);
+        if (itemsToUncheck.length === 0) return;
+
+        // Visual uncheck animation
+        itemsToUncheck.forEach(item => {
+            const el = document.querySelector(`.grocery-item[data-id="${item.id}"]`);
+            if (el) {
+                el.classList.remove('completed');
+                el.classList.add('is-undoing');
+            }
+            animatingItems.set(item.id, 'undoing');
+        });
+
+        // Small delay for the animation
+        await new Promise(r => setTimeout(r, 300));
+
+        itemsToUncheck.forEach(item => {
+            item.shopCompleted = false;
+            item.shopCheckOrder = null;
+            animatingItems.delete(item.id);
+            const el = document.querySelector(`.grocery-item[data-id="${item.id}"]`);
+            if (el) {
+                el.classList.remove('is-undoing');
+                // If it becomes zero-qty again, hide it
+                const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                if (toBuy <= 0 && !editMode) {
+                    el.classList.add('zero-qty-item');
+                }
             }
         });
 
@@ -1571,7 +1595,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             sectionItems.forEach((item, idx) => {
                 const li = document.createElement('li');
                 const isAnimating = animatingItems.get(item.id);
-                const isCompleted = item.shopCompleted && isAnimating !== 'undoing';
+                // Hide strike-through and checkmarks in Edit Mode
+                const isCompleted = !editMode && item.shopCompleted && isAnimating !== 'undoing';
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${isCompleted && !isHome ? 'completed' : ''}`;
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
