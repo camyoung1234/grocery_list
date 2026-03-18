@@ -434,17 +434,58 @@ h1 {
 .quantity-controls {
     display: flex;
     align-items: center;
-    width: 104px;
+    width: 84px;
     /* Fix width to enable transition */
     opacity: 1;
     overflow: visible;
-    /* Changed from hidden to allow expansion overlay */
     position: relative;
     z-index: 10;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.stepper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    width: 100%;
+}
 
+.stepper-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: var(--transition);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+@media (hover: hover) {
+    .stepper-btn:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+}
+
+.stepper-btn:active {
+    transform: scale(0.9);
+}
+
+.stepper-val {
+    font-weight: 700;
+    font-size: 1rem;
+    min-width: 1.5rem;
+    text-align: center;
+    color: var(--text-color);
+}
 
 /* Shop Mode Content */
 .section-items-list.shop-mode {
@@ -1846,6 +1887,14 @@ h1 {
     color: var(--primary-color);
 }
 
+#toolbar-clear {
+    display: none;
+}
+
+.shop-mode #toolbar-clear {
+    display: flex;
+}
+
 .toolbar-btn-cta {
     display: flex;
     align-items: center;
@@ -2211,7 +2260,8 @@ h1 {
 }
 
 
-.home-mode:not(.hide-drag-handles) .quantity-controls {
+.home-mode:not(.hide-drag-handles) .quantity-controls,
+.shop-mode:not(.hide-drag-handles) .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);

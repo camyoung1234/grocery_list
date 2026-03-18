@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toolbarListsBtn = document.getElementById('toolbar-lists');
     const currentListSwatch = document.getElementById('current-list-swatch');
     const toolbarModeBtn = document.getElementById('toolbar-mode');
+    const toolbarClearBtn = document.getElementById('toolbar-clear');
     const toolbarReorderBtn = document.getElementById('toolbar-reorder');
     const toolbarShareBtn = document.getElementById('toolbar-share');
     const currentListNameSpan = document.getElementById('current-list-name');
@@ -232,44 +233,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (newMode === currentMode) return;
 
         const doSwitch = () => {
-            // Auto-update "Have" counts and auto-sort when switching FROM Shop TO Home
-            if (currentMode === 'shop' && newMode === 'home') {
-                const currentList = getCurrentList();
-
-                // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
-                const sectionsMap = new Map();
-                currentList.items.forEach(item => {
-                    if (item.shopCompleted) {
-                        if (!sectionsMap.has(item.shopSectionId)) {
-                            sectionsMap.set(item.shopSectionId, []);
-                        }
-                        sectionsMap.get(item.shopSectionId).push(item);
-                    }
-                });
-
-                sectionsMap.forEach(checkedItems => {
-                    // Sort by check order (ascending - older checks first)
-                    checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
-
-                    // Extract their current indices and sort numerically
-                    const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
-
-                    // Re-assign sorted indices back to the items based on their check order
-                    checkedItems.forEach((item, i) => {
-                        item.shopIndex = indices[i];
-                    });
-                });
-
-                currentList.items.forEach(item => {
-                    if (item.shopCompleted) {
-                        item.haveCount = item.wantCount;
-                        item.shopCompleted = false;
-                        item.shopCheckOrder = null;
-                    }
-                });
-                saveAppState();
-            }
-
             // Clear shop selection mode on any mode switch
             shopSelectionMode = false;
             selectedShopItems.clear();
@@ -346,6 +309,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    if (toolbarClearBtn) {
+        toolbarClearBtn.addEventListener('click', () => {
+            clearCheckmarks();
+        });
+    }
+
     if (toolbarReorderBtn) {
         toolbarReorderBtn.addEventListener('click', () => {
             // Find the row currently at the top of the viewport
@@ -365,6 +334,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             editMode = !editMode;
             saveMode();
             updateModeUI();
+            renderList();
 
             // Maintain scroll position for the top row
             if (topRow) {
@@ -1126,6 +1096,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function clearCheckmarks() {
+        const currentList = getCurrentList();
+        if (!currentList) return;
+
+        currentList.items.forEach(item => {
+            if (item.shopCompleted) {
+                item.haveCount = item.wantCount;
+                item.shopCompleted = false;
+                item.shopCheckOrder = null;
+            }
+        });
+
+        saveAppState();
+        renderList();
+    }
+
     function deleteItem(id) {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
@@ -1367,10 +1353,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
 
-        // Pre-group items for shop mode
+        // Pre-group items for shop mode (only when not in edit mode)
         const groupedMap = new Map();
         const nameToSection = new Map();
-        if (!isHome) {
+        if (!isHome && !editMode) {
             currentList.items.forEach(item => {
                 const name = item.text.trim();
                 if (!groupedMap.has(name)) {
@@ -1397,10 +1383,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         sections.forEach((section) => {
             // items for this section 
             let sectionItems;
-            if (isHome) {
+            if (isHome || editMode) {
                 sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
             } else {
-                // Filter groups for this section
+                // Filter groups for this section (Shop Mode, Edit Off)
                 sectionItems = [];
                 groupedMap.forEach(group => {
                     if (nameToSection.get(group.text) === section.id) {
@@ -1425,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!isHome) {
                 const hasVisibleItems = sectionItems.some(item => {
                     const toBuy = item.wantCount - item.haveCount;
-                    return toBuy > 0 || item.shopCompleted || item.pendingDelete;
+                    return toBuy > 0 || (editMode && !item.pendingDelete) || (!editMode && item.shopCompleted) || item.pendingDelete;
                 });
                 sectionLi.classList.toggle('zero-qty-section', !hasVisibleItems);
             }
@@ -1620,14 +1606,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (!isHome) {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    const isZeroQty = toBuy <= 0 && !item.shopCompleted && !item.pendingDelete;
-                    li.classList.toggle('zero-qty-item', isZeroQty);
+                    // In shop mode: visible if toBuy > 0 or it's currently completed or we are in edit mode
+                    const isVisible = toBuy > 0 || (editMode && !item.pendingDelete) || (!editMode && item.shopCompleted) || item.pendingDelete;
+                    li.classList.toggle('zero-qty-item', !isVisible);
                 }
 
 
                 li.innerHTML = '';
 
-                if (isHome) {
+                if (isHome || (editMode && !isHome)) {
                     const handle = createDragHandle();
                     handle.addEventListener('dragstart', (e) => handleDragStart(e, li, 'item'));
                     handle.addEventListener('touchstart', (e) => handleTouchStart(e, li, 'item'), { passive: false });
@@ -1653,7 +1640,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const controls = document.createElement('div');
                     controls.className = 'quantity-controls';
 
-                    controls.appendChild(createCombinedQtyControl(item));
+                    controls.appendChild(createStepper(item, isHome ? 'haveCount' : 'wantCount'));
 
                     li.appendChild(controls);
 
@@ -1715,7 +1702,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
-                        if (shopSelectionMode || editMode) {
+                        if (editMode) return; // No action in Shop Edit mode
+
+                        if (shopSelectionMode) {
                             // Selection Mode
                             if (selectedShopItems.has(item.id)) {
                                 selectedShopItems.delete(item.id);
@@ -1825,115 +1814,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         groceryList.appendChild(addSecRow);
     }
 
-    function createQtyPart(group, value, type) {
-        const part = document.createElement('div');
-        part.className = `qty-part ${type}-part`;
+    function createStepper(item, countKey) {
+        const stepper = document.createElement('div');
+        stepper.className = 'stepper';
 
         const btnMinus = document.createElement('button');
-        btnMinus.className = 'qty-btn minus';
-        const minusIcon = document.createElement('i');
-        minusIcon.className = 'fas fa-minus icon-default';
-        const trashIcon = document.createElement('i');
-        trashIcon.className = 'fas fa-trash icon-delete';
-        btnMinus.appendChild(minusIcon);
-        btnMinus.appendChild(trashIcon);
+        btnMinus.className = 'stepper-btn minus';
+        btnMinus.innerHTML = '<i class="fas fa-minus"></i>';
+        btnMinus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (countKey === 'haveCount') {
+                adjustHave(item.id, -1);
+            } else {
+                adjustWant(item.id, -1);
+            }
+        });
 
         const valSpan = document.createElement('span');
-        valSpan.className = 'qty-val';
-        valSpan.textContent = value;
+        valSpan.className = 'stepper-val';
+        valSpan.textContent = item[countKey];
 
         const btnPlus = document.createElement('button');
-        btnPlus.className = 'qty-btn plus';
+        btnPlus.className = 'stepper-btn plus';
         btnPlus.innerHTML = '<i class="fas fa-plus"></i>';
-
-        part.appendChild(btnMinus);
-        part.appendChild(valSpan);
-        part.appendChild(btnPlus);
-
-        part.addEventListener('click', (e) => {
+        btnPlus.addEventListener('click', (e) => {
             e.stopPropagation();
-
-            document.querySelectorAll('.qty-part.expanded').forEach(p => {
-                if (p !== part) {
-                    p.classList.remove('expanded');
-                    // Also remove active from the other pill if it's not our own parent
-                    const otherGroup = p.closest('.qty-combined-pill');
-                    if (otherGroup && otherGroup !== group) {
-                        otherGroup.classList.remove('active');
-                    }
-                }
-            });
-            part.classList.add('expanded');
-            group.classList.add('active'); // For overall styling if needed
+            if (countKey === 'haveCount') {
+                adjustHave(item.id, 1);
+            } else {
+                adjustWant(item.id, 1);
+            }
         });
 
-        return { part, valSpan, btnMinus, btnPlus };
-    }
+        stepper.appendChild(btnMinus);
+        stepper.appendChild(valSpan);
+        stepper.appendChild(btnPlus);
 
-    function createCombinedQtyControl(item) {
-        const group = document.createElement('div');
-        group.className = 'qty-combined-pill';
-
-        const have = createQtyPart(group, item.haveCount, 'have');
-        const want = createQtyPart(group, item.wantCount, 'want');
-
-        const separator = document.createElement('span');
-        separator.className = 'qty-divider';
-        separator.textContent = '/';
-
-        group.appendChild(have.part);
-        group.appendChild(separator);
-        group.appendChild(want.part);
-
-        const updateUI = (isInit = false) => {
-            const oldHave = have.valSpan.textContent;
-            const oldWant = want.valSpan.textContent;
-
-            have.valSpan.textContent = item.haveCount;
-            want.valSpan.textContent = item.wantCount;
-
-            if (!isInit) {
-                if (oldHave !== String(item.haveCount)) {
-                    have.valSpan.classList.remove('pop-animate');
-                    void have.valSpan.offsetWidth; // Trigger reflow
-                    have.valSpan.classList.add('pop-animate');
-                }
-                if (oldWant !== String(item.wantCount)) {
-                    want.valSpan.classList.remove('pop-animate');
-                    void want.valSpan.offsetWidth; // Trigger reflow
-                    want.valSpan.classList.add('pop-animate');
-                }
-            }
-
-            if (item.wantCount === 0) {
-                want.part.classList.add('delete-mode');
-            } else {
-                want.part.classList.remove('delete-mode');
-            }
-
-            if (!isInit) {
-                saveAppState();
-            }
-        };
-
-        // Initialize UI state
-        updateUI(true);
-
-        have.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount = Math.max(0, item.haveCount - 1); updateUI(); });
-        have.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount++; updateUI(); });
-
-        want.btnMinus.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (item.wantCount === 0) {
-                deleteItem(item.id);
-            } else {
-                item.wantCount = Math.max(0, item.wantCount - 1);
-                updateUI();
-            }
-        });
-        want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.wantCount++; updateUI(); });
-
-        return group;
+        return stepper;
     }
 
 
