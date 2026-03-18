@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
-    let syncTimeout = null; // Debounce timer for URL hash sync
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
 
     // --- DOM Elements ---
@@ -90,33 +89,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentSectionDeleteAllCallback = null;
 
     // --- URL Hash State Sync ---
-    function syncToHash() {
-        if (syncTimeout) clearTimeout(syncTimeout);
-        syncTimeout = setTimeout(async () => {
-            try {
-                const payload = JSON.stringify({
-                    appState: JSON.parse(localStorage.getItem('grocery-app-state') || 'null'),
-                    mode: localStorage.getItem('grocery-mode') || 'home'
-                });
-                const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'));
-                const compressed = await new Response(stream).arrayBuffer();
-                const bytes = new Uint8Array(compressed);
+    async function generateHash() {
+        try {
+            const payload = JSON.stringify({
+                appState: JSON.parse(localStorage.getItem('grocery-app-state') || 'null'),
+                mode: localStorage.getItem('grocery-mode') || 'home'
+            });
+            const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'));
+            const compressed = await new Response(stream).arrayBuffer();
+            const bytes = new Uint8Array(compressed);
 
-                // Optimized conversion to binary string using chunks to avoid stack overflow
-                let binary = '';
-                const CHUNK_SIZE = 0x8000;
-                for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-                    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE));
-                }
-
-                const hash = btoa(binary);
-                history.replaceState(null, '', '#' + hash);
-            } catch (e) {
-                console.warn('Failed to sync state to URL hash:', e);
-            } finally {
-                syncTimeout = null;
+            // Optimized conversion to binary string using chunks to avoid stack overflow
+            let binary = '';
+            const CHUNK_SIZE = 0x8000;
+            for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE));
             }
-        }, 100);
+
+            return btoa(binary);
+        } catch (e) {
+            console.warn('Failed to generate state URL hash:', e);
+            return '';
+        }
     }
 
     // Restore state from URL hash (if present) before reading localStorage
@@ -385,7 +379,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (toolbarShareBtn) {
         toolbarShareBtn.addEventListener('click', async () => {
             try {
-                await navigator.clipboard.writeText(window.location.href);
+                const hash = await generateHash();
+                const shareUrl = window.location.origin + window.location.pathname + '#' + hash;
+                await navigator.clipboard.writeText(shareUrl);
                 const icon = toolbarShareBtn.querySelector('i');
                 const originalClass = icon.className;
                 icon.className = 'fas fa-check';
@@ -1259,13 +1255,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             list.items = list.items.filter(item => !item.pendingDelete);
         });
         localStorage.setItem('grocery-app-state', JSON.stringify(stateToSave));
-        syncToHash();
     }
 
     function saveMode() {
         localStorage.setItem('grocery-mode', currentMode);
         localStorage.setItem('grocery-edit-mode', JSON.stringify(editMode));
-        syncToHash();
     }
 
     function renderListsMenu() {
