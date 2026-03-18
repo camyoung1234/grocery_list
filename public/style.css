@@ -2261,7 +2261,7 @@ h1 {
 
 
 .home-mode:not(.hide-drag-handles) .quantity-controls,
-.shop-mode:not(.hide-drag-handles) .quantity-controls {
+.shop-mode.hide-drag-handles .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);

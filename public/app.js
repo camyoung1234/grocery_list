@@ -1096,13 +1096,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function adjustGroupWant(name, delta, shopSectionId) {
+        const currentList = getCurrentList();
+        if (!currentList) return;
+
+        const items = currentList.items.filter(i => i.text.trim() === name.trim());
+        if (items.length === 0) return;
+
+        if (delta > 0) {
+            // Add to the first item (prefer current section)
+            let target = items.find(i => i.shopSectionId === shopSectionId) || items[0];
+            target.wantCount += delta;
+        } else if (delta < 0) {
+            // Subtract from items until delta is 0 or all items hit 0
+            let toSubtract = Math.abs(delta);
+
+            // Prefer subtracting from this section first
+            const sortedItems = [...items].sort((a, b) => {
+                if (a.shopSectionId === shopSectionId && b.shopSectionId !== shopSectionId) return -1;
+                if (a.shopSectionId !== shopSectionId && b.shopSectionId === shopSectionId) return 1;
+                return 0;
+            });
+
+            for (const item of sortedItems) {
+                const sub = Math.min(item.wantCount, toSubtract);
+                item.wantCount -= sub;
+                toSubtract -= sub;
+                if (toSubtract === 0) break;
+            }
+        }
+
+        saveAppState();
+        renderList();
+    }
+
     function clearCheckmarks() {
         const currentList = getCurrentList();
         if (!currentList) return;
 
         currentList.items.forEach(item => {
             if (item.shopCompleted) {
-                item.haveCount = item.wantCount;
                 item.shopCompleted = false;
                 item.shopCheckOrder = null;
             }
@@ -1353,10 +1386,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
 
-        // Pre-group items for shop mode (only when not in edit mode)
+        // Pre-group items for shop mode
         const groupedMap = new Map();
         const nameToSection = new Map();
-        if (!isHome && !editMode) {
+        if (!isHome) {
             currentList.items.forEach(item => {
                 const name = item.text.trim();
                 if (!groupedMap.has(name)) {
@@ -1383,10 +1416,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         sections.forEach((section) => {
             // items for this section 
             let sectionItems;
-            if (isHome || editMode) {
+            if (isHome) {
                 sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
             } else {
-                // Filter groups for this section (Shop Mode, Edit Off)
+                // Filter groups for this section (Shop Mode)
                 sectionItems = [];
                 groupedMap.forEach(group => {
                     if (nameToSection.get(group.text) === section.id) {
@@ -1630,7 +1663,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     onDoubleTap(nameSpan, (e) => {
                         if (!editMode) return;
                         e.stopPropagation();
-                        startInlineItemEdit(item, info, nameSpan);
+                        if (isHome) {
+                            startInlineItemEdit(item, info, nameSpan);
+                        } else {
+                            // Shop Mode Group Edit
+                            startInlineItemEdit(item, info, nameSpan, (newName) => {
+                                const currentList = getCurrentList();
+                                currentList.items.forEach(i => {
+                                    if (i.text.trim() === item.text.trim()) {
+                                        i.text = newName;
+                                    }
+                                });
+                                saveAppState();
+                            });
+                        }
                     });
 
                     info.appendChild(nameSpan);
@@ -1644,14 +1690,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     li.appendChild(controls);
 
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'item-delete-btn';
-                    deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-                    deleteBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        deleteItem(item.id);
-                    });
-                    li.appendChild(deleteBtn);
+                    if (isHome) {
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'item-delete-btn';
+                        deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                        deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            deleteItem(item.id);
+                        });
+                        li.appendChild(deleteBtn);
+                    }
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
@@ -1825,8 +1873,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.stopPropagation();
             if (countKey === 'haveCount') {
                 adjustHave(item.id, -1);
-            } else {
-                adjustWant(item.id, -1);
+            } else if (countKey === 'wantCount') {
+                // Check if it's a group (Shop Mode) or individual item (Home Mode)
+                if (item.allIds) {
+                    adjustGroupWant(item.text, -1, item.shopSectionId);
+                } else {
+                    adjustWant(item.id, -1);
+                }
             }
         });
 
@@ -1841,8 +1894,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.stopPropagation();
             if (countKey === 'haveCount') {
                 adjustHave(item.id, 1);
-            } else {
-                adjustWant(item.id, 1);
+            } else if (countKey === 'wantCount') {
+                if (item.allIds) {
+                    adjustGroupWant(item.text, 1, item.shopSectionId);
+                } else {
+                    adjustWant(item.id, 1);
+                }
             }
         });
 
