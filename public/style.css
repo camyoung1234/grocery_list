@@ -1974,6 +1974,10 @@ h1 {
     margin-right: -0.5rem;
 }
 
+.app-container.home-mode.hide-drag-handles .grocery-item .left-action {
+    width: 12px;
+}
+
 /* Drag and Drop Styles */
 .drag-handle {
     width: 40px;
