@@ -3,9 +3,10 @@
     "short_name": "Groceries",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#f5f6fa",
+    "background_color": "#ffffff",
     "theme_color": "#4a90e2",
     "description": "A simple offline grocery list app.",
+    "orientation": "portrait",
     "icons": [
         {
             "src": "/icon-192.png",
