@@ -2289,7 +2289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 { transform: 'translateY(0)' }
                             ], {
                                 duration: 400,
-                                easing: 'cubic-bezier(0.2, 0, 0, 1)'
+                                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
                             });
                         }
                     }
@@ -2331,8 +2331,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     { transform: `translateY(${delta}px)` },
                     { transform: 'translateY(0)' }
                 ], {
-                    duration: 300,
-                    easing: 'cubic-bezier(0.18, 1, 0.32, 1)'
+                    duration: 400,
+                    easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
                 });
             }
         });
@@ -2677,7 +2677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 { transform: 'translateY(0)' }
                             ], {
                                 duration: 400,
-                                easing: 'cubic-bezier(0.2, 0, 0, 1)'
+                                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
                             });
                         }
                     }
@@ -2710,8 +2710,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { top: ghost.style.top, left: ghost.style.left },
                 { top: phRect.top + 'px', left: phRect.left + 'px' }
             ], {
-                duration: 350,
-                easing: 'cubic-bezier(0.18, 1, 0.32, 1)',
+                duration: 400,
+                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
                 fill: 'forwards'
             });
             anim.onfinish = finalize;
