@@ -1769,13 +1769,13 @@ h1 {
     align-items: center;
     gap: 0.8rem;
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: var(--text-color);
     font-family: inherit;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    padding: 0.5rem 0.8rem;
+    padding: calc(0.5rem - 1px) 0.8rem;
     border-radius: 8px;
     transition: var(--transition);
     max-width: 180px;
