@@ -1045,9 +1045,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (newState) {
                 // Completion sequence
-                // 1. Circle fills (check icon appears) immediately (takes 0.3s)
-                // 2. Strike-through starts after 0.3s (takes 0.4s)
-                // Total duration: 0.7s
+                // Both animations start immediately:
+                // 1. Circle fills (check icon appears) takes 0.3s
+                // 2. Strike-through takes 0.4s
+                // Total duration: 0.4s
                 await new Promise(r => setTimeout(r, 300));
 
                 // Trigger sparks after circle fill
@@ -1062,8 +1063,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
 
-                // Wait for strike-through to complete (0.4s more)
-                await new Promise(r => setTimeout(r, 400));
+                // Wait for strike-through to complete (0.1s more)
+                await new Promise(r => setTimeout(r, 100));
 
                 sameNameItems.forEach(i => {
                     i.shopCompleted = true;
