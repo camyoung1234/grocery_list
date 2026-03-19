@@ -2203,7 +2203,9 @@ h1 {
 }
 
 .home-mode:not(.hide-drag-handles) .item-delete-btn,
-.home-mode:not(.hide-drag-handles) .section-delete-btn {
+.home-mode:not(.hide-drag-handles) .section-delete-btn,
+.touch-ghost.home-mode .item-delete-btn,
+.touch-ghost.home-mode .section-delete-btn {
     width: 40px;
     opacity: 1;
     transform: scale(1);
@@ -2211,7 +2213,8 @@ h1 {
 }
 
 
-.home-mode:not(.hide-drag-handles) .quantity-controls {
+.home-mode:not(.hide-drag-handles) .quantity-controls,
+.touch-ghost.home-mode .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);
