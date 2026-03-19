@@ -1131,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const signal = controller.signal;
                 committingControllers.set(item.text, controller);
 
-                const duration = 5000;
+                const duration = 4000;
                 let startTime = null;
 
                 // Pre-set progress so renderList (if called) knows we are committing
@@ -1179,17 +1179,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 runCommit().then(async (completed) => {
                     if (completed) {
                         committingControllers.delete(item.text);
-                        sameNameItems.forEach(i => committingProgress.delete(i.id));
+                        // Do NOT remove from committingProgress yet to keep text hidden during circle shrink
+                        // sameNameItems.forEach(i => committingProgress.delete(i.id));
 
                         const groupRows = sameNameItems.map(i => document.querySelector(`.grocery-item[data-id="${i.id}"]`)).filter(Boolean);
                         groupRows.forEach(row => {
                             row.classList.add('is-committed');
                             row.classList.remove('is-committing');
+                            row.style.setProperty('--commit-progress', 0);
                         });
 
-                        await new Promise(r => setTimeout(r, 300));
+                        await new Promise(r => setTimeout(r, 600));
                         groupRows.forEach(row => row.classList.add('collapsing'));
                         await new Promise(r => setTimeout(r, 300));
+
+                        // Cleanup progress map after collapse starts
+                        sameNameItems.forEach(i => committingProgress.delete(i.id));
 
                         const currentList = getCurrentList();
                         sameNameItems.forEach(i => {
