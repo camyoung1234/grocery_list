@@ -2224,17 +2224,15 @@ h1 {
     --commit-progress: 1;
 }
 
-.shop-chip.is-committing .item-info {
+.shop-chip.is-committing .item-text,
+.shop-chip.is-committed .item-text,
+.shop-chip.completed:not(.is-undoing) .item-text {
     -webkit-mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
     mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
 }
 
-.shop-chip.completed:not(.is-undoing) .item-info {
-    -webkit-mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
-    mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
-}
-
-.shop-chip.is-committing .item-text::after {
+.shop-chip.is-committing .item-text::after,
+.shop-chip.is-committed .item-text::after {
     width: calc(var(--commit-progress) * 100%) !important;
     transition: none !important;
 }
