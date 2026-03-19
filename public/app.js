@@ -2331,8 +2331,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     { transform: `translateY(${delta}px)` },
                     { transform: 'translateY(0)' }
                 ], {
-                    duration: 150,
-                    easing: 'cubic-bezier(0.2, 0, 0, 1)'
+                    duration: 300,
+                    easing: 'cubic-bezier(0.18, 1, 0.32, 1)'
                 });
             }
         });
@@ -2604,104 +2604,120 @@ document.addEventListener('DOMContentLoaded', async () => {
     groceryList.addEventListener('touchend', (e) => {
         if (!draggedElement) return;
 
-        if (touchGhost) {
-            touchGhost.remove();
-            touchGhost = null;
-        }
-
         // Reuse drop logic
         const dropEvent = new Event('drop');
         groceryList.dispatchEvent(dropEvent);
     });
 
     function handleDragEnd() {
-        if (draggedElement) {
-            draggedElement.classList.remove('dragging', 'collapsed');
-            draggedElement.style.opacity = '';
-            draggedElement.style.height = '';
-            draggedElement.style.margin = '';
-            draggedElement.style.padding = '';
-            draggedElement.style.overflow = '';
-            draggedElement.style.pointerEvents = '';
-        }
+        const el = draggedElement;
+        const type = dragType;
+        const ghost = touchGhost;
 
-        if (touchGhost) {
-            touchGhost.remove();
-            touchGhost = null;
-        }
-        isDragStarted = false;
+        if (!el) return;
 
-        if (dragUpdateFrame) {
-            cancelAnimationFrame(dragUpdateFrame);
-            dragUpdateFrame = null;
-        }
-
-        lastDragPos = { x: 0, y: 0 };
-        stopAutoScroll();
-        placeholder.remove();
-
-        // Capture headers one last time before clearing padding/DRAG state
-        let headerFinalDragTops = new Map();
-        if (dragType === 'section') {
-            document.querySelectorAll('.section-header').forEach(h => {
-                const title = h.querySelector('.section-title')?.textContent;
-                if (title) headerFinalDragTops.set(title, h.getBoundingClientRect().top);
-            });
-            isSectionRestoration = true;
-        }
-
-        groceryList.style.paddingTop = '';
-        groceryList.style.paddingBottom = '';
-        
-        const collapsed = document.querySelectorAll('.collapsed');
-        collapsed.forEach(el => el.classList.remove('collapsed'));
-
-        const savedDragType = dragType;
+        // Null out globals immediately to prevent re-entry
         draggedElement = null;
         dragType = null;
-        
 
-        renderList();
-        isSectionRestoration = false; // Reset
+        const finalize = () => {
+            el.classList.remove('dragging', 'collapsed');
+            el.style.opacity = '';
+            el.style.height = '';
+            el.style.margin = '';
+            el.style.padding = '';
+            el.style.overflow = '';
+            el.style.pointerEvents = '';
 
-        if (savedDragType === 'section' && headerFinalDragTops.size > 0) {
-            const postHeaders = Array.from(document.querySelectorAll('.section-header'));
-            postHeaders.forEach(h => {
-                const title = h.querySelector('.section-title')?.textContent;
-                const oldTop = headerFinalDragTops.get(title);
-                if (oldTop !== undefined) {
-                    const newTop = h.getBoundingClientRect().top;
-                    const delta = oldTop - newTop;
-                    if (delta !== 0) {
-                        h.animate([
-                            { transform: `translateY(${delta}px)` },
-                            { transform: 'translateY(0)' }
-                        ], {
-                            duration: 400,
-                            easing: 'cubic-bezier(0.2, 0, 0, 1)'
-                        });
+            if (ghost) {
+                ghost.remove();
+                if (touchGhost === ghost) touchGhost = null;
+            }
+            isDragStarted = false;
+
+            if (dragUpdateFrame) {
+                cancelAnimationFrame(dragUpdateFrame);
+                dragUpdateFrame = null;
+            }
+
+            lastDragPos = { x: 0, y: 0 };
+            stopAutoScroll();
+            placeholder.remove();
+
+            // Capture headers one last time before clearing padding/DRAG state
+            let headerFinalDragTops = new Map();
+            if (type === 'section') {
+                document.querySelectorAll('.section-header').forEach(h => {
+                    const title = h.querySelector('.section-title')?.textContent;
+                    if (title) headerFinalDragTops.set(title, h.getBoundingClientRect().top);
+                });
+                isSectionRestoration = true;
+            }
+
+            groceryList.style.paddingTop = '';
+            groceryList.style.paddingBottom = '';
+
+            const collapsed = document.querySelectorAll('.collapsed');
+            collapsed.forEach(element => element.classList.remove('collapsed'));
+
+            renderList();
+            isSectionRestoration = false; // Reset
+
+            if (type === 'section' && headerFinalDragTops.size > 0) {
+                const postHeaders = Array.from(document.querySelectorAll('.section-header'));
+                postHeaders.forEach(h => {
+                    const title = h.querySelector('.section-title')?.textContent;
+                    const oldTop = headerFinalDragTops.get(title);
+                    if (oldTop !== undefined) {
+                        const newTop = h.getBoundingClientRect().top;
+                        const delta = oldTop - newTop;
+                        if (delta !== 0) {
+                            h.animate([
+                                { transform: `translateY(${delta}px)` },
+                                { transform: 'translateY(0)' }
+                            ], {
+                                duration: 400,
+                                easing: 'cubic-bezier(0.2, 0, 0, 1)'
+                            });
+                        }
                     }
-                }
-            });
+                });
 
-            // Staggered fade-in for items
-            const restoringItems = Array.from(document.querySelectorAll('.restoring-item'));
-            restoringItems.forEach((item, idx) => {
-                item.style.opacity = '0';
-                item.style.transform = 'translateY(10px)';
-                setTimeout(() => {
-                    item.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
-                    item.style.opacity = '1';
-                    item.style.transform = 'translateY(0)';
-                }, idx * 15);
+                // Staggered fade-in for items
+                const restoringItems = Array.from(document.querySelectorAll('.restoring-item'));
+                restoringItems.forEach((item, idx) => {
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateY(10px)';
+                    setTimeout(() => {
+                        item.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                        item.style.opacity = '1';
+                        item.style.transform = 'translateY(0)';
+                    }, idx * 15);
+                });
+            }
+
+            // Small delay to let browser process the new DOM before re-enabling transitions
+            requestAnimationFrame(() => {
+                groceryList.classList.remove('no-transition');
+                document.body.style.overflow = '';
             });
+        };
+
+        if (ghost && placeholder.parentElement) {
+            const phRect = placeholder.getBoundingClientRect();
+            // Slide ghost to placeholder position
+            const anim = ghost.animate([
+                { top: ghost.style.top, left: ghost.style.left },
+                { top: phRect.top + 'px', left: phRect.left + 'px' }
+            ], {
+                duration: 350,
+                easing: 'cubic-bezier(0.18, 1, 0.32, 1)',
+                fill: 'forwards'
+            });
+            anim.onfinish = finalize;
+        } else {
+            finalize();
         }
-
-        // Small delay to let browser process the new DOM before re-enabling transitions
-        requestAnimationFrame(() => {
-            groceryList.classList.remove('no-transition');
-            document.body.style.overflow = '';
-        });
     }
 
     groceryList.addEventListener('dragend', handleDragEnd);
