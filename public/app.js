@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
+    let committingControllers = new Map(); // name -> AbortController
+    let committingProgress = new Map(); // id -> progress (1.0 to 0.0)
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
 
     // --- DOM Elements ---
@@ -1018,6 +1020,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function createFuseSparks(x, y) {
+        const count = 2;
+        const color = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
+
+        for (let i = 0; i < count; i++) {
+            const spark = document.createElement('div');
+            spark.className = 'spark-particle fuse-spark-particle';
+            spark.style.backgroundColor = color;
+            spark.style.left = x + 'px';
+            spark.style.top = y + 'px';
+
+            document.body.appendChild(spark);
+
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = 5 + Math.random() * 15;
+            const destinationX = Math.cos(angle) * velocity;
+            const destinationY = Math.sin(angle) * velocity;
+
+            spark.animate([
+                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                { transform: `translate(calc(-50% + ${destinationX}px), calc(-50% + ${destinationY}px)) scale(0)`, opacity: 0 }
+            ], {
+                duration: 400,
+                easing: 'ease-out',
+                fill: 'forwards'
+            }).onfinish = () => spark.remove();
+        }
+    }
+
     let animatingItems = new Map(); // id -> 'completing' | 'undoing'
     async function toggleShopCompleted(id) {
         const currentList = getCurrentList();
@@ -1030,6 +1061,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newState = !item.shopCompleted;
 
         try {
+            if (!newState) {
+                // Cancel any pending commit
+                if (committingControllers.has(item.text)) {
+                    committingControllers.get(item.text).abort();
+                    committingControllers.delete(item.text);
+                    sameNameItems.forEach(i => {
+                        committingProgress.delete(i.id);
+                        const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                        if (el) {
+                            el.classList.remove('is-committing');
+                            el.style.setProperty('--commit-progress', 1);
+                        }
+                    });
+                }
+            }
+
             sameNameItems.forEach(i => animatingItems.set(i.id, newState ? 'completing' : 'undoing'));
 
             sameNameItems.forEach(i => {
@@ -1038,13 +1085,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (newState) {
                         el.classList.add('is-completing');
                     } else {
-                        el.classList.remove('completed');
+                        el.classList.remove('completed', 'is-committing');
                         el.classList.add('is-undoing');
                     }
                 }
             });
 
             if (newState) {
+                // Pre-set progress to 1 for fading mask
+                sameNameItems.forEach(i => {
+                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    if (el) el.style.setProperty('--commit-progress', 1);
+                });
+
                 // Completion sequence
                 // Both animations start immediately:
                 // 1. Circle fills (check icon appears) takes 0.3s
@@ -1080,6 +1133,95 @@ document.addEventListener('DOMContentLoaded', async () => {
                         el.classList.remove('zero-qty-item');
                     }
                 });
+
+                // Start commit animation
+                const controller = new AbortController();
+                const signal = controller.signal;
+                committingControllers.set(item.text, controller);
+
+                const duration = 4000;
+                let startTime = null;
+
+                // Pre-set progress so renderList (if called) knows we are committing
+                sameNameItems.forEach(i => committingProgress.set(i.id, 1.0));
+
+                const runCommit = async () => {
+                    return new Promise((resolve) => {
+                        const frame = (now) => {
+                            if (signal.aborted) {
+                                resolve(false);
+                                return;
+                            }
+                            if (!startTime) startTime = now;
+
+                            const elapsed = now - startTime;
+                            const progress = Math.max(0, 1 - (elapsed / duration));
+
+                            sameNameItems.forEach(i => committingProgress.set(i.id, progress));
+
+                            const currentRows = sameNameItems.map(i => document.querySelector(`.grocery-item[data-id="${i.id}"]`)).filter(Boolean);
+                            currentRows.forEach(row => {
+                                row.classList.add('is-committing');
+                                row.style.setProperty('--commit-progress', progress);
+
+                                // Fuse sparks at tip
+                                const textSpan = row.querySelector('.item-text');
+                                if (textSpan) {
+                                    const rect = textSpan.getBoundingClientRect();
+                                    const tipX = rect.left + rect.width * progress;
+                                    const tipY = rect.top + rect.height / 2;
+                                    createFuseSparks(tipX, tipY);
+                                }
+                            });
+
+                            if (progress > 0) {
+                                requestAnimationFrame(frame);
+                            } else {
+                                resolve(true);
+                            }
+                        };
+                        requestAnimationFrame(frame);
+                    });
+                };
+
+                runCommit().then(async (completed) => {
+                    if (completed) {
+                        committingControllers.delete(item.text);
+
+                        const groupRows = sameNameItems.map(i => document.querySelector(`.grocery-item[data-id="${i.id}"]`)).filter(Boolean);
+                        groupRows.forEach(row => {
+                            row.classList.add('is-committed');
+                            row.classList.remove('is-committing');
+                            row.style.setProperty('--commit-progress', 0);
+
+                            const circle = row.querySelector('.shop-qty-circle');
+                            if (circle) {
+                                const rect = circle.getBoundingClientRect();
+                                createSparks(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                            }
+                        });
+
+                        await new Promise(r => setTimeout(r, 800));
+                        groupRows.forEach(row => row.classList.add('collapsing'));
+                        await new Promise(r => setTimeout(r, 300));
+
+                        // Cleanup progress map after collapse starts
+                        sameNameItems.forEach(i => committingProgress.delete(i.id));
+
+                        const currentList = getCurrentList();
+                        sameNameItems.forEach(i => {
+                            const actualItem = currentList.items.find(it => it.id === i.id);
+                            if (actualItem) {
+                                actualItem.haveCount = actualItem.wantCount;
+                                actualItem.shopCompleted = false;
+                            }
+                        });
+
+                        saveAppState();
+                        renderList();
+                    }
+                });
+
             } else {
                 // Undo sequence
                 await new Promise(r => setTimeout(r, 300));
@@ -1559,6 +1701,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${isCompleted && !isHome ? 'completed' : ''}`;
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
+
+                if (committingProgress.has(item.id)) {
+                    li.classList.add('is-committing');
+                    li.style.setProperty('--commit-progress', committingProgress.get(item.id));
+                }
 
                 if (!isHome && !item.pendingDelete) {
                     const isSelected = selectedShopItems.has(item.id);
