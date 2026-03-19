@@ -1492,6 +1492,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 header.appendChild(titleSpan);
             }
 
+            const sectionActions = document.createElement('div');
+            sectionActions.className = 'section-actions';
+
             if (canRename) {
                 const secDeleteBtn = document.createElement('button');
                 secDeleteBtn.className = 'section-delete-btn';
@@ -1500,17 +1503,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     e.stopPropagation();
                     showSectionDeleteModal(section.id, section.name, isHome);
                 });
-                header.appendChild(secDeleteBtn);
+                sectionActions.appendChild(secDeleteBtn);
             }
 
-
-
-            if (shopSelectionMode && !isHome) {
-                // Reorder Controls or Merge Button
-                const reorderControls = document.createElement('div');
-                reorderControls.className = 'section-reorder-controls';
-
-                // If we are in shop selection mode, show a "merge here" button instead of reorder arrows
+            if (!isHome) {
                 const moveHereBtn = document.createElement('button');
                 moveHereBtn.className = 'move-here-btn';
                 moveHereBtn.innerHTML = '<i class="fas fa-level-down-alt"></i>';
@@ -1528,9 +1524,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         renderList();
                     }
                 });
-                reorderControls.appendChild(moveHereBtn);
-                header.appendChild(reorderControls);
+                sectionActions.appendChild(moveHereBtn);
             }
+
+            header.appendChild(sectionActions);
 
             sectionLi.appendChild(header);
 
