@@ -427,6 +427,7 @@ h1 {
     flex-wrap: wrap;
     gap: 0.5rem;
     touch-action: pan-y;
+    position: relative;
 }
 
 
@@ -2171,9 +2172,8 @@ h1 {
     height: 50px;
     align-items: center;
     justify-content: center;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
-    transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
 }
@@ -2196,27 +2196,43 @@ h1 {
 }
 
 /* Deletion & Restoration Transition States */
-.grocery-item.is-deleting {
+.transition-undo {
+    position: absolute;
+    right: 1rem;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.grocery-item.is-deleting,
+.grocery-item.undo-row {
     background-color: color-mix(in srgb, var(--primary-color) 15%, transparent) !important;
     border-radius: 12px;
 }
 
-.grocery-item.is-deleting .item-text {
+.grocery-item.is-deleting .item-text,
+.grocery-item.undo-row .item-text {
     opacity: 0.6;
 }
 
+/* Sequential Fade: Outgoing */
 .grocery-item.is-deleting .item-delete-btn,
 .grocery-item.is-deleting .quantity-controls,
 .grocery-item.is-deleting .shop-qty-circle,
-.grocery-item.is-deleting .drag-handle {
+.grocery-item.is-deleting .drag-handle,
+.grocery-item.is-restoring .transition-undo {
     opacity: 0 !important;
-    transform: scale(0.5) !important;
+    transition: opacity 0.15s ease-out !important;
     pointer-events: none !important;
 }
 
-.grocery-item.is-deleting .undo-btn-inline {
+/* Sequential Fade: Incoming */
+.grocery-item.is-deleting .transition-undo,
+.grocery-item.is-restoring .item-delete-btn,
+.grocery-item.is-restoring .quantity-controls,
+.grocery-item.is-restoring .shop-qty-circle,
+.grocery-item.is-restoring .drag-handle {
     opacity: 1 !important;
-    transform: scale(1) !important;
+    transition: opacity 0.15s ease-in 0.15s !important;
     pointer-events: auto !important;
 }
 
@@ -2229,24 +2245,13 @@ h1 {
     opacity: 1;
 }
 
-.grocery-item.is-restoring .item-delete-btn,
-.grocery-item.is-restoring .quantity-controls,
-.grocery-item.is-restoring .shop-qty-circle,
-.grocery-item.is-restoring .drag-handle {
+.grocery-item.is-restoring.home-mode:not(.hide-drag-handles) .item-delete-btn {
     opacity: 1 !important;
-    transform: scale(1) !important;
-    pointer-events: auto !important;
-}
-
-.grocery-item.is-restoring .undo-btn-inline {
-    opacity: 0 !important;
-    transform: scale(0.5) !important;
-    pointer-events: none !important;
 }
 
 .grocery-item.is-restoring.home-mode:not(.hide-drag-handles) .quantity-controls {
     opacity: 0 !important;
-    transform: scale(0.5) !important;
+    pointer-events: none !important;
 }
 
 

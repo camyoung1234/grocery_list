@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
-    let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
+    let activeTransitions = new Map(); // id -> { type: 'deleting' | 'restoring', timer: timeoutId }
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
     let committingControllers = new Map(); // name -> AbortController
     let committingProgress = new Map(); // id -> progress (1.0 to 0.0)
@@ -1274,30 +1274,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     function deleteItem(id) {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
-        if (!item) return;
+        if (!item || item.pendingDelete) return;
 
-        const row = document.querySelector(`.grocery-item[data-id="${id}"]`);
-        if (row) {
-            row.classList.add('is-deleting');
-            // Add a temporary undo button to cross-fade with the delete button
-            if (!row.querySelector('.undo-btn-inline')) {
-                const undoBtn = document.createElement('button');
-                undoBtn.className = 'undo-btn-inline temp-undo';
-                undoBtn.textContent = 'Undo';
-                undoBtn.style.opacity = '0';
-                undoBtn.style.transform = 'scale(0.5)';
-                undoBtn.style.pointerEvents = 'none';
-                row.appendChild(undoBtn);
-            }
-        }
+        // Start transition
+        if (activeTransitions.has(id)) clearTimeout(activeTransitions.get(id).timer);
 
-        setTimeout(() => {
-            // Mark as pending delete
+        const timer = setTimeout(() => {
+            activeTransitions.delete(id);
             item.pendingDelete = true;
-            newlyDeletedIds.add(id);
-
-            // Save state immediately - items with pendingDelete will be filtered out during save
-            saveAppState();
 
             // Clear any existing timer just in case
             if (pendingDeletions.has(id)) {
@@ -1305,14 +1289,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // Set timer for final removal
-            const timerId = setTimeout(() => {
+            const finalTimerId = setTimeout(() => {
                 finalizeDeleteItem(id);
             }, 5000);
 
-            pendingDeletions.set(id, timerId);
-
+            pendingDeletions.set(id, finalTimerId);
+            saveAppState();
             renderList();
         }, 300);
+
+        activeTransitions.set(id, { type: 'deleting', timer });
+        renderList();
     }
 
     function undoDeleteItem(id) {
@@ -1320,21 +1307,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        const row = document.querySelector(`.grocery-item[data-id="${id}"]`);
-        if (row) {
-            row.classList.add('is-restoring');
+        // Cancel final deletion if it was already pending
+        if (pendingDeletions.has(id)) {
+            clearTimeout(pendingDeletions.get(id));
+            pendingDeletions.delete(id);
         }
 
-        setTimeout(() => {
-            if (pendingDeletions.has(id)) {
-                clearTimeout(pendingDeletions.get(id));
-                pendingDeletions.delete(id);
-            }
+        // Start restoration transition
+        if (activeTransitions.has(id)) clearTimeout(activeTransitions.get(id).timer);
 
+        const timer = setTimeout(() => {
+            activeTransitions.delete(id);
             item.pendingDelete = false;
             saveAppState();
             renderList();
         }, 300);
+
+        activeTransitions.set(id, { type: 'restoring', timer });
+        renderList();
     }
 
     function finalizeDeleteItem(id) {
@@ -1748,11 +1738,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
 
+                const transition = activeTransitions.get(item.id);
+                if (transition) {
+                    li.classList.add(transition.type === 'deleting' ? 'is-deleting' : 'is-restoring');
+                }
+
                 if (item.pendingDelete) {
                     li.classList.add('undo-row');
-                    if (newlyDeletedIds.has(item.id)) {
-                        li.classList.add('undo-row-animate');
-                    }
 
                     if (isHome) {
                         const prevItem = sectionItems[idx - 1];
@@ -1783,13 +1775,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         undoDeleteItem(item.id);
                     });
 
-                    if (isHome) {
-                        info.appendChild(nameSpan);
-                    } else {
-                        // Shop Mode
-                        info.appendChild(nameSpan);
-                    }
                     li.appendChild(info); // Always use info wrapper for flex: 1
+                    info.appendChild(nameSpan);
                     li.appendChild(undoBtn); // Put in place of counter/qty circle
 
                     itemsUl.appendChild(li);
@@ -1843,6 +1830,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                         deleteItem(item.id);
                     });
                     li.appendChild(deleteBtn);
+
+                    // Add transition undo button
+                    const transUndoBtn = document.createElement('button');
+                    transUndoBtn.className = 'undo-btn-inline transition-undo';
+                    transUndoBtn.textContent = 'Undo';
+                    transUndoBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        undoDeleteItem(item.id);
+                    });
+                    li.appendChild(transUndoBtn);
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
 
@@ -1890,6 +1887,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.appendChild(createLeftAction([handle, qtyCircle]));
 
                     li.appendChild(info);
+
+                    // Add transition undo button
+                    const transUndoBtn = document.createElement('button');
+                    transUndoBtn.className = 'undo-btn-inline transition-undo';
+                    transUndoBtn.textContent = 'Undo';
+                    transUndoBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        undoDeleteItem(item.id);
+                    });
+                    li.appendChild(transUndoBtn);
 
                     // Full-chip click toggle for Shop Mode
                     li.addEventListener('click', (e) => {
@@ -2028,8 +2035,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         addSecInfo.appendChild(addSecContainer);
         addSecRow.appendChild(addSecInfo);
         groceryList.appendChild(addSecRow);
-
-        newlyDeletedIds.clear();
     }
 
     function createQtyPart(group, value, type) {
