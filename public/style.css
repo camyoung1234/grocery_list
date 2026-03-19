@@ -1579,23 +1579,6 @@ h1 {
     box-sizing: border-box;
 }
 
-.add-section-row.delete-target {
-    color: var(--danger-color);
-}
-
-.add-section-row.delete-target i {
-    color: var(--danger-color);
-}
-
-.add-section-row.delete-target.drag-over {
-    background-color: var(--danger-color) !important;
-    color: white !important;
-}
-
-.add-section-row.delete-target.drag-over i,
-.add-section-row.delete-target.drag-over .add-section-input::placeholder {
-    color: white !important;
-}
 
 /* Undo Row Styles & Animations */
 .grocery-item.undo-row {
@@ -2141,9 +2124,6 @@ h1 {
     transition: none !important;
 }
 
-.add-section-row.delete-target .add-section-input::placeholder {
-    color: var(--danger-color);
-}
 
 .hide-zero-qty .zero-qty-item,
 .hide-zero-qty .zero-qty-section .section-header {
