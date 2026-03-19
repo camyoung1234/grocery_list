@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
+    let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
 
@@ -1134,6 +1135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Mark as pending delete
         item.pendingDelete = true;
+        newlyDeletedIds.add(id);
 
         // Save state immediately - items with pendingDelete will be filtered out during save
         saveAppState();
@@ -1576,6 +1578,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (item.pendingDelete) {
                     li.classList.add('undo-row');
+                    if (newlyDeletedIds.has(item.id)) {
+                        li.classList.add('undo-row-animate');
+                    }
 
                     if (isHome) {
                         const prevItem = sectionItems[idx - 1];
@@ -1824,6 +1829,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         addSecInfo.appendChild(addSecContainer);
         addSecRow.appendChild(addSecInfo);
         groceryList.appendChild(addSecRow);
+
+        newlyDeletedIds.clear();
     }
 
     function createQtyPart(group, value, type) {

@@ -1613,6 +1613,9 @@ h1 {
     height: auto;
     opacity: 1;
     overflow: hidden;
+}
+
+.grocery-item.undo-row-animate {
     animation: undoRowFadeIn 0.3s ease-out;
 }
 
@@ -1634,7 +1637,6 @@ h1 {
 }
 
 .section-container .grocery-item.undo-row {
-    padding: 0;
     height: 50px;
 }
 
