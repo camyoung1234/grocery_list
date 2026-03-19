@@ -1829,22 +1829,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     textSpan.className = 'item-text';
                     textSpan.textContent = item.text;
 
-                    onDoubleTap(textSpan, (e) => {
-                        if (!editMode) return;
-                        e.stopPropagation();
-                        startInlineItemEdit(item, info, textSpan, (newName) => {
-                            const currentList = getCurrentList();
-                            // Update all items in this group
-                            currentList.items.forEach(i => {
-                                if (i.text === item.text) {
-                                    i.text = newName;
-                                }
-                            });
-                            saveAppState();
-                        });
-                    });
-
-
                     info.appendChild(textSpan);
 
                     const qtyCircle = document.createElement('div');
