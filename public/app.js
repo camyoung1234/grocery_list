@@ -2214,19 +2214,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     groceryList.addEventListener('dragover', (e) => {
         e.preventDefault();
-        if (!draggedElement) return;
-
-        // If dragover fires but isDragStarted is still false, it means we're in a mouse drag
-        // that didn't go through the touchStart/dragStart timeout yet.
-        // For mouse, we can just start it.
-        if (!isDragStarted && e.type === 'dragover') {
-            isDragStarted = true;
-            draggedElement.classList.add('dragging');
-            // For mouse, the ghost is handled by the browser or createDragVisual in dragstart
-        }
+        if (!draggedElement || !isDragStarted) return;
 
         if (touchGhost) {
-            touchGhost.style.left = (e.clientX - dragOffset.x) + 'px';
             touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
         }
 
@@ -2237,17 +2227,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             dragUpdateFrame = null;
             if (!draggedElement) return;
 
-            // Flatten for mouse drag if not already done
-            if (dragType === 'item' && !placeholder.parentElement) {
-                const phHeight = draggedElement.offsetHeight;
-                placeholder.style.height = phHeight + 'px';
-                draggedElement.before(placeholder);
-                flattenList();
-                placeholder.classList.add('flattened-indent');
-
-                // Hide the dragged element (it's being represented by the ghost or browser drag image)
-                draggedElement.classList.add('collapsed');
-            }
 
             let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
             let target = e.target.closest(targetSelector);
@@ -2398,8 +2377,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         touchGhost.style.width = element.offsetWidth + 'px';
         touchGhost.style.height = (type === 'section' ? 50 : element.offsetHeight) + 'px';
 
-        // Lock initial position
-        touchGhost.style.left = (point.clientX - dragOffset.x) + 'px';
+        // Lock horizontal position based on the original element's rect
+        touchGhost.style.left = rect.left + 'px';
         touchGhost.style.top = (point.clientY - dragOffset.y) + 'px';
 
         document.body.appendChild(touchGhost);
@@ -2416,7 +2395,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const touch = e.touches[0];
 
         if (touchGhost) {
-            touchGhost.style.left = (touch.clientX - dragOffset.x) + 'px';
             touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
         }
 
