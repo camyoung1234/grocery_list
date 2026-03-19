@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('switching mode exits edit mode', async ({ page }) => {
+test('switching mode preserves edit mode', async ({ page }) => {
   await page.goto('http://localhost:3000#');
 
   // Seed the state: in home mode with edit mode ON
@@ -18,20 +18,16 @@ test('switching mode exits edit mode', async ({ page }) => {
   const modeBtn = page.locator('#toolbar-mode');
   await modeBtn.click();
 
-  // Wait for animation or check state
-  await expect(reorderBtn).not.toHaveClass(/active/);
-
-  const editModePersisted = await page.evaluate(() => localStorage.getItem('grocery-edit-mode'));
-  expect(editModePersisted).toBe('false');
-
-  // Switch back to Home mode
-  // Enable edit mode first
-  await reorderBtn.click();
+  // Edit mode should be preserved
   await expect(reorderBtn).toHaveClass(/active/);
 
+  const editModePersisted = await page.evaluate(() => localStorage.getItem('grocery-edit-mode'));
+  expect(editModePersisted).toBe('true');
+
+  // Switch back to Home mode
   await modeBtn.click();
-  await expect(reorderBtn).not.toHaveClass(/active/);
+  await expect(reorderBtn).toHaveClass(/active/);
 
   const editModePersistedAgain = await page.evaluate(() => localStorage.getItem('grocery-edit-mode'));
-  expect(editModePersistedAgain).toBe('false');
+  expect(editModePersistedAgain).toBe('true');
 });

@@ -40,7 +40,7 @@ test('Clicking on item name in Shop mode toggles completion', async ({ page }) =
   }
 
   // Ensure we are in Shop mode
-  await expect(page.locator('#toolbar-mode i')).toHaveClass(/fa-shopping-cart/);
+  await expect(page.locator('#toolbar-mode')).toHaveClass(/active/);
 
   const itemText = page.locator('.grocery-item.shop-chip .item-text');
   await expect(itemText).toHaveText('Test Item');

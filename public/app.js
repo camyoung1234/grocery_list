@@ -278,9 +278,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             shopSelectionMode = false;
             selectedShopItems.clear();
 
-            // Exit edit mode when switching modes
-            editMode = false;
-
             currentMode = newMode;
             saveMode();
             updateModeUI();
@@ -295,10 +292,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Mode fade transition: out → scroll & switch → in
         const fadeOutClass = 'mode-fade-out';
         const fadeInClass = 'mode-fade-in';
-
-        if (toolbarModeBtn) {
-            toolbarModeBtn.classList.add('mode-switching');
-        }
 
         groceryList.classList.add(fadeOutClass);
         groceryList.addEventListener('animationend', function onOut() {
@@ -315,9 +308,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             groceryList.addEventListener('animationend', function onIn() {
                 groceryList.removeEventListener('animationend', onIn);
                 groceryList.classList.remove(fadeInClass);
-                if (toolbarModeBtn) {
-                    toolbarModeBtn.classList.remove('mode-switching');
-                }
             }, { once: true });
         }, { once: true });
     }
@@ -1367,15 +1357,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Update toolbar mode CTA
         if (toolbarModeBtn) {
-            const icon = toolbarModeBtn.querySelector('i');
-
-            if (currentMode === 'shop') {
-                if (icon) icon.className = 'fas fa-shopping-cart';
-                toolbarModeBtn.title = 'Switch to Home Mode';
-            } else {
-                if (icon) icon.className = 'fas fa-home';
-                toolbarModeBtn.title = 'Switch to Store Mode';
-            }
+            toolbarModeBtn.classList.toggle('active', currentMode === 'shop');
+            toolbarModeBtn.title = currentMode === 'shop' ? 'Switch to Home Mode' : 'Switch to Store Mode';
         }
 
         if (toolbarReorderBtn) {
