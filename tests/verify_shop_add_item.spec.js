@@ -31,10 +31,10 @@ test('Add item rows are NOT visible in shop mode when editing', async ({ page })
 
   // Switch to Shop mode if not already there (should be seeded, but let's be sure)
   const modeBtn = page.locator('#toolbar-mode');
-  if (!await page.locator('#toolbar-mode i.fa-shopping-cart').isVisible()) {
+  if (!await modeBtn.evaluate(el => el.classList.contains('active'))) {
     await modeBtn.click();
   }
-  await expect(page.locator('#toolbar-mode i')).toHaveClass(/fa-shopping-cart/);
+  await expect(modeBtn).toHaveClass(/active/);
 
   // Re-enable Edit mode if it was toggled off by mode switch
   const reorderBtn = page.locator('#toolbar-reorder');
@@ -82,7 +82,7 @@ test('Add item rows ARE visible in home mode when editing', async ({ page }) => 
   }
 
   // Ensure we are in Home mode
-  await expect(page.locator('#toolbar-mode i')).toHaveClass(/fa-home/);
+  await expect(page.locator('#toolbar-mode')).not.toHaveClass(/active/);
 
   // Verify Edit mode is ON
   const reorderBtn = page.locator('#toolbar-reorder');
