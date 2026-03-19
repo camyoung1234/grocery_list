@@ -1253,14 +1253,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateModeUI() {
         const currentList = getCurrentList();
-        const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
+        if (!currentList) return;
+
+        // Toggle global reorder/selection classes
+        appContainer.classList.toggle('edit-mode', editMode);
+
+        // Sync completed class visibility with editMode to avoid strike-throughs in Edit Mode
+        if (currentMode === 'shop') {
+            document.querySelectorAll('.grocery-item.shop-chip').forEach(el => {
+                const id = el.dataset.id;
+                const item = currentList.items.find(i => i.id === id);
+                if (item && item.shopCompleted) {
+                    el.classList.toggle('completed', !editMode);
+                }
+            });
+        }
+
+        const themeColor = currentList.theme || 'var(--theme-blue)';
         document.documentElement.style.setProperty('--primary-color', themeColor);
 
         // Update list picker name and swatch
-        if (currentList) {
-            if (currentListNameSpan) currentListNameSpan.textContent = currentList.name;
-            if (currentListSwatch) currentListSwatch.style.background = currentList.theme || 'var(--theme-blue)';
-        }
+        if (currentListNameSpan) currentListNameSpan.textContent = currentList.name;
+        if (currentListSwatch) currentListSwatch.style.background = currentList.theme || 'var(--theme-blue)';
 
         // Update toolbar mode CTA
         if (toolbarModeBtn) {
