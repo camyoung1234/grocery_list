@@ -2361,6 +2361,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         touchGhost.classList.add('touch-ghost');
         touchGhost.classList.remove('dragging', 'collapsed');
 
+        // Add current mode class to the ghost so mode-specific styles apply
+        touchGhost.classList.add(currentMode === 'home' ? 'home-mode' : 'shop-mode');
+
         // Lock width and height
         touchGhost.style.width = element.offsetWidth + 'px';
         touchGhost.style.height = (type === 'section' ? 50 : element.offsetHeight) + 'px';
