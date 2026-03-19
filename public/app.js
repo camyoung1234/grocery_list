@@ -2522,8 +2522,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        saveAppState();
-        handleDragEnd();
+        handleDragEnd(true);
     });
 
     function createDragVisual(point, element, type, initialRect) {
@@ -2636,7 +2635,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         groceryList.dispatchEvent(dropEvent);
     });
 
-    function handleDragEnd() {
+    function handleDragEnd(wasDropped = false) {
         const el = draggedElement;
         const type = dragType;
         const ghost = touchGhost;
@@ -2648,28 +2647,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         dragType = null;
 
         const finalize = () => {
-            el.classList.remove('dragging', 'collapsed');
-            el.style.opacity = '';
-            el.style.height = '';
-            el.style.margin = '';
-            el.style.padding = '';
-            el.style.overflow = '';
-            el.style.pointerEvents = '';
-
-            if (ghost) {
-                ghost.remove();
-                if (touchGhost === ghost) touchGhost = null;
+            if (wasDropped === true) {
+                saveAppState();
             }
-            isDragStarted = false;
-
-            if (dragUpdateFrame) {
-                cancelAnimationFrame(dragUpdateFrame);
-                dragUpdateFrame = null;
-            }
-
-            lastDragPos = { x: 0, y: 0 };
-            stopAutoScroll();
-            placeholder.remove();
 
             // Capture headers one last time before clearing padding/DRAG state
             let headerFinalDragTops = new Map();
@@ -2689,6 +2669,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             renderList();
             isSectionRestoration = false; // Reset
+
+            // Handoff: Wait one frame for the new list to be painted before removing the ghost
+            requestAnimationFrame(() => {
+                el.classList.remove('dragging', 'collapsed');
+                el.style.opacity = '';
+                el.style.height = '';
+                el.style.margin = '';
+                el.style.padding = '';
+                el.style.overflow = '';
+                el.style.pointerEvents = '';
+
+                if (ghost) {
+                    ghost.remove();
+                    if (touchGhost === ghost) touchGhost = null;
+                }
+                isDragStarted = false;
+
+                if (dragUpdateFrame) {
+                    cancelAnimationFrame(dragUpdateFrame);
+                    dragUpdateFrame = null;
+                }
+
+                lastDragPos = { x: 0, y: 0 };
+                stopAutoScroll();
+                placeholder.remove();
+            });
 
             if (type === 'section' && headerFinalDragTops.size > 0) {
                 const postHeaders = Array.from(document.querySelectorAll('.section-header'));
@@ -2737,8 +2743,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { top: ghost.style.top, left: ghost.style.left },
                 { top: phRect.top + 'px', left: phRect.left + 'px' }
             ], {
-                duration: 400,
-                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                duration: 250,
+                easing: 'cubic-bezier(0.2, 1, 0.3, 1)',
                 fill: 'forwards'
             });
             anim.onfinish = finalize;
