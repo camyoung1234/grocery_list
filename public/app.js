@@ -1276,26 +1276,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        // Mark as pending delete
-        item.pendingDelete = true;
-        newlyDeletedIds.add(id);
-
-        // Save state immediately - items with pendingDelete will be filtered out during save
-        saveAppState();
-
-        // Clear any existing timer just in case
-        if (pendingDeletions.has(id)) {
-            clearTimeout(pendingDeletions.get(id));
+        const row = document.querySelector(`.grocery-item[data-id="${id}"]`);
+        if (row) {
+            row.classList.add('is-deleting');
+            // Add a temporary undo button to cross-fade with the delete button
+            if (!row.querySelector('.undo-btn-inline')) {
+                const undoBtn = document.createElement('button');
+                undoBtn.className = 'undo-btn-inline temp-undo';
+                undoBtn.textContent = 'Undo';
+                undoBtn.style.opacity = '0';
+                undoBtn.style.transform = 'scale(0.5)';
+                undoBtn.style.pointerEvents = 'none';
+                row.appendChild(undoBtn);
+            }
         }
 
-        // Set timer for final removal
-        const timerId = setTimeout(() => {
-            finalizeDeleteItem(id);
-        }, 5000);
+        setTimeout(() => {
+            // Mark as pending delete
+            item.pendingDelete = true;
+            newlyDeletedIds.add(id);
 
-        pendingDeletions.set(id, timerId);
+            // Save state immediately - items with pendingDelete will be filtered out during save
+            saveAppState();
 
-        renderList();
+            // Clear any existing timer just in case
+            if (pendingDeletions.has(id)) {
+                clearTimeout(pendingDeletions.get(id));
+            }
+
+            // Set timer for final removal
+            const timerId = setTimeout(() => {
+                finalizeDeleteItem(id);
+            }, 5000);
+
+            pendingDeletions.set(id, timerId);
+
+            renderList();
+        }, 300);
     }
 
     function undoDeleteItem(id) {
@@ -1303,14 +1320,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        if (pendingDeletions.has(id)) {
-            clearTimeout(pendingDeletions.get(id));
-            pendingDeletions.delete(id);
+        const row = document.querySelector(`.grocery-item[data-id="${id}"]`);
+        if (row) {
+            row.classList.add('is-restoring');
         }
 
-        item.pendingDelete = false;
-        saveAppState();
-        renderList();
+        setTimeout(() => {
+            if (pendingDeletions.has(id)) {
+                clearTimeout(pendingDeletions.get(id));
+                pendingDeletions.delete(id);
+            }
+
+            item.pendingDelete = false;
+            saveAppState();
+            renderList();
+        }, 300);
     }
 
     function finalizeDeleteItem(id) {
