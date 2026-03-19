@@ -1091,6 +1091,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (newState) {
+                // Pre-set progress to 1 for fading mask
+                sameNameItems.forEach(i => {
+                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    if (el) el.style.setProperty('--commit-progress', 1);
+                });
+
                 // Completion sequence
                 // 1. Circle fills (check icon appears) immediately (takes 0.3s)
                 // 2. Strike-through starts after 0.3s (takes 0.4s)
@@ -1179,17 +1185,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 runCommit().then(async (completed) => {
                     if (completed) {
                         committingControllers.delete(item.text);
-                        // Do NOT remove from committingProgress yet to keep text hidden during circle shrink
-                        // sameNameItems.forEach(i => committingProgress.delete(i.id));
 
                         const groupRows = sameNameItems.map(i => document.querySelector(`.grocery-item[data-id="${i.id}"]`)).filter(Boolean);
                         groupRows.forEach(row => {
                             row.classList.add('is-committed');
                             row.classList.remove('is-committing');
                             row.style.setProperty('--commit-progress', 0);
+
+                            const circle = row.querySelector('.shop-qty-circle');
+                            if (circle) {
+                                const rect = circle.getBoundingClientRect();
+                                createSparks(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                            }
                         });
 
-                        await new Promise(r => setTimeout(r, 600));
+                        await new Promise(r => setTimeout(r, 800));
                         groupRows.forEach(row => row.classList.add('collapsing'));
                         await new Promise(r => setTimeout(r, 300));
 

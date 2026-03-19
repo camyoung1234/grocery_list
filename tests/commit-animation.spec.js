@@ -65,8 +65,8 @@ test('Commit animation logic and cancellation', async ({ page }) => {
   await page.waitForTimeout(1000);
   await expect(item).toHaveClass(/is-committing/);
 
-  // Wait for 4s commit + 0.6s circle + 0.3s collapse
-  await page.waitForTimeout(5500);
+  // Wait for 4s commit + 0.8s circle + 0.3s collapse
+  await page.waitForTimeout(6000);
 
   // Item should be gone from Shop mode
   await expect(item).not.toBeVisible();

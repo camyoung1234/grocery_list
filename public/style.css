@@ -2229,15 +2229,33 @@ h1 {
     mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
 }
 
+.shop-chip.completed:not(.is-undoing) .item-info {
+    -webkit-mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
+    mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
+}
+
 .shop-chip.is-committing .item-text::after {
     width: calc(var(--commit-progress) * 100%) !important;
     transition: none !important;
 }
 
 .shop-chip.is-committed .shop-qty-circle {
-    transform: translate(-50%, -50%) scale(0) !important;
-    opacity: 0;
-    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: explode-implode 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes explode-implode {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    30% {
+        transform: translate(-50%, -50%) scale(1.4);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
 }
 
 .spark-particle.fuse-spark-particle {
