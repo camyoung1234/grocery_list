@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let committingControllers = new Map(); // name -> AbortController
     let committingProgress = new Map(); // id -> progress (1.0 to 0.0)
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
+    let selectionRenderTimeout = null;
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -1647,7 +1648,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
-            if (shopSelectionMode && !isHome) {
+            if (!isHome) {
                 // Reorder Controls or Merge Button
                 const reorderControls = document.createElement('div');
                 reorderControls.className = 'section-reorder-controls';
@@ -1870,9 +1871,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.addEventListener('click', (e) => {
                         if (shopSelectionMode || editMode) {
                             // Selection Mode
-                            if (selectedShopItems.has(item.id)) {
+                            const wasSelected = selectedShopItems.has(item.id);
+                            if (wasSelected) {
                                 selectedShopItems.delete(item.id);
-                                // Auto-exit if empty
                                 if (selectedShopItems.size === 0) {
                                     shopSelectionMode = false;
                                 }
@@ -1880,7 +1881,34 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 shopSelectionMode = true;
                                 selectedShopItems.add(item.id);
                             }
-                            renderList();
+
+                            // Manual DOM updates to trigger CSS transitions immediately
+                            li.classList.toggle('selected', !wasSelected);
+                            groceryList.classList.toggle('shop-selection-mode', shopSelectionMode);
+
+                            // Update neighbors for rounded corners (sel-top/sel-bottom)
+                            const neighbors = [li, li.previousElementSibling, li.nextElementSibling];
+                            neighbors.forEach(el => {
+                                if (el && el.classList.contains('shop-chip')) {
+                                    const elId = el.dataset.id;
+                                    const isElSelected = selectedShopItems.has(elId);
+
+                                    const prev = el.previousElementSibling;
+                                    const next = el.nextElementSibling;
+                                    const isPrevSelected = prev && prev.classList.contains('shop-chip') && selectedShopItems.has(prev.dataset.id);
+                                    const isNextSelected = next && next.classList.contains('shop-chip') && selectedShopItems.has(next.dataset.id);
+
+                                    el.classList.toggle('sel-top', isElSelected && isPrevSelected);
+                                    el.classList.toggle('sel-bottom', isElSelected && isNextSelected);
+                                }
+                            });
+
+                            // Defer renderList to allow transitions to complete
+                            if (selectionRenderTimeout) clearTimeout(selectionRenderTimeout);
+                            selectionRenderTimeout = setTimeout(() => {
+                                renderList();
+                                selectionRenderTimeout = null;
+                            }, 300);
                         } else {
                             // Regular Shop Mode: toggle completion
                             toggleShopCompleted(item.id);

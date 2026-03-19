@@ -494,7 +494,7 @@ h1 {
     width: 100%;
     flex: 0 0 auto;
     cursor: pointer;
-    transition: background 0.2s ease, opacity 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     gap: 0.5rem;
