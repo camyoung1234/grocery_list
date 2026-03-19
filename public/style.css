@@ -2218,3 +2218,30 @@ h1 {
     pointer-events: none;
     overflow: hidden;
 }
+
+/* Commit Animation States */
+.grocery-item {
+    --commit-progress: 1;
+}
+
+.shop-chip.is-committing .item-info {
+    -webkit-mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
+    mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
+}
+
+.shop-chip.is-committing .item-text::after {
+    width: calc(var(--commit-progress) * 100%) !important;
+    transition: none !important;
+}
+
+.shop-chip.is-committed .shop-qty-circle {
+    transform: translate(-50%, -50%) scale(0) !important;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.spark-particle.fuse-spark-particle {
+    width: 3px;
+    height: 3px;
+    z-index: 10001;
+}
