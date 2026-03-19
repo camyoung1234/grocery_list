@@ -1490,7 +1490,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 header.appendChild(titleSpan);
             }
 
-            if (isHome) {
+            if (canRename) {
                 const secDeleteBtn = document.createElement('button');
                 secDeleteBtn.className = 'section-delete-btn';
                 secDeleteBtn.innerHTML = '<i class="fas fa-times"></i>';

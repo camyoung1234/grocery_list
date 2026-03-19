@@ -2201,10 +2201,10 @@ h1 {
     }
 }
 
-.home-mode:not(.hide-drag-handles) .item-delete-btn,
-.home-mode:not(.hide-drag-handles) .section-delete-btn,
-.touch-ghost.home-mode .item-delete-btn,
-.touch-ghost.home-mode .section-delete-btn {
+.app-container:not(.hide-drag-handles) .item-delete-btn,
+.app-container:not(.hide-drag-handles) .section-delete-btn,
+.touch-ghost .item-delete-btn,
+.touch-ghost .section-delete-btn {
     width: 40px;
     opacity: 1;
     transform: scale(1);
