@@ -571,7 +571,6 @@ h1 {
 
 .shop-chip.is-completing .item-text::after {
     width: 100%;
-    transition-delay: 0.3s;
 }
 
 .shop-chip.completed .item-text::after {
