@@ -36,6 +36,251 @@ document.addEventListener('DOMContentLoaded', async () => {
     const appContainer = document.querySelector('.app-container');
     const listsMenu = document.getElementById('lists-menu');
 
+    // --- Intersection Observer for Performance ---
+    const viewportObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('in-view');
+            } else {
+                entry.target.classList.remove('in-view');
+            }
+        });
+    }, {
+        root: null, // use viewport
+        rootMargin: '100px', // start animating slightly before they enter
+        threshold: 0
+    });
+
+    // --- Delegation Handlers ---
+    groceryList.addEventListener('click', (e) => {
+        const target = e.target;
+
+        // Item Delete
+        const deleteBtn = target.closest('.item-delete-btn');
+        if (deleteBtn) {
+            e.stopPropagation();
+            const li = deleteBtn.closest('.grocery-item');
+            if (li) deleteItem(li.dataset.id);
+            return;
+        }
+
+        // Section Delete
+        const secDeleteBtn = target.closest('.section-delete-btn');
+        if (secDeleteBtn) {
+            e.stopPropagation();
+            const container = secDeleteBtn.closest('.section-container');
+            const title = container.querySelector('.section-title').textContent;
+            showSectionDeleteModal(container.dataset.id, title, currentMode === 'home');
+            return;
+        }
+
+        // Undo Delete
+        const undoBtn = target.closest('.undo-btn-inline');
+        if (undoBtn) {
+            e.stopPropagation();
+            const li = undoBtn.closest('.grocery-item');
+            if (li) undoDeleteItem(li.dataset.id);
+            return;
+        }
+
+        // Move Here (Shop Selection Mode)
+        const moveHereBtn = target.closest('.move-here-btn');
+        if (moveHereBtn) {
+            e.stopPropagation();
+            const container = moveHereBtn.closest('.section-container');
+            if (selectedShopItems.size > 0 && container) {
+                const currentList = getCurrentList();
+                currentList.items.forEach(item => {
+                    if (selectedShopItems.has(item.id)) {
+                        item.shopSectionId = container.dataset.id;
+                    }
+                });
+                saveAppState();
+                shopSelectionMode = false;
+                selectedShopItems.clear();
+                renderList();
+            }
+            return;
+        }
+
+        // Add Item Plus Icon
+        const addItemPlus = target.closest('.add-item-row .add-row-plus');
+        if (addItemPlus) {
+            const row = addItemPlus.closest('.add-item-row');
+            row.querySelector('.add-item-input').focus();
+            return;
+        }
+
+        // Add Section Plus Icon
+        const addSecPlus = target.closest('.add-section-row .add-row-plus');
+        if (addSecPlus) {
+            const row = addSecPlus.closest('.add-section-row');
+            row.querySelector('.add-section-input').focus();
+            return;
+        }
+
+        // Shop Chip Toggle / Selection
+        const shopChip = target.closest('.shop-chip');
+        if (shopChip && !target.closest('.drag-handle')) {
+            const id = shopChip.dataset.id;
+            const item = getCurrentList().items.find(i => i.id === id);
+            if (!item) return;
+
+            if (shopSelectionMode || editMode) {
+                // Selection Mode
+                const wasSelected = selectedShopItems.has(id);
+                if (wasSelected) {
+                    selectedShopItems.delete(id);
+                    if (selectedShopItems.size === 0) {
+                        shopSelectionMode = false;
+                    }
+                } else {
+                    shopSelectionMode = true;
+                    selectedShopItems.add(id);
+                }
+
+                // Manual DOM updates to trigger CSS transitions immediately
+                shopChip.classList.toggle('selected', !wasSelected);
+                groceryList.classList.toggle('shop-selection-mode', shopSelectionMode);
+
+                // Update neighbors for rounded corners (sel-top/sel-bottom)
+                const neighbors = [shopChip, shopChip.previousElementSibling, shopChip.nextElementSibling];
+                neighbors.forEach(el => {
+                    if (el && el.classList.contains('shop-chip')) {
+                        const elId = el.dataset.id;
+                        const isElSelected = selectedShopItems.has(elId);
+
+                        const prev = el.previousElementSibling;
+                        const next = el.nextElementSibling;
+                        const isPrevSelected = prev && prev.classList.contains('shop-chip') && selectedShopItems.has(prev.dataset.id);
+                        const isNextSelected = next && next.classList.contains('shop-chip') && selectedShopItems.has(next.dataset.id);
+
+                        el.classList.toggle('sel-top', isElSelected && isPrevSelected);
+                        el.classList.toggle('sel-bottom', isElSelected && isNextSelected);
+                    }
+                });
+
+                // Defer renderList to allow transitions to complete
+                if (selectionRenderTimeout) clearTimeout(selectionRenderTimeout);
+                selectionRenderTimeout = setTimeout(() => {
+                    renderList();
+                    selectionRenderTimeout = null;
+                }, 300);
+            } else {
+                // Regular Shop Mode: toggle completion
+                toggleShopCompleted(id);
+            }
+            return;
+        }
+    });
+
+    groceryList.addEventListener('submit', (e) => {
+        const target = e.target;
+
+        // Add Item Form
+        if (target.closest('.add-item-row form')) {
+            e.preventDefault();
+            const row = target.closest('.add-item-row');
+            const input = row.querySelector('.add-item-input');
+            addItemToSection(row.dataset.sectionId, input.value, currentMode === 'home');
+            return;
+        }
+
+        // Add Section Form
+        if (target.closest('.add-section-row form')) {
+            e.preventDefault();
+            const input = target.querySelector('.add-section-input');
+            const val = input.value.trim();
+            if (val) {
+                addSection(val, currentMode === 'home');
+                input.value = '';
+            }
+            return;
+        }
+    });
+
+    // Double tap delegation for item and section titles
+    onDoubleTap(groceryList, (e) => {
+        if (!editMode) return;
+        const target = e.target;
+
+        // Item Title Double Tap
+        if (target.classList.contains('item-text') && currentMode === 'home') {
+            e.stopPropagation();
+            const li = target.closest('.grocery-item');
+            const id = li.dataset.id;
+            const item = getCurrentList().items.find(i => i.id === id);
+            if (item) {
+                startInlineItemEdit(item, li.querySelector('.item-info'), target);
+            }
+            return;
+        }
+
+        // Section Title Double Tap
+        if (target.classList.contains('section-title')) {
+            e.stopPropagation();
+            const container = target.closest('.section-container');
+            const section = getCurrentList().homeSections.find(s => s.id === container.dataset.id) ||
+                            getCurrentList().shopSections.find(s => s.id === container.dataset.id);
+
+            if (section && (currentMode === 'home' || section.id !== shopDefId)) {
+                const header = target.closest('.section-header');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = section.name;
+                input.className = 'inline-section-input';
+
+                const saveSectionName = () => {
+                    const newName = input.value.trim();
+                    if (newName && newName !== section.name) {
+                        section.name = newName;
+                        saveAppState();
+                    }
+                    renderList();
+                };
+
+                input.addEventListener('blur', saveSectionName);
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') {
+                        input.blur();
+                    } else if (ke.key === 'Escape') {
+                        renderList();
+                    }
+                });
+
+                header.replaceChild(input, target);
+                input.focus();
+                input.setSelectionRange(0, input.value.length);
+            }
+            return;
+        }
+    });
+
+    // Drag start delegation
+    groceryList.addEventListener('dragstart', (e) => {
+        const target = e.target;
+        const handle = target.closest('.drag-handle');
+        if (!handle) return;
+
+        const li = handle.closest('li.grocery-item, li.section-container');
+        if (!li) return;
+
+        const type = li.classList.contains('section-container') ? 'section' : 'item';
+        handleDragStart(e, li, type);
+    });
+
+    groceryList.addEventListener('touchstart', (e) => {
+        const target = e.target;
+        const handle = target.closest('.drag-handle');
+        if (!handle) return;
+
+        const li = handle.closest('li.grocery-item, li.section-container');
+        if (!li) return;
+
+        const type = li.classList.contains('section-container') ? 'section' : 'item';
+        handleTouchStart(e, li, type);
+    }, { passive: false });
+
     // Toolbar Elements
     const toolbarListsBtn = document.getElementById('toolbar-lists');
     const currentListSwatch = document.getElementById('current-list-swatch');
@@ -86,6 +331,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const restoreModalOverlay = document.getElementById('restore-modal-overlay');
     const restoreCancelBtn = document.getElementById('restore-cancel-btn');
     const restoreConfirmBtn = document.getElementById('restore-confirm-btn');
+
+    // --- Helpers ---
+    const escapeHTML = (str) => {
+        if (typeof str !== 'string') return str;
+        return str.replace(/[&<>"']/g, (m) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[m]);
+    };
 
     // Modal State
     let currentDeleteCallback = null;
@@ -343,11 +600,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (toolbarReorderBtn) {
         toolbarReorderBtn.addEventListener('click', () => {
             // Find the row currently at the top of the viewport
-            const rows = Array.from(document.querySelectorAll('.grocery-item, .section-header'));
             let topRow = null;
             let topOffset = 0;
 
-            for (const row of rows) {
+            // Optimization: Only scan visible rows to find topRow
+            const visibleRows = Array.from(document.querySelectorAll('.grocery-item.in-view, .section-header.in-view'));
+            for (const row of visibleRows) {
                 const rect = row.getBoundingClientRect();
                 if (rect.bottom > 0) {
                     topRow = row;
@@ -684,17 +942,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Helper ---
     function onDoubleTap(element, callback) {
         let lastTapTime = 0;
+        let lastTapElementId = null;
 
         element.addEventListener('click', (e) => {
+            const target = e.target;
+            // Identify the relevant element (item or section)
+            const row = target.closest('.grocery-item, .section-header');
+            const elementId = row ? (row.dataset.id || row.querySelector('[data-id]')?.dataset.id) : null;
+
             const currentTime = Date.now();
             const timeDiff = currentTime - lastTapTime;
 
-            if (timeDiff < 400 && timeDiff > 0) {
+            if (timeDiff < 400 && timeDiff > 0 && elementId === lastTapElementId) {
                 e.preventDefault();
                 callback(e);
                 lastTapTime = 0; // reset
+                lastTapElementId = null;
             } else {
                 lastTapTime = currentTime;
+                lastTapElementId = elementId;
             }
         });
 
@@ -1330,6 +1596,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (item) {
             item.haveCount = Math.max(0, item.haveCount + delta);
             saveAppState();
+            // Optimization: Update only the relevant pill if possible
+            const pill = document.querySelector(`.grocery-item[data-id="${id}"] .qty-combined-pill`);
+            if (pill) {
+                const valSpan = pill.querySelector('.have-part .qty-val');
+                if (valSpan) {
+                    valSpan.textContent = item.haveCount;
+                    valSpan.classList.remove('pop-animate');
+                    void valSpan.offsetWidth;
+                    valSpan.classList.add('pop-animate');
+                    return;
+                }
+            }
             renderList();
         }
     }
@@ -1340,6 +1618,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (item) {
             item.wantCount = Math.max(0, item.wantCount + delta);
             saveAppState();
+            // Optimization: Update only the relevant pill if possible
+            const pill = document.querySelector(`.grocery-item[data-id="${id}"] .qty-combined-pill`);
+            if (pill) {
+                const valSpan = pill.querySelector('.want-part .qty-val');
+                if (valSpan) {
+                    valSpan.textContent = item.wantCount;
+                    valSpan.classList.remove('pop-animate');
+                    void valSpan.offsetWidth;
+                    valSpan.classList.add('pop-animate');
+
+                    const wantPart = pill.querySelector('.want-part');
+                    if (item.wantCount === 0) {
+                        wantPart.classList.add('delete-mode');
+                    } else {
+                        wantPart.classList.remove('delete-mode');
+                    }
+                    return;
+                }
+            }
             renderList();
         }
     }
@@ -1477,9 +1774,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderList() {
-        groceryList.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         const currentList = getCurrentList();
-        if (!currentList) return;
+        if (!currentList) {
+            groceryList.innerHTML = '';
+            return;
+        }
 
         const isHome = currentMode === 'home';
         const sectionsKey = isHome ? 'homeSections' : 'shopSections';
@@ -1563,100 +1863,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             const header = document.createElement('div');
             header.className = 'section-header';
 
-            const titleSpan = document.createElement('h3');
-            titleSpan.className = 'section-title';
-            titleSpan.textContent = section.name;
-
-            // Double tap to rename section (disabled for Uncategorized in Shop Mode ONLY)
             const canRename = isHome || section.id !== shopDefId;
+            const dragHandleHTML = canRename
+                ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
+                : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
 
-            if (canRename) {
-                const handle = createDragHandle();
-                handle.classList.add('section-drag-handle');
-                handle.addEventListener('dragstart', (e) => handleDragStart(e, sectionLi, 'section'));
-                handle.addEventListener('touchstart', (e) => handleTouchStart(e, sectionLi, 'section'), { passive: false });
-                header.appendChild(createLeftAction(handle));
+            const deleteBtnHTML = canRename
+                ? `<button class="section-delete-btn"><i class="fas fa-times"></i></button>`
+                : '';
 
-                onDoubleTap(titleSpan, (e) => {
-                    if (!editMode) return;
-                    e.stopPropagation();
+            const reorderControlsHTML = !isHome
+                ? `<div class="section-reorder-controls"><button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button></div>`
+                : '';
 
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.value = section.name;
-                    input.className = 'inline-section-input';
+            header.innerHTML = `
+                ${dragHandleHTML}
+                <h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3>
+                ${deleteBtnHTML}
+                ${reorderControlsHTML}
+            `;
 
-                    const saveSectionName = () => {
-                        const newName = input.value.trim();
-                        if (newName && newName !== section.name) {
-                            section.name = newName;
-                            saveAppState();
-                        }
-                        renderList();
-                    };
-
-                    input.addEventListener('blur', saveSectionName);
-                    input.addEventListener('keydown', (ke) => {
-                        if (ke.key === 'Enter') {
-                            input.blur();
-                        } else if (ke.key === 'Escape') {
-                            renderList();
-                        }
-                    });
-
-                    header.replaceChild(input, titleSpan);
-                    input.focus();
-                    input.setSelectionRange(0, input.value.length);
-                });
-                header.appendChild(titleSpan);
-            } else {
-                // Disabled drag handle for consistent alignment
-                const handle = createDragHandle();
-                handle.classList.add('section-drag-handle', 'disabled');
-                handle.draggable = false;
-                header.appendChild(createLeftAction(handle));
-                header.appendChild(titleSpan);
-            }
-
-            if (canRename) {
-                const secDeleteBtn = document.createElement('button');
-                secDeleteBtn.className = 'section-delete-btn';
-                secDeleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-                secDeleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showSectionDeleteModal(section.id, section.name, isHome);
-                });
-                header.appendChild(secDeleteBtn);
-            }
-
-
-
-            if (!isHome) {
-                // Reorder Controls or Merge Button
-                const reorderControls = document.createElement('div');
-                reorderControls.className = 'section-reorder-controls';
-
-                // If we are in shop selection mode, show a "merge here" button instead of reorder arrows
-                const moveHereBtn = document.createElement('button');
-                moveHereBtn.className = 'move-here-btn';
-                moveHereBtn.innerHTML = '<i class="fas fa-level-down-alt"></i>';
-                moveHereBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (selectedShopItems.size > 0) {
-                        currentList.items.forEach(item => {
-                            if (selectedShopItems.has(item.id)) {
-                                item.shopSectionId = section.id;
-                            }
-                        });
-                        saveAppState();
-                        shopSelectionMode = false;
-                        selectedShopItems.clear();
-                        renderList();
-                    }
-                });
-                reorderControls.appendChild(moveHereBtn);
-                header.appendChild(reorderControls);
-            }
 
             sectionLi.appendChild(header);
 
@@ -1665,11 +1891,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             itemsUl.className = 'section-items-list';
             itemsUl.dataset.sectionId = section.id;
             itemsUl.dataset.type = 'item-placeholder'; // Allow empty UL to receive drops
-
-
-
-            // items for this section are already fetched in sectionItems variable
-            // and shop mode filtering logic will be handled differently or is already done
 
             sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
 
@@ -1724,32 +1945,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.dataset.type = 'item';
                     li.dataset.sectionId = section.id;
 
-                    li.appendChild(createLeftAction());
-
-                    // Standard item text layout
-                    const info = document.createElement('div');
-                    info.className = 'item-info';
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'item-text';
-                    nameSpan.textContent = item.text;
-                    // Note: No onDoubleTap here
-
-                    const undoBtn = document.createElement('button');
-                    undoBtn.className = 'undo-btn-inline';
-                    undoBtn.textContent = 'Undo';
-                    undoBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        undoDeleteItem(item.id);
-                    });
-
-                    if (isHome) {
-                        info.appendChild(nameSpan);
-                    } else {
-                        // Shop Mode
-                        info.appendChild(nameSpan);
-                    }
-                    li.appendChild(info); // Always use info wrapper for flex: 1
-                    li.appendChild(undoBtn); // Put in place of counter/qty circle
+                    li.innerHTML = `
+                        <div class="left-action"></div>
+                        <div class="item-info">
+                            <span class="item-text">${escapeHTML(item.text)}</span>
+                        </div>
+                        <button class="undo-btn-inline">Undo</button>
+                    `;
 
                     itemsUl.appendChild(li);
                     return;
@@ -1762,128 +1964,42 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
 
-                li.innerHTML = '';
+                li.dataset.id = item.id;
+                li.dataset.type = 'item';
+                li.dataset.sectionId = section.id;
 
                 if (isHome) {
-                    const handle = createDragHandle();
-                    handle.addEventListener('dragstart', (e) => handleDragStart(e, li, 'item'));
-                    handle.addEventListener('touchstart', (e) => handleTouchStart(e, li, 'item'), { passive: false });
-                    li.appendChild(createLeftAction(handle));
+                    li.innerHTML = `
+                        <div class="left-action">
+                            <div class="drag-handle" draggable="true">
+                                <i class="fas fa-grip-vertical"></i>
+                            </div>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-text">${escapeHTML(item.text)}</span>
+                        </div>
+                        <div class="quantity-controls"></div>
+                        <button class="item-delete-btn"><i class="fas fa-times"></i></button>
+                    `;
 
-                    const info = document.createElement('div');
-                    info.className = 'item-info';
-
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'item-text';
-                    nameSpan.textContent = item.text;
-
-                    onDoubleTap(nameSpan, (e) => {
-                        if (!editMode) return;
-                        e.stopPropagation();
-                        startInlineItemEdit(item, info, nameSpan);
-                    });
-
-                    info.appendChild(nameSpan);
-
-                    li.appendChild(info);
-
-                    const controls = document.createElement('div');
-                    controls.className = 'quantity-controls';
-
-                    controls.appendChild(createCombinedQtyControl(item));
-
-                    li.appendChild(controls);
-
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'item-delete-btn';
-                    deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-                    deleteBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        deleteItem(item.id);
-                    });
-                    li.appendChild(deleteBtn);
+                    li.querySelector('.quantity-controls').appendChild(createCombinedQtyControl(item));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-
-                    const info = document.createElement('div');
-                    info.className = 'item-info';
-
-                    const textSpan = document.createElement('span');
-                    textSpan.className = 'item-text';
-                    textSpan.textContent = item.text;
-
-                    info.appendChild(textSpan);
-
-                    const qtyCircle = document.createElement('div');
-                    qtyCircle.className = 'shop-qty-circle';
-
-                    const qtyNumber = document.createElement('span');
-                    qtyNumber.className = 'qty-number';
-                    qtyNumber.textContent = toBuy;
-
-                    const checkIcon = document.createElement('i');
-                    checkIcon.className = 'fas fa-check check-icon';
-
-                    qtyCircle.appendChild(qtyNumber);
-                    qtyCircle.appendChild(checkIcon);
-
-                    const handle = createDragHandle();
-                    handle.addEventListener('dragstart', (e) => handleDragStart(e, li, 'item'));
-                    handle.addEventListener('touchstart', (e) => handleTouchStart(e, li, 'item'), { passive: false });
-                    li.appendChild(createLeftAction([handle, qtyCircle]));
-
-                    li.appendChild(info);
-
-                    // Full-chip click toggle for Shop Mode
-                    li.addEventListener('click', (e) => {
-                        if (shopSelectionMode || editMode) {
-                            // Selection Mode
-                            const wasSelected = selectedShopItems.has(item.id);
-                            if (wasSelected) {
-                                selectedShopItems.delete(item.id);
-                                if (selectedShopItems.size === 0) {
-                                    shopSelectionMode = false;
-                                }
-                            } else {
-                                shopSelectionMode = true;
-                                selectedShopItems.add(item.id);
-                            }
-
-                            // Manual DOM updates to trigger CSS transitions immediately
-                            li.classList.toggle('selected', !wasSelected);
-                            groceryList.classList.toggle('shop-selection-mode', shopSelectionMode);
-
-                            // Update neighbors for rounded corners (sel-top/sel-bottom)
-                            const neighbors = [li, li.previousElementSibling, li.nextElementSibling];
-                            neighbors.forEach(el => {
-                                if (el && el.classList.contains('shop-chip')) {
-                                    const elId = el.dataset.id;
-                                    const isElSelected = selectedShopItems.has(elId);
-
-                                    const prev = el.previousElementSibling;
-                                    const next = el.nextElementSibling;
-                                    const isPrevSelected = prev && prev.classList.contains('shop-chip') && selectedShopItems.has(prev.dataset.id);
-                                    const isNextSelected = next && next.classList.contains('shop-chip') && selectedShopItems.has(next.dataset.id);
-
-                                    el.classList.toggle('sel-top', isElSelected && isPrevSelected);
-                                    el.classList.toggle('sel-bottom', isElSelected && isNextSelected);
-                                }
-                            });
-
-                            // Defer renderList to allow transitions to complete
-                            if (selectionRenderTimeout) clearTimeout(selectionRenderTimeout);
-                            selectionRenderTimeout = setTimeout(() => {
-                                renderList();
-                                selectionRenderTimeout = null;
-                            }, 300);
-                        } else {
-                            // Regular Shop Mode: toggle completion
-                            toggleShopCompleted(item.id);
-                        }
-                    });
+                    li.innerHTML = `
+                        <div class="left-action">
+                            <div class="drag-handle" draggable="true">
+                                <i class="fas fa-grip-vertical"></i>
+                            </div>
+                            <div class="shop-qty-circle">
+                                <span class="qty-number">${toBuy}</span>
+                                <i class="fas fa-check check-icon"></i>
+                            </div>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-text">${escapeHTML(item.text)}</span>
+                        </div>
+                    `;
                 }
-
-                // Delete button removed since double tap covers deletion
 
                 itemsUl.appendChild(li);
             });
@@ -1897,40 +2013,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
 
-                const plusIcon = document.createElement('div');
-                plusIcon.className = 'drag-handle add-row-plus';
-                plusIcon.innerHTML = '<i class="fas fa-plus"></i>';
-                addRow.appendChild(createLeftAction(plusIcon));
-
-                const info = document.createElement('div');
-                info.className = 'item-info';
-
-                const inputContainer = document.createElement('form');
-                inputContainer.className = 'input-group inline-input-group';
-
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'inline-item-input add-item-input';
-                input.placeholder = 'Add item';
-
-                plusIcon.addEventListener('click', () => input.focus());
-
-                const doAdd = (e) => {
-                    e.preventDefault();
-                    addItemToSection(section.id, input.value, isHome);
-                };
-                inputContainer.addEventListener('submit', doAdd);
-                inputContainer.appendChild(input);
-                info.appendChild(inputContainer);
-                addRow.appendChild(info);
-
-                // Allow dropping ONTO the add row so we can drop files into an empty section
+                addRow.innerHTML = `
+                    <div class="left-action">
+                        <div class="drag-handle add-row-plus">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                    </div>
+                    <div class="item-info">
+                        <form class="input-group inline-input-group">
+                            <input type="text" class="inline-item-input add-item-input" placeholder="Add item">
+                        </form>
+                    </div>
+                `;
 
                 itemsUl.appendChild(addRow);
             }
             sectionLi.appendChild(itemsUl);
 
-            groceryList.appendChild(sectionLi);
+            fragment.appendChild(sectionLi);
         });
 
 
@@ -1938,39 +2038,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addSecRow = document.createElement('li');
         addSecRow.className = 'grocery-item add-section-row';
 
-        const addSecPlusIcon = document.createElement('div');
-        addSecPlusIcon.className = 'drag-handle add-row-plus';
-        addSecPlusIcon.innerHTML = '<i class="fas fa-plus"></i>';
-        addSecRow.appendChild(createLeftAction(addSecPlusIcon));
+        addSecRow.dataset.type = 'section-placeholder';
 
-        const addSecInfo = document.createElement('div');
-        addSecInfo.className = 'item-info';
+        addSecRow.innerHTML = `
+            <div class="left-action">
+                <div class="drag-handle add-row-plus">
+                    <i class="fas fa-plus"></i>
+                </div>
+            </div>
+            <div class="item-info">
+                <form class="input-group inline-input-group">
+                    <input type="text" placeholder="Add section" class="inline-item-input add-section-input">
+                </form>
+            </div>
+        `;
 
-        const addSecContainer = document.createElement('form');
-        addSecContainer.className = 'input-group inline-input-group';
+        fragment.appendChild(addSecRow);
 
-        const addSecInput = document.createElement('input');
-        addSecInput.type = 'text';
-        addSecInput.placeholder = 'Add section';
-        addSecInput.className = 'inline-item-input add-section-input';
+        groceryList.innerHTML = '';
+        groceryList.appendChild(fragment);
 
-        addSecPlusIcon.addEventListener('click', () => addSecInput.focus());
-
-        const doAddSec = (e) => {
-            if (e) e.preventDefault();
-            const val = addSecInput.value.trim();
-            if (val) {
-                addSection(val, isHome);
-                addSecInput.value = '';
-            }
-        };
-
-        addSecContainer.addEventListener('submit', doAddSec);
-
-        addSecContainer.appendChild(addSecInput);
-        addSecInfo.appendChild(addSecContainer);
-        addSecRow.appendChild(addSecInfo);
-        groceryList.appendChild(addSecRow);
+        // Update intersection observer
+        viewportObserver.disconnect();
+        const rows = groceryList.querySelectorAll('.grocery-item, .section-container, .section-header');
+        rows.forEach(row => viewportObserver.observe(row));
 
         newlyDeletedIds.clear();
     }
@@ -2035,53 +2126,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         group.appendChild(separator);
         group.appendChild(want.part);
 
-        const updateUI = (isInit = false) => {
-            const oldHave = have.valSpan.textContent;
-            const oldWant = want.valSpan.textContent;
+        if (item.wantCount === 0) {
+            want.part.classList.add('delete-mode');
+        }
 
-            have.valSpan.textContent = item.haveCount;
-            want.valSpan.textContent = item.wantCount;
-
-            if (!isInit) {
-                if (oldHave !== String(item.haveCount)) {
-                    have.valSpan.classList.remove('pop-animate');
-                    void have.valSpan.offsetWidth; // Trigger reflow
-                    have.valSpan.classList.add('pop-animate');
-                }
-                if (oldWant !== String(item.wantCount)) {
-                    want.valSpan.classList.remove('pop-animate');
-                    void want.valSpan.offsetWidth; // Trigger reflow
-                    want.valSpan.classList.add('pop-animate');
-                }
-            }
-
-            if (item.wantCount === 0) {
-                want.part.classList.add('delete-mode');
-            } else {
-                want.part.classList.remove('delete-mode');
-            }
-
-            if (!isInit) {
-                saveAppState();
-            }
-        };
-
-        // Initialize UI state
-        updateUI(true);
-
-        have.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount = Math.max(0, item.haveCount - 1); updateUI(); });
-        have.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.haveCount++; updateUI(); });
+        have.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); adjustHave(item.id, -1); });
+        have.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); adjustHave(item.id, 1); });
 
         want.btnMinus.addEventListener('click', (e) => {
             e.stopPropagation();
             if (item.wantCount === 0) {
                 deleteItem(item.id);
             } else {
-                item.wantCount = Math.max(0, item.wantCount - 1);
-                updateUI();
+                adjustWant(item.id, -1);
             }
         });
-        want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); item.wantCount++; updateUI(); });
+        want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); adjustWant(item.id, 1); });
 
         return group;
     }

@@ -453,6 +453,10 @@ h1 {
     /* Changed from hidden to allow expansion overlay */
     position: relative;
     z-index: 10;
+    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear;
+}
+
+.grocery-item.in-view .quantity-controls {
     transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1937,6 +1941,11 @@ h1 {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translate(-50%, -50%) scale(0.5) !important;
+    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear !important;
+}
+
+.grocery-item.in-view .drag-handle {
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
 .hide-drag-handles .add-item-row,
@@ -1972,6 +1981,11 @@ h1 {
     width: 0;
     opacity: 0;
     margin-right: -0.5rem;
+    transition: width 0.3s linear, opacity 0.3s linear, margin-right 0.3s linear !important;
+}
+
+.section-header.in-view .left-action {
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin-right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
 /* Drag and Drop Styles */
@@ -2076,6 +2090,12 @@ h1 {
 .grocery-item,
 .section-container,
 .section-header {
+    transition: transform 0.2s ease, height 0.3s linear, max-height 0.3s linear, opacity 0.3s linear, margin 0.3s linear, padding 0.3s linear;
+}
+
+.grocery-item.in-view,
+.section-container.in-view,
+.section-header.in-view {
     transition: transform 0.2s ease, height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), max-height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), padding 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -2150,11 +2170,17 @@ h1 {
     height: 50px;
     align-items: center;
     justify-content: center;
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear;
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
+}
+
+.grocery-item.in-view .item-delete-btn,
+.section-container.in-view .section-delete-btn,
+.section-header.in-view .section-delete-btn {
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (hover: hover) {
@@ -2164,8 +2190,9 @@ h1 {
     }
 }
 
-.app-container:not(.hide-drag-handles) .item-delete-btn,
-.app-container:not(.hide-drag-handles) .section-delete-btn,
+.app-container:not(.hide-drag-handles) .grocery-item.in-view .item-delete-btn,
+.app-container:not(.hide-drag-handles) .section-container.in-view .section-delete-btn,
+.app-container:not(.hide-drag-handles) .section-header.in-view .section-delete-btn,
 .touch-ghost .item-delete-btn,
 .touch-ghost .section-delete-btn {
     width: 40px;
@@ -2174,12 +2201,32 @@ h1 {
     pointer-events: auto;
 }
 
+/* Static state for off-screen items to avoid layout work during mode toggle */
+.app-container:not(.hide-drag-handles) .grocery-item:not(.in-view) .item-delete-btn,
+.app-container:not(.hide-drag-handles) .section-container:not(.in-view) .section-delete-btn,
+.app-container:not(.hide-drag-handles) .section-header:not(.in-view) .section-delete-btn {
+    width: 40px;
+    opacity: 1;
+    transform: scale(1);
+    transition: none;
+    pointer-events: auto;
+}
 
-.home-mode:not(.hide-drag-handles) .quantity-controls,
+
+.home-mode:not(.hide-drag-handles) .grocery-item.in-view .quantity-controls,
 .touch-ghost.home-mode .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.home-mode:not(.hide-drag-handles) .grocery-item:not(.in-view) .quantity-controls {
+    width: 0;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: none;
     pointer-events: none;
     overflow: hidden;
 }
