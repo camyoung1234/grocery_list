@@ -494,7 +494,7 @@ h1 {
     width: 100%;
     flex: 0 0 auto;
     cursor: pointer;
-    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 0.2s ease, opacity 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     gap: 0.5rem;
@@ -1492,23 +1492,18 @@ h1 {
     /* line-height + padding/border to ensure exact match */
 }
 
-.section-reorder-controls {
-    display: flex;
-    align-items: center;
-    gap: 0;
+.section-actions {
+    position: relative;
+    width: 0;
+    height: 50px;
+    flex-shrink: 0;
     margin-left: auto;
-    max-width: 0;
-    opacity: 0;
-    overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    pointer-events: none;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.shop-selection-mode .section-reorder-controls {
-    max-width: 100px;
-    opacity: 1;
-    gap: 0.2rem;
-    pointer-events: auto;
+.app-container:not(.hide-drag-handles) .section-actions,
+.shop-selection-mode .section-actions {
+    width: 40px;
 }
 
 .shop-selection-mode .drag-handle:not(.add-row-plus) {
@@ -1520,17 +1515,34 @@ h1 {
 .move-here-btn {
     background: transparent;
     border: none;
-    color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
+    color: var(--text-muted);
     font-size: 1.2rem;
     cursor: pointer;
     padding: 0;
-    width: 30px;
-    height: 30px;
-    border-radius: 6px;
+    width: 40px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    transform: scale(0.5);
+    pointer-events: none;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (hover: hover) {
+    .move-here-btn:hover {
+        color: var(--primary-color);
+    }
+}
+
+.shop-selection-mode .move-here-btn {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
 }
 
 .section-items-list {
@@ -2176,6 +2188,12 @@ h1 {
     overflow: hidden;
 }
 
+.section-delete-btn {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
 @media (hover: hover) {
     .item-delete-btn:hover,
     .section-delete-btn:hover {
@@ -2193,6 +2211,18 @@ h1 {
     pointer-events: auto;
 }
 
+.shop-selection-mode .section-delete-btn {
+    opacity: 0 !important;
+    transform: scale(0.5) !important;
+    pointer-events: none !important;
+}
+
+.shop-selection-mode .move-here-btn {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+}
+
 
 .home-mode:not(.hide-drag-handles) .quantity-controls,
 .touch-ghost.home-mode .quantity-controls {
@@ -2201,47 +2231,4 @@ h1 {
     transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
-}
-
-/* Commit Animation States */
-.grocery-item {
-    --commit-progress: 1;
-}
-
-.shop-chip.is-committing .item-text,
-.shop-chip.is-committed .item-text,
-.shop-chip.completed:not(.is-undoing) .item-text {
-    -webkit-mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
-    mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
-}
-
-.shop-chip.is-committing .item-text::after,
-.shop-chip.is-committed .item-text::after {
-    width: calc(var(--commit-progress) * 100%) !important;
-    transition: none !important;
-}
-
-.shop-chip.is-committed .shop-qty-circle {
-    animation: explode-implode 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes explode-implode {
-    0% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 1;
-    }
-    30% {
-        transform: translate(-50%, -50%) scale(1.4);
-        opacity: 1;
-    }
-    100% {
-        transform: translate(-50%, -50%) scale(0);
-        opacity: 0;
-    }
-}
-
-.spark-particle.fuse-spark-particle {
-    width: 3px;
-    height: 3px;
-    z-index: 10001;
 }
