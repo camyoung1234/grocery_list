@@ -2212,9 +2212,15 @@ h1 {
 }
 
 .shop-selection-mode .section-delete-btn {
-    opacity: 0;
-    transform: scale(0.5);
-    pointer-events: none;
+    opacity: 0 !important;
+    transform: scale(0.5) !important;
+    pointer-events: none !important;
+}
+
+.shop-selection-mode .move-here-btn {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
 }
 
 

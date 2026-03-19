@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let lastDragPos = { x: 0, y: 0 };
     let scrollAnimationFrame = null;
     let scrollSpeed = 0;
+    let selectionRenderTimeout = null;
     let relevantSiblings = []; // Performance: cache relevant elements for FLIP
     let isSectionRestoration = false; // Flag to trigger drop animations
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
@@ -1364,9 +1365,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Toggle global reorder/selection classes
         if (!isHome && shopSelectionMode) {
-            groceryList.classList.add('shop-selection-mode');
+            appContainer.classList.add('shop-selection-mode');
         } else {
-            groceryList.classList.remove('shop-selection-mode');
+            appContainer.classList.remove('shop-selection-mode');
         }
 
 
@@ -1720,9 +1721,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.addEventListener('click', (e) => {
                         if (shopSelectionMode || editMode) {
                             // Selection Mode
-                            if (selectedShopItems.has(item.id)) {
+                            const isAlreadySelected = selectedShopItems.has(item.id);
+                            if (isAlreadySelected) {
                                 selectedShopItems.delete(item.id);
-                                // Auto-exit if empty
                                 if (selectedShopItems.size === 0) {
                                     shopSelectionMode = false;
                                 }
@@ -1730,7 +1731,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 shopSelectionMode = true;
                                 selectedShopItems.add(item.id);
                             }
-                            renderList();
+
+                            // Update classes manually to trigger transitions without immediate full re-render
+                            if (shopSelectionMode) {
+                                appContainer.classList.add('shop-selection-mode');
+                            } else {
+                                appContainer.classList.remove('shop-selection-mode');
+                            }
+
+                            // Find and update item selection classes
+                            const currentChips = Array.from(itemsUl.querySelectorAll('.shop-chip'));
+                            currentChips.forEach((chip, i) => {
+                                const chipId = chip.dataset.id;
+                                const isSelected = selectedShopItems.has(chipId);
+                                chip.classList.toggle('selected', isSelected);
+
+                                if (isSelected) {
+                                    const prevChip = currentChips[i - 1];
+                                    const nextChip = currentChips[i + 1];
+                                    const isPrevSelected = prevChip && selectedShopItems.has(prevChip.dataset.id);
+                                    const isNextSelected = nextChip && selectedShopItems.has(nextChip.dataset.id);
+                                    chip.classList.toggle('sel-top', isPrevSelected);
+                                    chip.classList.toggle('sel-bottom', isNextSelected);
+                                } else {
+                                    chip.classList.remove('sel-top', 'sel-bottom');
+                                }
+                            });
+
+                            if (selectionRenderTimeout) clearTimeout(selectionRenderTimeout);
+                            selectionRenderTimeout = setTimeout(() => {
+                                selectionRenderTimeout = null;
+                                renderList();
+                            }, 300); // Wait for transitions to finish (0.3s)
                         } else {
                             // Regular Shop Mode: toggle completion
                             toggleShopCompleted(item.id);
