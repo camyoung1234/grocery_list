@@ -2134,6 +2134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 el !== draggedElement && 
                 el !== placeholder
             );
+            relevantSiblings.forEach(el => el.style.willChange = 'transform');
 
             element.classList.add('dragging');
             element.classList.add('collapsed');
@@ -2181,17 +2182,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (isBefore && target.previousElementSibling === placeholder) return;
         if (!isBefore && target.nextElementSibling === placeholder) return;
 
-        // Use cached siblings for faster measurement
         const initialPositions = new Map();
         relevantSiblings.forEach(el => {
             initialPositions.set(el, el.getBoundingClientRect().top);
         });
 
-        if (isBefore) {
-            target.before(placeholder);
-        } else {
-            target.after(placeholder);
-        }
+        if (isBefore) target.before(placeholder);
+        else target.after(placeholder);
 
         relevantSiblings.forEach(el => {
             const newTop = el.getBoundingClientRect().top;
@@ -2199,6 +2196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const delta = oldTop - newTop;
 
             if (delta !== 0) {
+                el.getAnimations().forEach(anim => anim.cancel());
                 el.animate([
                     { transform: `translateY(${delta}px)` },
                     { transform: 'translateY(0)' }
@@ -2517,6 +2515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Handoff: Wait one frame for the new list to be painted before removing the ghost
             requestAnimationFrame(() => {
+                relevantSiblings.forEach(el => el.style.willChange = '');
                 el.classList.remove('dragging', 'collapsed');
                 el.style.opacity = '';
                 el.style.height = '';
