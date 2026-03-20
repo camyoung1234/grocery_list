@@ -56,13 +56,17 @@ test('verify edit mode UI consistency', async ({ page }) => {
     const dragHandle = page.locator('.drag-handle').first();
 
     await expect(deleteBtn).toBeVisible();
-    const deleteWidth = await deleteBtn.evaluate(el => getComputedStyle(el).width);
-    console.log(`Delete button width: ${deleteWidth}`);
-    expect(deleteWidth).toBe('40px');
+    await expect.poll(async () => {
+        const width = await deleteBtn.evaluate(el => getComputedStyle(el).width);
+        console.log(`Delete button width: ${width}`);
+        return width;
+    }).toBe('40px');
 
-    const qtyWidth = await qtyControls.evaluate(el => getComputedStyle(el).width);
-    console.log(`Qty controls width: ${qtyWidth}`);
-    expect(qtyWidth).toBe('0px');
+    await expect.poll(async () => {
+        const width = await qtyControls.evaluate(el => getComputedStyle(el).width);
+        console.log(`Qty controls width: ${width}`);
+        return width;
+    }).toBe('0px');
 
     const handleOpacity = await dragHandle.evaluate(el => getComputedStyle(el).opacity);
     console.log(`Drag handle opacity: ${handleOpacity}`);

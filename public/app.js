@@ -16,12 +16,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let dragOffset = { x: 0, y: 0 };
     let isDragStarted = false;
     let dragUpdateFrame = null;
-    let lastDragPos = { x: 0, y: 0 };
     let scrollAnimationFrame = null;
     let scrollSpeed = 0;
     let relevantSiblings = []; // Performance: cache relevant elements for FLIP
     let isSectionRestoration = false; // Flag to trigger drop animations
-    let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
@@ -302,10 +300,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const themeOptions = document.getElementById('theme-options');
     const currentThemeSwatch = document.getElementById('current-theme-swatch');
     const currentThemeName = document.getElementById('current-theme-name');
-    const modalHomeSectionGroup = document.getElementById('modal-home-section-group');
-    const modalShopSectionGroup = document.getElementById('modal-shop-section-group');
-    const modalHomeSectionSelect = document.getElementById('modal-home-section');
-    const modalShopSectionSelect = document.getElementById('modal-shop-section');
 
     // Import / Export Elements
     const importBtn = document.getElementById('import-btn');
@@ -796,9 +790,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentDeleteActionCallback = null;
         }
 
-        modalHomeSectionGroup.classList.add('hidden');
-        modalShopSectionGroup.classList.add('hidden');
-
         currentModalCallback = callback;
         modalOverlay.classList.add('visible');
 
@@ -1116,43 +1107,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         info.replaceChild(container, nameSpan);
         input.focus();
         input.setSelectionRange(0, input.value.length);
-    }
-
-    function renameItem(id) {
-        const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
-        if (!item) return;
-
-        modalHomeSectionSelect.innerHTML = '';
-        currentList.homeSections.forEach(sec => {
-            const opt = document.createElement('option');
-            opt.value = sec.id;
-            opt.textContent = sec.name;
-            modalHomeSectionSelect.appendChild(opt);
-        });
-        modalHomeSectionSelect.value = item.homeSectionId;
-
-        modalShopSectionSelect.innerHTML = '';
-        currentList.shopSections.forEach(sec => {
-            const opt = document.createElement('option');
-            opt.value = sec.id;
-            opt.textContent = sec.name;
-            modalShopSectionSelect.appendChild(opt);
-        });
-        modalShopSectionSelect.value = item.shopSectionId;
-
-        showModal('Edit Item', item.text, false, null, (newName) => {
-            if (newName && newName.trim() !== '') {
-                item.text = newName.trim();
-                item.homeSectionId = modalHomeSectionSelect.value;
-                item.shopSectionId = modalShopSectionSelect.value;
-                saveAppState();
-                renderList();
-            }
-        }, () => deleteItem(id));
-
-        modalHomeSectionGroup.classList.remove('hidden');
-        modalShopSectionGroup.classList.remove('hidden');
     }
 
     function addSection(name, isHome) {
@@ -1754,23 +1708,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             toolbarListsBtn.classList.toggle('open', listsMenuOpen);
         }
     }
-    function createDragHandle() {
-        const handle = document.createElement('div');
-        handle.className = 'drag-handle';
-        handle.innerHTML = '<i class="fas fa-grip-vertical"></i>';
-        handle.draggable = true;
-        return handle;
-    }
 
-    function createLeftAction(children = []) {
-        const leftAction = document.createElement('div');
-        leftAction.className = 'left-action';
-        if (Array.isArray(children)) {
-            children.forEach(child => leftAction.appendChild(child));
-        } else if (children) {
-            leftAction.appendChild(children);
-        }
-        return leftAction;
+    function createListItemElement(item, sectionId) {
+        const li = document.createElement('li');
+        li.dataset.id = item.id;
+        li.dataset.type = 'item';
+        li.dataset.sectionId = sectionId;
+        if (isSectionRestoration) li.classList.add('restoring-item');
+        return li;
     }
 
     function renderList() {
@@ -1782,19 +1727,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const isHome = currentMode === 'home';
-        const sectionsKey = isHome ? 'homeSections' : 'shopSections';
         const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
         const indexKey = isHome ? 'homeIndex' : 'shopIndex';
+        const sections = (isHome ? currentList.homeSections : currentList.shopSections) || [];
 
-        const sections = currentList[sectionsKey] || [];
-
-        // Toggle global reorder/selection classes
-        if (!isHome && shopSelectionMode) {
-            groceryList.classList.add('shop-selection-mode');
-        } else {
-            groceryList.classList.remove('shop-selection-mode');
-        }
-
+        groceryList.classList.toggle('shop-selection-mode', !isHome && shopSelectionMode);
 
         // Pre-group items for shop mode
         const groupedMap = new Map();
@@ -1824,31 +1761,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         sections.forEach((section) => {
-            // items for this section 
+            const sectionId = section.id;
             let sectionItems;
             if (isHome) {
-                sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
+                sectionItems = currentList.items.filter(i => i[sectionIdKey] === sectionId);
             } else {
-                // Filter groups for this section
                 sectionItems = [];
                 groupedMap.forEach(group => {
-                    if (nameToSection.get(group.text) === section.id) {
-                        sectionItems.push(group);
-                    }
+                    if (nameToSection.get(group.text) === sectionId) sectionItems.push(group);
                 });
-
-                // Add pending delete items for this section (should not be grouped)
                 currentList.items.forEach(item => {
-                    if (item.pendingDelete && item.shopSectionId === section.id) {
-                        sectionItems.push(item);
-                    }
+                    if (item.pendingDelete && item.shopSectionId === sectionId) sectionItems.push(item);
                 });
             }
 
-
             const sectionLi = document.createElement('li');
             sectionLi.className = 'section-container';
-            sectionLi.dataset.id = section.id;
+            sectionLi.dataset.id = sectionId;
             sectionLi.dataset.type = 'section';
 
             if (!isHome) {
@@ -1859,51 +1788,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                 sectionLi.classList.toggle('zero-qty-section', !hasVisibleItems);
             }
 
-            // Section Header
             const header = document.createElement('div');
             header.className = 'section-header';
 
-            const canRename = isHome || section.id !== shopDefId;
-            const dragHandleHTML = canRename
-                ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
-                : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
-
-            const deleteBtnHTML = canRename
-                ? `<button class="section-delete-btn"><i class="fas fa-times"></i></button>`
-                : '';
-
-            const reorderControlsHTML = !isHome
-                ? `<div class="section-reorder-controls"><button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button></div>`
-                : '';
-
+            const canRename = isHome || sectionId !== shopDefId;
             header.innerHTML = `
-                ${dragHandleHTML}
-                <h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3>
-                ${deleteBtnHTML}
-                ${reorderControlsHTML}
+                <div class="left-action">
+                    <div class="drag-handle section-drag-handle ${canRename ? '' : 'disabled'}" draggable="${canRename}">
+                        <i class="fas fa-grip-vertical"></i>
+                    </div>
+                </div>
+                <h3 class="section-title" data-id="${sectionId}">${escapeHTML(section.name)}</h3>
+                ${canRename ? '<button class="section-delete-btn"><i class="fas fa-times"></i></button>' : ''}
+                ${!isHome ? '<div class="section-reorder-controls"><button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button></div>' : ''}
             `;
-
-
             sectionLi.appendChild(header);
 
-            // Nested UL for items
             const itemsUl = document.createElement('ul');
-            itemsUl.className = 'section-items-list';
-            itemsUl.dataset.sectionId = section.id;
-            itemsUl.dataset.type = 'item-placeholder'; // Allow empty UL to receive drops
+            itemsUl.className = `section-items-list ${isHome ? '' : 'shop-mode'}`;
+            itemsUl.dataset.sectionId = sectionId;
+            itemsUl.dataset.type = 'item-placeholder';
 
             sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
 
-            if (!isHome) {
-                itemsUl.classList.add('shop-mode');
-            }
-
-
             sectionItems.forEach((item, idx) => {
-                const li = document.createElement('li');
+                const li = createListItemElement(item, sectionId);
                 const isAnimating = animatingItems.get(item.id);
                 const isCompleted = item.shopCompleted && isAnimating !== 'undoing';
-                li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${isCompleted && !isHome ? 'completed' : ''}`;
+
+                li.classList.add('grocery-item');
+                if (!isHome) li.classList.add('shop-chip');
+                if (isCompleted && !isHome) li.classList.add('completed');
+
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
 
@@ -1916,91 +1832,52 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const isSelected = selectedShopItems.has(item.id);
                     if (isSelected) {
                         li.classList.add('selected');
-                        const prevItem = sectionItems[idx - 1];
-                        const nextItem = sectionItems[idx + 1];
-                        if (prevItem && selectedShopItems.has(prevItem.id)) li.classList.add('sel-top');
-                        if (nextItem && selectedShopItems.has(nextItem.id)) li.classList.add('sel-bottom');
+                        const prev = sectionItems[idx - 1], next = sectionItems[idx + 1];
+                        if (prev && selectedShopItems.has(prev.id)) li.classList.add('sel-top');
+                        if (next && selectedShopItems.has(next.id)) li.classList.add('sel-bottom');
                     }
                 }
 
-                if (isSectionRestoration) li.classList.add('restoring-item');
-                li.dataset.id = item.id;
-                li.dataset.type = 'item';
-                li.dataset.sectionId = section.id;
-
                 if (item.pendingDelete) {
                     li.classList.add('undo-row');
-                    if (newlyDeletedIds.has(item.id)) {
-                        li.classList.add('undo-row-animate');
-                    }
-
+                    if (newlyDeletedIds.has(item.id)) li.classList.add('undo-row-animate');
                     if (isHome) {
-                        const prevItem = sectionItems[idx - 1];
-                        const nextItem = sectionItems[idx + 1];
-                        if (prevItem && prevItem.pendingDelete) li.classList.add('sel-top');
-                        if (nextItem && nextItem.pendingDelete) li.classList.add('sel-bottom');
+                        const prev = sectionItems[idx - 1], next = sectionItems[idx + 1];
+                        if (prev && prev.pendingDelete) li.classList.add('sel-top');
+                        if (next && next.pendingDelete) li.classList.add('sel-bottom');
                     }
-
-                    li.dataset.id = item.id;
-                    li.dataset.type = 'item';
-                    li.dataset.sectionId = section.id;
-
                     li.innerHTML = `
                         <div class="left-action"></div>
-                        <div class="item-info">
-                            <span class="item-text">${escapeHTML(item.text)}</span>
-                        </div>
+                        <div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div>
                         <button class="undo-btn-inline">Undo</button>
                     `;
-
                     itemsUl.appendChild(li);
                     return;
                 }
 
                 if (!isHome) {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    const isZeroQty = toBuy <= 0 && !item.shopCompleted && !item.pendingDelete;
-                    li.classList.toggle('zero-qty-item', isZeroQty);
+                    li.classList.toggle('zero-qty-item', toBuy <= 0 && !item.shopCompleted);
                 }
-
-
-                li.dataset.id = item.id;
-                li.dataset.type = 'item';
-                li.dataset.sectionId = section.id;
 
                 if (isHome) {
                     li.innerHTML = `
-                        <div class="left-action">
-                            <div class="drag-handle" draggable="true">
-                                <i class="fas fa-grip-vertical"></i>
-                            </div>
-                        </div>
-                        <div class="item-info">
-                            <span class="item-text">${escapeHTML(item.text)}</span>
-                        </div>
+                        <div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>
+                        <div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div>
                         <div class="quantity-controls"></div>
                         <button class="item-delete-btn"><i class="fas fa-times"></i></button>
                     `;
-
                     li.querySelector('.quantity-controls').appendChild(createCombinedQtyControl(item));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     li.innerHTML = `
                         <div class="left-action">
-                            <div class="drag-handle" draggable="true">
-                                <i class="fas fa-grip-vertical"></i>
-                            </div>
-                            <div class="shop-qty-circle">
-                                <span class="qty-number">${toBuy}</span>
-                                <i class="fas fa-check check-icon"></i>
-                            </div>
+                            <div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div>
+                            <div class="shop-qty-circle"><span class="qty-number">${toBuy}</span><i class="fas fa-check check-icon"></i></div>
                         </div>
-                        <div class="item-info">
-                            <span class="item-text">${escapeHTML(item.text)}</span>
-                        </div>
+                        <div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div>
                     `;
                 }
-
                 itemsUl.appendChild(li);
             });
 
@@ -2184,38 +2061,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             section.style.display = 'none';
         });
         groceryList.appendChild(document.querySelector('.add-section-row'));
-    }
-
-    function restoreList() {
-        const elements = Array.from(groceryList.children);
-        const sections = Array.from(groceryList.querySelectorAll('.section-container'));
-        const sectionMap = new Map();
-        
-        sections.forEach(s => {
-            sectionMap.set(s.dataset.id, s);
-            const list = s.querySelector('.section-items-list');
-            list.innerHTML = ''; // Clear for rebuild
-            s.style.display = '';
-        });
-
-        let currentSectionId = null;
-        elements.forEach(el => {
-            el.classList.remove('flattened-indent');
-            if (el.classList.contains('section-header')) {
-                currentSectionId = el.dataset.originalSectionId;
-            } else if (el.classList.contains('grocery-item') || el.classList.contains('add-item-row') || el === placeholder) {
-                const targetId = el.dataset.originalSectionId || currentSectionId;
-                const section = sectionMap.get(targetId);
-                if (section) {
-                    section.querySelector('.section-items-list').appendChild(el);
-                }
-            } else if (el.classList.contains('add-section-row')) {
-                groceryList.appendChild(el); // Stays at bottom
-            }
-        });
-        
-        // Re-append sections in their current order (if they moved)
-        sections.forEach(s => groceryList.appendChild(s));
     }
 
     function handleDragStart(e, element, type) {
@@ -2691,7 +2536,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     dragUpdateFrame = null;
                 }
 
-                lastDragPos = { x: 0, y: 0 };
                 stopAutoScroll();
                 placeholder.remove();
             });
