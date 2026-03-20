@@ -515,6 +515,7 @@ h1 {
     -webkit-tap-highlight-color: transparent;
     gap: 0.5rem;
     box-sizing: border-box;
+    justify-content: flex-start;
 }
 
 
@@ -1512,23 +1513,54 @@ h1 {
     /* line-height + padding/border to ensure exact match */
 }
 
-.section-reorder-controls {
+.section-actions {
     display: flex;
     align-items: center;
-    gap: 0;
+    justify-content: center;
+    width: 0;
+    height: 50px;
+    position: relative;
+    overflow: visible;
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     margin-left: auto;
-    max-width: 0;
-    opacity: 0;
-    overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    pointer-events: none;
 }
 
-.shop-selection-mode .section-reorder-controls {
-    max-width: 100px;
-    opacity: 1;
-    gap: 0.2rem;
-    pointer-events: auto;
+.app-container:not(.hide-drag-handles) .section-actions,
+.shop-selection-mode .section-actions {
+    width: 40px !important;
+    min-width: 40px !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.section-delete-btn,
+.move-here-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    margin: 0 !important;
+    width: 40px !important;
+    height: 50px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.app-container:not(.hide-drag-handles) .section-delete-btn {
+    opacity: 1 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+    pointer-events: auto !important;
+}
+
+.shop-selection-mode .move-here-btn {
+    opacity: 1 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+    pointer-events: auto !important;
+    color: var(--primary-color) !important;
 }
 
 .shop-selection-mode .drag-handle:not(.add-row-plus) {
@@ -1977,14 +2009,16 @@ h1 {
     transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin-right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.hide-drag-handles .section-header .left-action {
-    width: 0;
-    opacity: 0;
+.hide-drag-handles .section-header .left-action,
+.hide-drag-handles .section-header .section-actions {
+    width: 0 !important;
+    opacity: 0 !important;
     margin-right: -0.5rem;
     transition: width 0.3s linear, opacity 0.3s linear, margin-right 0.3s linear !important;
 }
 
-.section-header.in-view .left-action {
+.section-header.in-view .left-action,
+.section-header.in-view .section-actions {
     transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin-right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
@@ -1992,9 +2026,7 @@ h1 {
     width: 12px;
 }
 
-.app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn,
-.app-container:not(.hide-drag-handles) .section-container .section-delete-btn,
-.app-container:not(.hide-drag-handles) .section-header .section-delete-btn {
+.app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn {
     width: 40px;
     opacity: 1;
     transform: scale(1);

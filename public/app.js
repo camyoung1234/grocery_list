@@ -1532,30 +1532,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        const itemsToDelete = currentMode === 'shop'
-            ? currentList.items.filter(i => i.text === item.text)
-            : [item];
-
-        itemsToDelete.forEach(it => {
-            // Mark as pending delete
-            it.pendingDelete = true;
-            newlyDeletedIds.add(it.id);
-
-            // Clear any existing timer just in case
-            if (pendingDeletions.has(it.id)) {
-                clearTimeout(pendingDeletions.get(it.id));
-            }
-
-            // Set timer for final removal
-            const timerId = setTimeout(() => {
-                finalizeDeleteItem(it.id);
-            }, 5000);
-
-            pendingDeletions.set(it.id, timerId);
-        });
+        // Mark as pending delete
+        item.pendingDelete = true;
+        newlyDeletedIds.add(id);
 
         // Save state immediately - items with pendingDelete will be filtered out during save
         saveAppState();
+
+        // Clear any existing timer just in case
+        if (pendingDeletions.has(id)) {
+            clearTimeout(pendingDeletions.get(id));
+        }
+
+        // Set timer for final removal
+        const timerId = setTimeout(() => {
+            finalizeDeleteItem(id);
+        }, 5000);
+
+        pendingDeletions.set(id, timerId);
 
         renderList();
     }
@@ -1565,18 +1559,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        const itemsToUndo = currentMode === 'shop'
-            ? currentList.items.filter(i => i.text === item.text && i.pendingDelete)
-            : [item];
+        if (pendingDeletions.has(id)) {
+            clearTimeout(pendingDeletions.get(id));
+            pendingDeletions.delete(id);
+        }
 
-        itemsToUndo.forEach(it => {
-            if (pendingDeletions.has(it.id)) {
-                clearTimeout(pendingDeletions.get(it.id));
-                pendingDeletions.delete(it.id);
-            }
-            it.pendingDelete = false;
-        });
-
+        item.pendingDelete = false;
         saveAppState();
         renderList();
     }
@@ -1880,21 +1868,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
                 : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
 
-            const deleteBtnHTML = canRename
+            const sectionDeleteHTML = canRename
                 ? `<button class="section-delete-btn"><i class="fas fa-times"></i></button>`
                 : '';
 
-            const reorderControlsHTML = !isHome
-                ? `<div class="section-reorder-controls"><button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button></div>`
+            const moveHereHTML = !isHome
+                ? `<button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button>`
                 : '';
 
             header.innerHTML = `
                 ${dragHandleHTML}
                 <h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3>
-                ${deleteBtnHTML}
-                ${reorderControlsHTML}
+                <div class="section-actions">
+                    ${sectionDeleteHTML}
+                    ${moveHereHTML}
+                </div>
             `;
-
 
             sectionLi.appendChild(header);
 
@@ -1980,26 +1969,37 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
 
-                li.innerHTML = `
-                    <div class="left-action">
-                        <div class="drag-handle" draggable="true">
-                            <i class="fas fa-grip-vertical"></i>
-                        </div>
-                        ${!isHome ? `
-                        <div class="shop-qty-circle">
-                            <span class="qty-number">${Math.max(0, item.wantCount - item.haveCount)}</span>
-                            <i class="fas fa-check check-icon"></i>
-                        </div>` : ''}
-                    </div>
-                    <div class="item-info">
-                        <span class="item-text">${escapeHTML(item.text)}</span>
-                    </div>
-                    ${isHome ? `<div class="quantity-controls"></div>` : ''}
-                    <button class="item-delete-btn"><i class="fas fa-times"></i></button>
-                `;
-
                 if (isHome) {
+                    li.innerHTML = `
+                        <div class="left-action">
+                            <div class="drag-handle" draggable="true">
+                                <i class="fas fa-grip-vertical"></i>
+                            </div>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-text">${escapeHTML(item.text)}</span>
+                        </div>
+                        <div class="quantity-controls"></div>
+                        <button class="item-delete-btn"><i class="fas fa-times"></i></button>
+                    `;
+
                     li.querySelector('.quantity-controls').appendChild(createCombinedQtyControl(item));
+                } else {
+                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                    li.innerHTML = `
+                        <div class="left-action">
+                            <div class="drag-handle" draggable="true">
+                                <i class="fas fa-grip-vertical"></i>
+                            </div>
+                            <div class="shop-qty-circle">
+                                <span class="qty-number">${toBuy}</span>
+                                <i class="fas fa-check check-icon"></i>
+                            </div>
+                        </div>
+                        <div class="item-info">
+                            <span class="item-text">${escapeHTML(item.text)}</span>
+                        </div>
+                    `;
                 }
 
                 itemsUl.appendChild(li);
