@@ -1868,21 +1868,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
                 : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
 
-            const deleteBtnHTML = canRename
+            const sectionDeleteHTML = canRename
                 ? `<button class="section-delete-btn"><i class="fas fa-times"></i></button>`
                 : '';
 
-            const reorderControlsHTML = !isHome
-                ? `<div class="section-reorder-controls"><button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button></div>`
+            const moveHereHTML = !isHome
+                ? `<button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button>`
                 : '';
 
             header.innerHTML = `
                 ${dragHandleHTML}
                 <h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3>
-                ${deleteBtnHTML}
-                ${reorderControlsHTML}
+                <div class="section-actions">
+                    ${sectionDeleteHTML}
+                    ${moveHereHTML}
+                </div>
             `;
-
 
             sectionLi.appendChild(header);
 
