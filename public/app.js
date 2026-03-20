@@ -35,12 +35,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listsMenu = document.getElementById('lists-menu');
 
     // --- Intersection Observer for Performance ---
+    const inViewportSet = new Set();
     const viewportObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 entry.target.classList.add('in-view');
+                inViewportSet.add(entry.target);
             } else {
                 entry.target.classList.remove('in-view');
+                inViewportSet.delete(entry.target);
             }
         });
     }, {
@@ -1937,6 +1940,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Update intersection observer
         viewportObserver.disconnect();
+        inViewportSet.clear();
         const rows = groceryList.querySelectorAll('.grocery-item, .section-container, .section-header');
         rows.forEach(row => viewportObserver.observe(row));
 
@@ -2110,6 +2114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Initialize placeholder at starting position to prevent layout shift
             const phHeight = type === 'section' ? 50 : element.offsetHeight;
             placeholder.style.height = phHeight + 'px';
+            placeholder.style.pointerEvents = 'none'; // CRITICAL: Allow elementFromPoint to see through placeholder
             element.before(placeholder);
 
             if (type === 'item') {
@@ -2118,9 +2123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (type === 'section') {
-                document.querySelectorAll('.section-items-list, .add-item-row').forEach(el => {
-                    el.classList.add('collapsed');
-                });
+                groceryList.classList.add('is-dragging-section');
             }
 
             // Performance: cache relevant siblings once at drag start
@@ -2179,7 +2182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!isBefore && target.nextElementSibling === placeholder) return;
 
         const initialPositions = new Map();
-        // Only measure elements that are in view to minimize layout thrashing
+        // Use class check for most reliable 'in-view' status
         relevantSiblings.forEach(el => {
             if (el.classList.contains('in-view')) {
                 initialPositions.set(el, el.getBoundingClientRect().top);
@@ -2189,22 +2192,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (isBefore) target.before(placeholder);
         else target.after(placeholder);
 
-        relevantSiblings.forEach(el => {
-            if (initialPositions.has(el)) {
-                const newTop = el.getBoundingClientRect().top;
-                const oldTop = initialPositions.get(el);
-                const delta = oldTop - newTop;
+        initialPositions.forEach((oldTop, el) => {
+            const newTop = el.getBoundingClientRect().top;
+            const delta = oldTop - newTop;
 
-                if (delta !== 0) {
-                    el.getAnimations().forEach(anim => anim.cancel());
-                    el.animate([
-                        { transform: `translateY(${delta}px)` },
-                        { transform: 'translateY(0)' }
-                    ], {
-                        duration: 400,
-                        easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
-                    });
-                }
+            if (delta !== 0) {
+                el.getAnimations().forEach(anim => anim.cancel());
+                el.animate([
+                    { transform: `translateY(${delta}px)` },
+                    { transform: 'translateY(0)' }
+                ], {
+                    duration: 400,
+                    easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+                });
             }
         });
     }
@@ -2247,16 +2247,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         if (!draggedElement || !isDragStarted) return;
 
-        if (touchGhost) {
-            touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
-        }
-
         updateAutoScroll(e.clientY);
 
         if (dragUpdateFrame) return;
         dragUpdateFrame = requestAnimationFrame(() => {
             dragUpdateFrame = null;
             if (!draggedElement) return;
+
+            if (touchGhost) {
+                touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
+            }
 
             let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
             let target = e.target.closest(targetSelector);
@@ -2406,10 +2406,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!draggedElement || !isDragStarted) return;
         const touch = e.touches[0];
 
-        if (touchGhost) {
-            touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
-        }
-
         updateAutoScroll(touch.clientY);
 
         // Prevent scrolling during drag
@@ -2420,15 +2416,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             dragUpdateFrame = null;
             if (!draggedElement) return;
 
-            // Disable pointer events so we can detect target behind it
-            const originalPointerEvents = draggedElement.style.pointerEvents;
-            draggedElement.style.pointerEvents = 'none';
-            if (touchGhost) touchGhost.style.pointerEvents = 'none';
+            if (touchGhost) {
+                touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
+            }
 
             let target = document.elementFromPoint(touch.clientX, touch.clientY);
-
-            draggedElement.style.pointerEvents = originalPointerEvents;
-            if (touchGhost) touchGhost.style.pointerEvents = '';
 
             let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
             if (target) target = target.closest(targetSelector);
@@ -2507,9 +2499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             groceryList.style.paddingTop = '';
             groceryList.style.paddingBottom = '';
-
-            const collapsed = document.querySelectorAll('.collapsed');
-            collapsed.forEach(element => element.classList.remove('collapsed'));
+            groceryList.classList.remove('is-dragging-section');
 
             renderList();
             isSectionRestoration = false; // Reset

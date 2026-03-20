@@ -1158,7 +1158,9 @@ body {
 
 .drag-placeholder { height: 50px; box-sizing: border-box; }
 
-.collapsed {
+.collapsed,
+.is-dragging-section .section-items-list,
+.is-dragging-section .add-item-row {
     height: 0 !important;
     max-height: 0 !important;
     opacity: 0 !important;
@@ -1166,7 +1168,7 @@ body {
     margin: 0 !important;
     overflow: hidden !important;
     border: none !important;
-    pointer-events: none;
+    pointer-events: none !important;
 }
 
 .dragging { opacity: 0.5; background: var(--hover-bg) !important; }
