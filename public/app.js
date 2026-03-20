@@ -2118,11 +2118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (type === 'section') {
-                document.querySelectorAll('.section-items-list').forEach(el => {
-                    el.innerHTML = '';
-                    el.classList.add('collapsed');
-                });
-                document.querySelectorAll('.add-item-row').forEach(el => {
+                document.querySelectorAll('.section-items-list, .add-item-row').forEach(el => {
                     el.classList.add('collapsed');
                 });
             }
@@ -2183,27 +2179,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!isBefore && target.nextElementSibling === placeholder) return;
 
         const initialPositions = new Map();
+        // Only measure elements that are in view to minimize layout thrashing
         relevantSiblings.forEach(el => {
-            initialPositions.set(el, el.getBoundingClientRect().top);
+            if (el.classList.contains('in-view')) {
+                initialPositions.set(el, el.getBoundingClientRect().top);
+            }
         });
 
         if (isBefore) target.before(placeholder);
         else target.after(placeholder);
 
         relevantSiblings.forEach(el => {
-            const newTop = el.getBoundingClientRect().top;
-            const oldTop = initialPositions.get(el);
-            const delta = oldTop - newTop;
+            if (initialPositions.has(el)) {
+                const newTop = el.getBoundingClientRect().top;
+                const oldTop = initialPositions.get(el);
+                const delta = oldTop - newTop;
 
-            if (delta !== 0) {
-                el.getAnimations().forEach(anim => anim.cancel());
-                el.animate([
-                    { transform: `translateY(${delta}px)` },
-                    { transform: 'translateY(0)' }
-                ], {
-                    duration: 400,
-                    easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
-                });
+                if (delta !== 0) {
+                    el.getAnimations().forEach(anim => anim.cancel());
+                    el.animate([
+                        { transform: `translateY(${delta}px)` },
+                        { transform: 'translateY(0)' }
+                    ], {
+                        duration: 400,
+                        easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+                    });
+                }
             }
         });
     }
