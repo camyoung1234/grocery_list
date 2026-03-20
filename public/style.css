@@ -515,7 +515,6 @@ h1 {
     -webkit-tap-highlight-color: transparent;
     gap: 0.5rem;
     box-sizing: border-box;
-    justify-content: flex-start;
 }
 
 
@@ -1942,6 +1941,7 @@ h1 {
     pointer-events: none !important;
     transform: translate(-50%, -50%) scale(0.5) !important;
     transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear !important;
+    width: 0 !important;
 }
 
 .grocery-item.in-view .drag-handle {
@@ -1990,6 +1990,15 @@ h1 {
 
 .app-container.home-mode.hide-drag-handles .grocery-item .left-action {
     width: 12px;
+}
+
+.app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn,
+.app-container:not(.hide-drag-handles) .section-container .section-delete-btn,
+.app-container:not(.hide-drag-handles) .section-header .section-delete-btn {
+    width: 40px;
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
 }
 
 /* Drag and Drop Styles */
@@ -2194,9 +2203,6 @@ h1 {
     }
 }
 
-.app-container:not(.hide-drag-handles) .grocery-item.in-view .item-delete-btn,
-.app-container:not(.hide-drag-handles) .section-container.in-view .section-delete-btn,
-.app-container:not(.hide-drag-handles) .section-header.in-view .section-delete-btn,
 .touch-ghost .item-delete-btn,
 .touch-ghost .section-delete-btn {
     width: 40px;
@@ -2205,32 +2211,12 @@ h1 {
     pointer-events: auto;
 }
 
-/* Static state for off-screen items to avoid layout work during mode toggle */
-.app-container:not(.hide-drag-handles) .grocery-item:not(.in-view) .item-delete-btn,
-.app-container:not(.hide-drag-handles) .section-container:not(.in-view) .section-delete-btn,
-.app-container:not(.hide-drag-handles) .section-header:not(.in-view) .section-delete-btn {
-    width: 40px;
-    opacity: 1;
-    transform: scale(1);
-    transition: none;
-    pointer-events: auto;
-}
 
-
-.home-mode:not(.hide-drag-handles) .grocery-item.in-view .quantity-controls,
+.home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
 .touch-ghost.home-mode .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);
-    pointer-events: none;
-    overflow: hidden;
-}
-
-.home-mode:not(.hide-drag-handles) .grocery-item:not(.in-view) .quantity-controls {
-    width: 0;
-    opacity: 0;
-    transform: scale(0.5);
-    transition: none;
     pointer-events: none;
     overflow: hidden;
 }

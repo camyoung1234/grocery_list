@@ -1532,24 +1532,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        // Mark as pending delete
-        item.pendingDelete = true;
-        newlyDeletedIds.add(id);
+        const itemsToDelete = currentMode === 'shop'
+            ? currentList.items.filter(i => i.text === item.text)
+            : [item];
+
+        itemsToDelete.forEach(it => {
+            // Mark as pending delete
+            it.pendingDelete = true;
+            newlyDeletedIds.add(it.id);
+
+            // Clear any existing timer just in case
+            if (pendingDeletions.has(it.id)) {
+                clearTimeout(pendingDeletions.get(it.id));
+            }
+
+            // Set timer for final removal
+            const timerId = setTimeout(() => {
+                finalizeDeleteItem(it.id);
+            }, 5000);
+
+            pendingDeletions.set(it.id, timerId);
+        });
 
         // Save state immediately - items with pendingDelete will be filtered out during save
         saveAppState();
-
-        // Clear any existing timer just in case
-        if (pendingDeletions.has(id)) {
-            clearTimeout(pendingDeletions.get(id));
-        }
-
-        // Set timer for final removal
-        const timerId = setTimeout(() => {
-            finalizeDeleteItem(id);
-        }, 5000);
-
-        pendingDeletions.set(id, timerId);
 
         renderList();
     }
@@ -1559,12 +1565,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (!item) return;
 
-        if (pendingDeletions.has(id)) {
-            clearTimeout(pendingDeletions.get(id));
-            pendingDeletions.delete(id);
-        }
+        const itemsToUndo = currentMode === 'shop'
+            ? currentList.items.filter(i => i.text === item.text && i.pendingDelete)
+            : [item];
 
-        item.pendingDelete = false;
+        itemsToUndo.forEach(it => {
+            if (pendingDeletions.has(it.id)) {
+                clearTimeout(pendingDeletions.get(it.id));
+                pendingDeletions.delete(it.id);
+            }
+            it.pendingDelete = false;
+        });
+
         saveAppState();
         renderList();
     }
@@ -1968,37 +1980,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
 
-                if (isHome) {
-                    li.innerHTML = `
-                        <div class="left-action">
-                            <div class="drag-handle" draggable="true">
-                                <i class="fas fa-grip-vertical"></i>
-                            </div>
+                li.innerHTML = `
+                    <div class="left-action">
+                        <div class="drag-handle" draggable="true">
+                            <i class="fas fa-grip-vertical"></i>
                         </div>
-                        <div class="item-info">
-                            <span class="item-text">${escapeHTML(item.text)}</span>
-                        </div>
-                        <div class="quantity-controls"></div>
-                        <button class="item-delete-btn"><i class="fas fa-times"></i></button>
-                    `;
+                        ${!isHome ? `
+                        <div class="shop-qty-circle">
+                            <span class="qty-number">${Math.max(0, item.wantCount - item.haveCount)}</span>
+                            <i class="fas fa-check check-icon"></i>
+                        </div>` : ''}
+                    </div>
+                    <div class="item-info">
+                        <span class="item-text">${escapeHTML(item.text)}</span>
+                    </div>
+                    ${isHome ? `<div class="quantity-controls"></div>` : ''}
+                    <button class="item-delete-btn"><i class="fas fa-times"></i></button>
+                `;
 
+                if (isHome) {
                     li.querySelector('.quantity-controls').appendChild(createCombinedQtyControl(item));
-                } else {
-                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    li.innerHTML = `
-                        <div class="left-action">
-                            <div class="drag-handle" draggable="true">
-                                <i class="fas fa-grip-vertical"></i>
-                            </div>
-                            <div class="shop-qty-circle">
-                                <span class="qty-number">${toBuy}</span>
-                                <i class="fas fa-check check-icon"></i>
-                            </div>
-                        </div>
-                        <div class="item-info">
-                            <span class="item-text">${escapeHTML(item.text)}</span>
-                        </div>
-                    `;
                 }
 
                 itemsUl.appendChild(li);
