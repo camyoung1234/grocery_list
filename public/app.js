@@ -1658,6 +1658,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
             sameNameItems.forEach(i => i.wantCount = newWant);
             saveAppState();
+
+            if (currentMode === 'home') {
+                sameNameItems.forEach(i => {
+                    const pill = document.querySelector(`.grocery-item[data-id="${i.id}"] .qty-combined-pill`);
+                    if (pill) {
+                        const wantPart = pill.querySelector('.want-part');
+                        const valSpan = wantPart?.querySelector('.qty-val');
+                        if (valSpan) {
+                            valSpan.textContent = i.wantCount;
+                            valSpan.classList.remove('pop-animate');
+                            void valSpan.offsetWidth;
+                            valSpan.classList.add('pop-animate');
+                        }
+                        if (wantPart) {
+                            wantPart.classList.toggle('delete-mode', i.wantCount === 0);
+                        }
+                    }
+                });
+                return;
+            }
+
             renderList();
         }
     }

@@ -48,7 +48,7 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
       sharedWantSynced: true
     };
     localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-edit-mode', 'true');
+    localStorage.setItem('grocery-edit-mode', 'false');
     window.location.reload();
   });
 
@@ -57,23 +57,24 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
 
   const firstBanana = bananaRows.first();
   const wantPart = firstBanana.locator('.want-part');
-  // Use force: true to bypass overlay issues if any
-  await wantPart.click({ force: true });
+  await wantPart.click();
 
   const plusBtn = wantPart.locator('.plus');
-  await plusBtn.click({ force: true });
+  await plusBtn.click();
 
   await expect(bananaRows.first().locator('.want-part .qty-val')).toHaveText('2');
   await expect(bananaRows.last().locator('.want-part .qty-val')).toHaveText('2');
 
+  await page.click('#toolbar-reorder');
   const addBtn = page.locator('.add-item-row .add-row-plus').first();
   await addBtn.click();
-  const input = page.locator('.add-item-row input.add-item-input');
+  const input = page.locator('.add-item-row input.add-item-input').first();
   await input.fill('Bananas');
   await input.press('Enter');
 
   const allBananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(allBananaRows).toHaveCount(3);
+  await page.click('#toolbar-reorder');
   await expect(allBananaRows.nth(0).locator('.want-part .qty-val')).toHaveText('2');
   await expect(allBananaRows.nth(1).locator('.want-part .qty-val')).toHaveText('2');
   await expect(allBananaRows.nth(2).locator('.want-part .qty-val')).toHaveText('2');
@@ -182,8 +183,10 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
     const bananaRow = page.locator('.grocery-item:has-text("Bananas")');
     await bananaRow.locator('.item-text').click();
 
-    await page.click('#toolbar-clear');
+    // The commit animation is 5s. We can either wait or switch modes to trigger auto-commit.
+    await page.waitForTimeout(6000);
 
+    // Switch back to Home mode to check individual counts
     await page.click('#toolbar-mode');
 
     const bananaItems = page.locator('.grocery-item:has-text("Bananas")');
@@ -240,7 +243,10 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
     });
 
     const bananaRow = page.locator('.grocery-item:has-text("Bananas")');
-    await bananaRow.locator('.item-text').dblclick({ force: true });
+    // Double tap triggers inline edit
+    await bananaRow.locator('.item-text').click();
+    await page.waitForTimeout(100);
+    await bananaRow.locator('.item-text').click();
 
     const input = page.locator('.grocery-item input.inline-edit-input');
     await input.fill('Apples');
@@ -248,6 +254,9 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
 
     const appleRows = page.locator('.grocery-item:has-text("Apples")');
     await expect(appleRows).toHaveCount(2);
+
+    // Switch Edit Mode OFF to see controls
+    await page.click('#toolbar-reorder');
     const wantTexts = await appleRows.locator('.want-part .qty-val').allTextContents();
     expect(wantTexts).toEqual(['10', '10']);
 });
