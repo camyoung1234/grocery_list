@@ -452,7 +452,7 @@ h1 {
     overflow: visible;
     /* Changed from hidden to allow expansion overlay */
     position: relative;
-    z-index: 10;
+    z-index: 200;
     transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear;
 }
 
@@ -2244,13 +2244,49 @@ h1 {
 }
 
 
-.home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
-.touch-ghost.home-mode .quantity-controls {
+.home-mode.hide-drag-handles .grocery-item .quantity-controls,
+.shop-mode.hide-drag-handles .grocery-item .quantity-controls,
+.touch-ghost.home-mode .quantity-controls,
+.touch-ghost.shop-mode .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
+}
+
+.shop-qty-stepper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    z-index: 100;
+}
+
+.shop-stepper-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 2px solid var(--text-color);
+    color: var(--text-color);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    padding: 0;
+}
+
+.shop-stepper-btn:active {
+    transform: scale(0.85);
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+}
+
+.shop-chip.selected .shop-stepper-btn {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 /* Commit Animation States */

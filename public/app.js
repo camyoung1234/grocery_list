@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Shop Chip Toggle / Selection
         const shopChip = target.closest('.shop-chip');
-        if (shopChip && !target.closest('.drag-handle')) {
+        if (shopChip && !target.closest('.drag-handle') && !target.closest('.quantity-controls') && !target.closest('.item-delete-btn')) {
             const id = shopChip.dataset.id;
             const item = getCurrentList().items.find(i => i.id === id);
             if (!item) return;
@@ -1679,6 +1679,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
+            if (currentMode === 'shop') {
+                sameNameItems.forEach(i => {
+                    const stepper = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-qty-stepper`);
+                    if (stepper) {
+                        const valSpan = stepper.querySelector('.qty-val');
+                        if (valSpan) {
+                            valSpan.textContent = i.wantCount;
+                            valSpan.classList.remove('pop-animate');
+                            void valSpan.offsetWidth;
+                            valSpan.classList.add('pop-animate');
+                        }
+                    }
+                    const circle = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-qty-circle`);
+                    if (circle) {
+                        const qtyNum = circle.querySelector('.qty-number');
+                        if (qtyNum) {
+                            const toBuy = Math.max(0, i.wantCount - i.haveCount);
+                            qtyNum.textContent = toBuy;
+                        }
+                    }
+                });
+                return;
+            }
+
             renderList();
         }
     }
@@ -2041,7 +2065,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="item-info">
                             <span class="item-text">${escapeHTML(item.text)}</span>
                         </div>
+                        <div class="quantity-controls"></div>
+                        <button class="item-delete-btn"><i class="fas fa-times"></i></button>
                     `;
+
+                    li.querySelector('.quantity-controls').appendChild(createShopQtyStepper(item));
                 }
 
                 itemsUl.appendChild(li);
@@ -2185,6 +2213,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
         want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); adjustWant(item.id, 1); });
+
+        return group;
+    }
+
+    function createShopQtyStepper(item) {
+        const group = document.createElement('div');
+        group.className = 'shop-qty-stepper';
+
+        const btnMinus = document.createElement('button');
+        btnMinus.className = 'shop-stepper-btn minus';
+        btnMinus.innerHTML = '<i class="fas fa-minus"></i>';
+
+        const valSpan = document.createElement('span');
+        valSpan.className = 'qty-val';
+        valSpan.textContent = item.wantCount;
+
+        const btnPlus = document.createElement('button');
+        btnPlus.className = 'shop-stepper-btn plus';
+        btnPlus.innerHTML = '<i class="fas fa-plus"></i>';
+
+        group.appendChild(btnMinus);
+        group.appendChild(valSpan);
+        group.appendChild(btnPlus);
+
+        btnMinus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            adjustWant(item.id, -1);
+        });
+        btnPlus.addEventListener('click', (e) => {
+            e.stopPropagation();
+            adjustWant(item.id, 1);
+        });
 
         return group;
     }
