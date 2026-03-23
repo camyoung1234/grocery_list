@@ -287,6 +287,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toolbarModeBtn = document.getElementById('toolbar-mode');
     const toolbarReorderBtn = document.getElementById('toolbar-reorder');
     const toolbarShareBtn = document.getElementById('toolbar-share');
+    const toolbarCopyBtn = document.getElementById('toolbar-copy');
     const currentListNameSpan = document.getElementById('current-list-name');
 
     // Modal Elements
@@ -624,6 +625,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const scrollDelta = newRect.top - topOffset;
                 window.scrollBy(0, scrollDelta);
                 if (appContainer) appContainer.scrollBy(0, scrollDelta);
+            }
+        });
+    }
+
+    if (toolbarCopyBtn) {
+        toolbarCopyBtn.addEventListener('click', async () => {
+            try {
+                const currentList = getCurrentList();
+                if (!currentList) return;
+
+                const sections = currentList.homeSections || [];
+                const items = (currentList.items || []).filter(i => !i.pendingDelete);
+
+                let markdown = '```\n';
+                const sectionBlocks = [];
+
+                sections.forEach(section => {
+                    const sectionItems = items
+                        .filter(i => i.homeSectionId === section.id)
+                        .sort((a, b) => (a.homeIndex || 0) - (b.homeIndex || 0));
+
+                    if (sectionItems.length > 0) {
+                        let block = `## ${section.name}\n`;
+                        sectionItems.forEach(item => {
+                            block += `* ${item.text}\n`;
+                        });
+                        sectionBlocks.push(block.trim());
+                    }
+                });
+
+                markdown += sectionBlocks.join('\n\n');
+                markdown += '\n```';
+
+                await navigator.clipboard.writeText(markdown);
+
+                const icon = toolbarCopyBtn.querySelector('i');
+                const originalClass = icon.className;
+                icon.className = 'fas fa-check';
+                setTimeout(() => {
+                    icon.className = originalClass;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
             }
         });
     }
