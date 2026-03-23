@@ -2244,10 +2244,10 @@ h1 {
 }
 
 
-.home-mode.hide-drag-handles .grocery-item .quantity-controls,
+.home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
 .shop-mode.hide-drag-handles .grocery-item .quantity-controls,
-.touch-ghost.home-mode .quantity-controls,
-.touch-ghost.shop-mode .quantity-controls {
+.touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
+.touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);

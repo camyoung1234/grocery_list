@@ -2066,7 +2066,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <span class="item-text">${escapeHTML(item.text)}</span>
                         </div>
                         <div class="quantity-controls"></div>
-                        <button class="item-delete-btn"><i class="fas fa-times"></i></button>
                     `;
 
                     li.querySelector('.quantity-controls').appendChild(createShopQtyStepper(item));
