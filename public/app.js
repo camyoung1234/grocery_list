@@ -483,6 +483,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             appState.currentListId = appState.lists[0].id;
         }
 
+        // --- Shared Want Sync Migration ---
+        if (!appState.sharedWantSynced) {
+            appState.lists.forEach(list => {
+                const maxWants = new Map();
+                list.items.forEach(item => {
+                    const name = item.text.trim();
+                    const currentMax = maxWants.get(name) || 0;
+                    if (item.wantCount > currentMax) {
+                        maxWants.set(name, item.wantCount);
+                    }
+                });
+                list.items.forEach(item => {
+                    const name = item.text.trim();
+                    if (maxWants.has(name)) {
+                        item.wantCount = maxWants.get(name);
+                    }
+                });
+            });
+            appState.sharedWantSynced = true;
+            saveAppState();
+        }
+
         updateModeUI();
         renderListsMenu();
         renderList();
@@ -1095,6 +1117,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (onSave) {
                     onSave(newName);
                 } else {
+                    const currentList = getCurrentList();
+                    const existing = currentList.items.find(i => i.text.trim() === newName && i.id !== item.id);
+                    if (existing) {
+                        item.wantCount = existing.wantCount;
+                    }
                     item.text = newName;
                     saveAppState();
                 }
@@ -1143,7 +1170,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         showModal('Edit Item', item.text, false, null, (newName) => {
             if (newName && newName.trim() !== '') {
-                item.text = newName.trim();
+                const trimmedNewName = newName.trim();
+                const existing = currentList.items.find(i => i.text.trim() === trimmedNewName && i.id !== item.id);
+                if (existing) {
+                    item.wantCount = existing.wantCount;
+                }
+                item.text = trimmedNewName;
                 item.homeSectionId = modalHomeSectionSelect.value;
                 item.shopSectionId = modalShopSectionSelect.value;
                 saveAppState();
@@ -1228,6 +1260,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             getOrCreateUncategorizedSection(true);
         }
 
+        const existing = currentList.items.find(i => i.text.trim() === text);
+
         const newItem = {
             id: Date.now().toString(),
             text: text,
@@ -1236,7 +1270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             homeIndex: currentList.items.length,
             shopIndex: currentList.items.length,
             haveCount: 0,
-            wantCount: 1,
+            wantCount: existing ? existing.wantCount : 1,
             shopCompleted: false
         };
 
@@ -1466,10 +1500,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         sameNameItems.forEach(i => committingProgress.delete(i.id));
 
                         const currentList = getCurrentList();
-                        sameNameItems.forEach(i => {
+                        sameNameItems.forEach((i, idx) => {
                             const actualItem = currentList.items.find(it => it.id === i.id);
                             if (actualItem) {
-                                actualItem.haveCount = actualItem.wantCount;
+                                if (idx === 0) {
+                                    actualItem.haveCount = actualItem.wantCount;
+                                } else {
+                                    actualItem.haveCount = 0;
+                                }
                                 actualItem.shopCompleted = false;
                             }
                         });
@@ -1616,27 +1654,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
         if (item) {
-            item.wantCount = Math.max(0, item.wantCount + delta);
+            const newWant = Math.max(0, item.wantCount + delta);
+            const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
+            sameNameItems.forEach(i => i.wantCount = newWant);
             saveAppState();
-            // Optimization: Update only the relevant pill if possible
-            const pill = document.querySelector(`.grocery-item[data-id="${id}"] .qty-combined-pill`);
-            if (pill) {
-                const valSpan = pill.querySelector('.want-part .qty-val');
-                if (valSpan) {
-                    valSpan.textContent = item.wantCount;
-                    valSpan.classList.remove('pop-animate');
-                    void valSpan.offsetWidth;
-                    valSpan.classList.add('pop-animate');
 
-                    const wantPart = pill.querySelector('.want-part');
-                    if (item.wantCount === 0) {
-                        wantPart.classList.add('delete-mode');
-                    } else {
-                        wantPart.classList.remove('delete-mode');
+            if (currentMode === 'home') {
+                sameNameItems.forEach(i => {
+                    const pill = document.querySelector(`.grocery-item[data-id="${i.id}"] .qty-combined-pill`);
+                    if (pill) {
+                        const wantPart = pill.querySelector('.want-part');
+                        const valSpan = wantPart?.querySelector('.qty-val');
+                        if (valSpan) {
+                            valSpan.textContent = i.wantCount;
+                            valSpan.classList.remove('pop-animate');
+                            void valSpan.offsetWidth;
+                            valSpan.classList.add('pop-animate');
+                        }
+                        if (wantPart) {
+                            wantPart.classList.toggle('delete-mode', i.wantCount === 0);
+                        }
                     }
-                    return;
-                }
+                });
+                return;
             }
+
             renderList();
         }
     }
@@ -1816,7 +1858,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     nameToSection.set(name, item.shopSectionId);
                 }
                 const group = groupedMap.get(name);
-                group.wantCount += item.wantCount;
+                group.wantCount = item.wantCount;
                 group.haveCount += item.haveCount;
                 group.allIds.push(item.id);
                 if (!item.shopCompleted) group.shopCompleted = false;
