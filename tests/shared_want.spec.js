@@ -55,29 +55,42 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
   const bananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(bananaRows).toHaveCount(2);
 
-  const firstBanana = bananaRows.first();
-  const wantPart = firstBanana.locator('.want-part');
-  await wantPart.click();
+  // Switch to Shop mode to adjust wantCount
+  await page.click('#toolbar-mode');
+  await page.waitForTimeout(500);
 
-  const plusBtn = wantPart.locator('.plus');
+  // In Shop mode, items are grouped if they have the same name.
+  const bananaGroup = page.locator('.grocery-item:has-text("Bananas")');
+  await expect(bananaGroup).toHaveCount(1); // Grouped
+
+  // Enter edit mode to see steppers
+  await page.click('#toolbar-reorder');
+
+  const plusBtn = bananaGroup.locator('.shop-stepper-btn.plus');
   await plusBtn.click();
 
-  await expect(bananaRows.first().locator('.want-part .qty-val')).toHaveText('2');
-  await expect(bananaRows.last().locator('.want-part .qty-val')).toHaveText('2');
+  await expect(bananaGroup.locator('.qty-val')).toHaveText('2');
 
-  await page.click('#toolbar-reorder');
+  // Switch back to Home mode to verify persistence/sync
+  await page.click('#toolbar-mode');
+  await page.waitForTimeout(500);
+
+  // Back in Home Mode, let's add a 3rd banana item.
+  // Make sure we are in edit mode to see "Add item"
+  if (await page.locator('.app-container').evaluate(el => el.classList.contains('hide-drag-handles'))) {
+      await page.click('#toolbar-reorder');
+  }
+
   const addBtn = page.locator('.add-item-row .add-row-plus').first();
   await addBtn.click();
   const input = page.locator('.add-item-row input.add-item-input').first();
   await input.fill('Bananas');
   await input.press('Enter');
 
-  const allBananaRows = page.locator('.grocery-item:has-text("Bananas")');
-  await expect(allBananaRows).toHaveCount(3);
-  await page.click('#toolbar-reorder');
-  await expect(allBananaRows.nth(0).locator('.want-part .qty-val')).toHaveText('2');
-  await expect(allBananaRows.nth(1).locator('.want-part .qty-val')).toHaveText('2');
-  await expect(allBananaRows.nth(2).locator('.want-part .qty-val')).toHaveText('2');
+  // Verify that the new item also got wantCount = 2 (by checking Shop mode again)
+  await page.click('#toolbar-mode');
+  await page.waitForTimeout(500);
+  await expect(page.locator('.grocery-item:has-text("Bananas")').locator('.shop-qty-circle .qty-number')).toHaveText('2');
 });
 
 test('Shop mode groups items with shared wantCount correctly', async ({ page }) => {
@@ -192,7 +205,8 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
     const bananaItems = page.locator('.grocery-item:has-text("Bananas")');
     await expect(bananaItems).toHaveCount(2);
 
-    const haveTexts = await bananaItems.locator('.have-part .qty-val').allTextContents();
+    // Standard view Home Mode shows haveCount in circles
+    const haveTexts = await bananaItems.locator('.shop-qty-circle .qty-number').allTextContents();
     const totalHave = haveTexts.reduce((sum, val) => sum + parseInt(val), 0);
     expect(totalHave).toBe(5);
     expect(haveTexts).toContain('5');
@@ -255,8 +269,16 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
     const appleRows = page.locator('.grocery-item:has-text("Apples")');
     await expect(appleRows).toHaveCount(2);
 
-    // Switch Edit Mode OFF to see controls
+    // Switch to Shop mode to check wantCount
+    await page.click('#toolbar-mode');
+    await page.waitForTimeout(500);
+
+    // In Shop mode grouped
+    const appleGroup = page.locator('.grocery-item:has-text("Apples")');
+    await expect(appleGroup).toHaveCount(1);
+
+    // Enter edit mode to see wantCount in stepper
     await page.click('#toolbar-reorder');
-    const wantTexts = await appleRows.locator('.want-part .qty-val').allTextContents();
-    expect(wantTexts).toEqual(['10', '10']);
+    const wantText = await appleGroup.locator('.qty-val').textContent();
+    expect(wantText).toBe('10');
 });
