@@ -119,6 +119,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Home Mode Item Increment (haveCount)
+        const homeItem = target.closest('.grocery-item:not(.shop-chip):not(.add-item-row):not(.add-section-row):not(.undo-row)');
+        if (homeItem && currentMode === 'home' && !editMode && !target.closest('.drag-handle') && !target.closest('.quantity-controls') && !target.closest('.item-delete-btn')) {
+            adjustHave(homeItem.dataset.id, 1);
+            return;
+        }
+
         // Shop Chip Toggle / Selection
         const shopChip = target.closest('.shop-chip');
         if (shopChip && !target.closest('.drag-handle') && !target.closest('.quantity-controls') && !target.closest('.item-delete-btn')) {
@@ -1634,19 +1641,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (item) {
             item.haveCount = Math.max(0, item.haveCount + delta);
             saveAppState();
-            // Optimization: Update only the relevant pill if possible
-            const pill = document.querySelector(`.grocery-item[data-id="${id}"] .qty-combined-pill`);
-            if (pill) {
-                const valSpan = pill.querySelector('.have-part .qty-val');
+
+            // Surgical DOM updates for all elements representing this item
+            const itemRows = document.querySelectorAll(`.grocery-item[data-id="${id}"]`);
+            itemRows.forEach(row => {
+                // Update circle
+                const qtyNum = row.querySelector('.shop-qty-circle .qty-number');
+                if (qtyNum) {
+                    if (currentMode === 'shop') {
+                        const toBuy = Math.max(0, item.wantCount - item.haveCount);
+                        qtyNum.textContent = toBuy;
+                    } else {
+                        qtyNum.textContent = item.haveCount;
+                    }
+                    qtyNum.classList.remove('pop-animate');
+                    void qtyNum.offsetWidth;
+                    qtyNum.classList.add('pop-animate');
+                }
+
+                // Update stepper if in edit mode
+                const valSpan = row.querySelector('.shop-qty-stepper .qty-val');
                 if (valSpan) {
                     valSpan.textContent = item.haveCount;
                     valSpan.classList.remove('pop-animate');
                     void valSpan.offsetWidth;
                     valSpan.classList.add('pop-animate');
-                    return;
                 }
-            }
-            renderList();
+            });
+
+            // In shop mode, grouping by name means adjustHave on one item might affect a group.
+            // Full render is safer for data consistency in Shop Mode grouped view.
+            if (currentMode === 'shop') renderList();
         }
     }
 
@@ -1659,51 +1684,36 @@ document.addEventListener('DOMContentLoaded', async () => {
             sameNameItems.forEach(i => i.wantCount = newWant);
             saveAppState();
 
-            if (currentMode === 'home') {
-                sameNameItems.forEach(i => {
-                    const pill = document.querySelector(`.grocery-item[data-id="${i.id}"] .qty-combined-pill`);
-                    if (pill) {
-                        const wantPart = pill.querySelector('.want-part');
-                        const valSpan = wantPart?.querySelector('.qty-val');
-                        if (valSpan) {
-                            valSpan.textContent = i.wantCount;
-                            valSpan.classList.remove('pop-animate');
-                            void valSpan.offsetWidth;
-                            valSpan.classList.add('pop-animate');
-                        }
-                        if (wantPart) {
-                            wantPart.classList.toggle('delete-mode', i.wantCount === 0);
-                        }
+            sameNameItems.forEach(i => {
+                const itemRows = document.querySelectorAll(`.grocery-item[data-id="${i.id}"]`);
+                itemRows.forEach(row => {
+                    // Update stepper
+                    const valSpan = row.querySelector('.shop-qty-stepper .qty-val');
+                    if (valSpan) {
+                        valSpan.textContent = i.wantCount;
+                        valSpan.classList.remove('pop-animate');
+                        void valSpan.offsetWidth;
+                        valSpan.classList.add('pop-animate');
                     }
-                });
-                return;
-            }
 
-            if (currentMode === 'shop') {
-                sameNameItems.forEach(i => {
-                    const stepper = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-qty-stepper`);
-                    if (stepper) {
-                        const valSpan = stepper.querySelector('.qty-val');
-                        if (valSpan) {
-                            valSpan.textContent = i.wantCount;
-                            valSpan.classList.remove('pop-animate');
-                            void valSpan.offsetWidth;
-                            valSpan.classList.add('pop-animate');
-                        }
-                    }
-                    const circle = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-qty-circle`);
-                    if (circle) {
-                        const qtyNum = circle.querySelector('.qty-number');
-                        if (qtyNum) {
+                    // Update circle (Shop Mode shows toBuy, Home Mode now shows haveCount)
+                    const qtyNum = row.querySelector('.shop-qty-circle .qty-number');
+                    if (qtyNum) {
+                        if (currentMode === 'shop') {
                             const toBuy = Math.max(0, i.wantCount - i.haveCount);
                             qtyNum.textContent = toBuy;
+                        } else {
+                            qtyNum.textContent = i.haveCount;
                         }
                     }
                 });
-                return;
-            }
+            });
 
-            renderList();
+            if (currentMode === 'shop' && delta !== 0) {
+                // In shop mode, changing want might hide/show items (zero-qty)
+                // so we might need a full render if they become zero.
+                // For now, let's see if surgical is enough.
+            }
         }
     }
 
@@ -2041,6 +2051,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="drag-handle" draggable="true">
                                 <i class="fas fa-grip-vertical"></i>
                             </div>
+                            <div class="shop-qty-circle">
+                                <span class="qty-number">${item.haveCount}</span>
+                                <i class="fas fa-check check-icon"></i>
+                            </div>
                         </div>
                         <div class="item-info">
                             <span class="item-text">${escapeHTML(item.text)}</span>
@@ -2049,7 +2063,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button class="item-delete-btn"><i class="fas fa-times"></i></button>
                     `;
 
-                    li.querySelector('.quantity-controls').appendChild(createCombinedQtyControl(item));
+                    li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'have'));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     li.innerHTML = `
@@ -2068,7 +2082,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="quantity-controls"></div>
                     `;
 
-                    li.querySelector('.quantity-controls').appendChild(createShopQtyStepper(item));
+                    li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
                 }
 
                 itemsUl.appendChild(li);
@@ -2136,89 +2150,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         newlyDeletedIds.clear();
     }
 
-    function createQtyPart(group, value, type) {
-        const part = document.createElement('div');
-        part.className = `qty-part ${type}-part`;
-
-        const btnMinus = document.createElement('button');
-        btnMinus.className = 'qty-btn minus';
-        const minusIcon = document.createElement('i');
-        minusIcon.className = 'fas fa-minus icon-default';
-        const trashIcon = document.createElement('i');
-        trashIcon.className = 'fas fa-trash icon-delete';
-        btnMinus.appendChild(minusIcon);
-        btnMinus.appendChild(trashIcon);
-
-        const valSpan = document.createElement('span');
-        valSpan.className = 'qty-val';
-        valSpan.textContent = value;
-
-        const btnPlus = document.createElement('button');
-        btnPlus.className = 'qty-btn plus';
-        btnPlus.innerHTML = '<i class="fas fa-plus"></i>';
-
-        part.appendChild(btnMinus);
-        part.appendChild(valSpan);
-        part.appendChild(btnPlus);
-
-        part.addEventListener('click', (e) => {
-            e.stopPropagation();
-
-            document.querySelectorAll('.qty-part.expanded').forEach(p => {
-                if (p !== part) {
-                    p.classList.remove('expanded');
-                    // Also remove active from the other pill if it's not our own parent
-                    const otherGroup = p.closest('.qty-combined-pill');
-                    if (otherGroup && otherGroup !== group) {
-                        otherGroup.classList.remove('active');
-                    }
-                }
-            });
-            part.classList.add('expanded');
-            group.classList.add('active'); // For overall styling if needed
-        });
-
-        return { part, valSpan, btnMinus, btnPlus };
-    }
-
-    function createCombinedQtyControl(item) {
+    function createQtyStepper(item, type) {
         const group = document.createElement('div');
-        group.className = 'qty-combined-pill';
-
-        const have = createQtyPart(group, item.haveCount, 'have');
-        const want = createQtyPart(group, item.wantCount, 'want');
-
-        const separator = document.createElement('span');
-        separator.className = 'qty-divider';
-        separator.textContent = '/';
-
-        group.appendChild(have.part);
-        group.appendChild(separator);
-        group.appendChild(want.part);
-
-        if (item.wantCount === 0) {
-            want.part.classList.add('delete-mode');
-        }
-
-        have.btnMinus.addEventListener('click', (e) => { e.stopPropagation(); adjustHave(item.id, -1); });
-        have.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); adjustHave(item.id, 1); });
-
-        want.btnMinus.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (item.wantCount === 0) {
-                deleteItem(item.id);
-            } else {
-                adjustWant(item.id, -1);
-            }
-        });
-        want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); adjustWant(item.id, 1); });
-
-        return group;
-    }
-
-    function createShopQtyStepper(item) {
-        const group = document.createElement('div');
-        group.className = 'shop-qty-stepper';
+        group.className = 'shop-qty-stepper'; // Keep name for now to reuse CSS
 
         const btnMinus = document.createElement('button');
         btnMinus.className = 'shop-stepper-btn minus';
@@ -2226,7 +2160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const valSpan = document.createElement('span');
         valSpan.className = 'qty-val';
-        valSpan.textContent = item.wantCount;
+        valSpan.textContent = type === 'have' ? item.haveCount : item.wantCount;
 
         const btnPlus = document.createElement('button');
         btnPlus.className = 'shop-stepper-btn plus';
@@ -2238,11 +2172,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         btnMinus.addEventListener('click', (e) => {
             e.stopPropagation();
-            adjustWant(item.id, -1);
+            if (type === 'have') {
+                adjustHave(item.id, -1);
+            } else {
+                adjustWant(item.id, -1);
+            }
         });
         btnPlus.addEventListener('click', (e) => {
             e.stopPropagation();
-            adjustWant(item.id, 1);
+            if (type === 'have') {
+                adjustHave(item.id, 1);
+            } else {
+                adjustWant(item.id, 1);
+            }
         });
 
         return group;
