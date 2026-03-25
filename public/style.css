@@ -2284,11 +2284,19 @@ h1 {
 }
 
 .home-mode.hide-drag-handles .qty-combined-pill {
-    display: none;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    transform: scale(0.5);
+    visibility: hidden;
 }
 
 .home-mode:not(.hide-drag-handles) .home-qty-input {
-    display: none;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    transform: scale(0.5);
+    visibility: hidden;
 }
 
 /* Home Mode Standard View: Show Input (40px), Hide Pill */
@@ -2300,13 +2308,17 @@ h1 {
     overflow: visible;
 }
 
-/* Home Mode Edit Mode: Hide Input, Show Pill (104px) */
+/* Home Mode Edit Mode: Show Pill (104px), Hide Input */
 .home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls {
-    width: 0;
-    opacity: 0;
-    transform: scale(0.5);
-    pointer-events: none;
-    overflow: hidden;
+    width: 104px;
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    overflow: visible;
+}
+
+.qty-combined-pill, .home-qty-input {
+    transition: opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 

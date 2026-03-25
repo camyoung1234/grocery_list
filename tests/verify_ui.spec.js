@@ -73,7 +73,7 @@ test('verify edit mode UI consistency', async ({ page }) => {
 
     const qtyWidth = await qtyControls.evaluate(el => getComputedStyle(el).width);
     console.log(`Qty controls width: ${qtyWidth}`);
-    expect(qtyWidth).toBe('0px');
+    expect(qtyWidth).toBe('104px');
 
     await expect(dragHandle).toBeVisible();
     const handleOpacity = await dragHandle.evaluate(el => getComputedStyle(el).opacity);

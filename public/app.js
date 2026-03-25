@@ -639,7 +639,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             editMode = !editMode;
             saveMode();
             updateModeUI();
-            renderList();
 
             // Maintain scroll position for the top row
             if (topRow) {
@@ -2227,11 +2226,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.className = 'home-qty-input';
         input.value = item.haveCount;
 
-        input.addEventListener('click', (e) => e.stopPropagation());
+        // Prevent native context menu (cut/copy/paste)
+        input.oncontextmenu = (e) => e.preventDefault();
 
-        input.addEventListener('focus', () => {
-            input.select();
-        });
+        // Handle focus via mousedown/touchstart to suppress Android toolbar
+        const handleTap = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            input.focus();
+            // Using a timeout to ensure selection happens after focus
+            setTimeout(() => {
+                input.setSelectionRange(0, input.value.length);
+            }, 0);
+        };
+        input.addEventListener('mousedown', handleTap);
+        input.addEventListener('touchstart', handleTap);
 
         input.addEventListener('change', () => {
             const val = parseInt(input.value, 10);
