@@ -2049,7 +2049,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button class="item-delete-btn"><i class="fas fa-times"></i></button>
                     `;
 
-                    li.querySelector('.quantity-controls').appendChild(createCombinedQtyControl(item));
+                    const controls = li.querySelector('.quantity-controls');
+                    controls.appendChild(createHomeQtyInput(item));
+                    controls.appendChild(createCombinedQtyControl(item));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     li.innerHTML = `
@@ -2214,6 +2216,67 @@ document.addEventListener('DOMContentLoaded', async () => {
         want.btnPlus.addEventListener('click', (e) => { e.stopPropagation(); adjustWant(item.id, 1); });
 
         return group;
+    }
+
+    function createHomeQtyInput(item) {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.inputMode = 'numeric';
+        input.pattern = '[0-9]*';
+        input.className = 'home-qty-input';
+        input.value = item.haveCount;
+
+        // Prevent native context menu (cut/copy/paste)
+        input.oncontextmenu = (e) => e.preventDefault();
+
+        // Handle focus via mousedown/touchstart to suppress Android toolbar
+        const handleTap = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            input.focus();
+            // Using a timeout to ensure selection happens after focus
+            setTimeout(() => {
+                input.setSelectionRange(0, input.value.length);
+            }, 0);
+        };
+        input.addEventListener('mousedown', handleTap);
+        input.addEventListener('touchstart', handleTap);
+
+        input.addEventListener('change', () => {
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val) && val >= 0) {
+                item.haveCount = val;
+                saveAppState();
+                // Sync with the hidden stepper if it exists
+                const pill = document.querySelector(`.grocery-item[data-id="${item.id}"] .qty-combined-pill`);
+                if (pill) {
+                    const valSpan = pill.querySelector('.have-part .qty-val');
+                    if (valSpan) {
+                        valSpan.textContent = item.haveCount;
+                        valSpan.classList.remove('pop-animate');
+                        void valSpan.offsetWidth;
+                        valSpan.classList.add('pop-animate');
+                    }
+                }
+            } else {
+                input.value = item.haveCount;
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const allInputs = Array.from(document.querySelectorAll('.home-qty-input'));
+                const index = allInputs.indexOf(input);
+                if (index >= 0 && index < allInputs.length - 1) {
+                    allInputs[index + 1].focus();
+                } else {
+                    input.blur();
+                }
+            }
+        });
+
+        return input;
     }
 
     function createShopQtyStepper(item) {
