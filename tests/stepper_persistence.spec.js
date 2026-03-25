@@ -32,13 +32,13 @@ test('Stepper remains expanded after incrementing wanted quantity', async ({ pag
       sharedWantSynced: true
     };
     localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-edit-mode', 'false'); // This makes .hide-drag-handles true, revealing controls
+    localStorage.setItem('grocery-edit-mode', 'true'); // This makes .hide-drag-handles false, revealing controls
     window.location.reload();
   });
 
-  // Verify Edit Mode is OFF (Home Mode uses Edit Mode OFF to show controls)
+  // Verify Edit Mode is ON
   const appContainer = page.locator('.app-container');
-  await expect(appContainer).toHaveClass(/hide-drag-handles/);
+  await expect(appContainer).not.toHaveClass(/hide-drag-handles/);
 
   const milkRow = page.locator('.grocery-item:has-text("Milk")');
   const wantPart = milkRow.locator('.want-part');

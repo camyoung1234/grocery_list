@@ -2244,9 +2244,7 @@ h1 {
 }
 
 
-.home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
 .shop-mode.hide-drag-handles .grocery-item .quantity-controls,
-.touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
 .touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
     width: 0;
     opacity: 0;
@@ -2254,6 +2252,63 @@ h1 {
     pointer-events: none;
     overflow: hidden;
 }
+
+.home-qty-input {
+    width: 40px;
+    height: 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--primary-color);
+    text-align: center;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    outline: none;
+    transition: var(--transition);
+}
+
+.home-qty-input:focus {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 5%, transparent);
+}
+
+/* Hide spin buttons */
+.home-qty-input::-webkit-outer-spin-button,
+.home-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.home-qty-input {
+    -moz-appearance: textfield;
+}
+
+.home-mode.hide-drag-handles .qty-combined-pill {
+    display: none;
+}
+
+.home-mode:not(.hide-drag-handles) .home-qty-input {
+    display: none;
+}
+
+/* Home Mode Standard View: Show Input (40px), Hide Pill */
+.home-mode.hide-drag-handles .grocery-item .quantity-controls {
+    width: 40px;
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    overflow: visible;
+}
+
+/* Home Mode Edit Mode: Hide Input, Show Pill (104px) */
+.home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls {
+    width: 0;
+    opacity: 0;
+    transform: scale(0.5);
+    pointer-events: none;
+    overflow: hidden;
+}
+
 
 .shop-qty-stepper {
     display: flex;

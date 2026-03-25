@@ -48,7 +48,7 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
       sharedWantSynced: true
     };
     localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-edit-mode', 'false');
+    localStorage.setItem('grocery-edit-mode', 'true');
     window.location.reload();
   });
 
@@ -64,8 +64,6 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
 
   await expect(bananaRows.first().locator('.want-part .qty-val')).toHaveText('2');
   await expect(bananaRows.last().locator('.want-part .qty-val')).toHaveText('2');
-
-  await page.click('#toolbar-reorder');
   const addBtn = page.locator('.add-item-row .add-row-plus').first();
   await addBtn.click();
   const input = page.locator('.add-item-row input.add-item-input').first();
@@ -74,7 +72,6 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
 
   const allBananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(allBananaRows).toHaveCount(3);
-  await page.click('#toolbar-reorder');
   await expect(allBananaRows.nth(0).locator('.want-part .qty-val')).toHaveText('2');
   await expect(allBananaRows.nth(1).locator('.want-part .qty-val')).toHaveText('2');
   await expect(allBananaRows.nth(2).locator('.want-part .qty-val')).toHaveText('2');
@@ -255,7 +252,6 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
     const appleRows = page.locator('.grocery-item:has-text("Apples")');
     await expect(appleRows).toHaveCount(2);
 
-    // Switch Edit Mode OFF to see controls
     await page.click('#toolbar-reorder');
     const wantTexts = await appleRows.locator('.want-part .qty-val').allTextContents();
     expect(wantTexts).toEqual(['10', '10']);
