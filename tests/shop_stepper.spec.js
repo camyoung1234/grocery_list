@@ -31,14 +31,14 @@ test('verify shop mode quantity stepper', async ({ page }) => {
     await expect(qtyControls).toBeVisible();
 
     // Verify stepper exists
-    const stepper = page.locator('.shop-qty-stepper');
+    const stepper = page.locator('.want-stepper');
     await expect(stepper).toBeVisible();
 
     const valSpan = stepper.locator('.qty-val');
     await expect(valSpan).toHaveText('1');
 
     // Click plus button
-    await page.click('.shop-stepper-btn.plus');
+    await page.click('.qty-stepper-btn.plus');
     await expect(valSpan).toHaveText('2');
 
     // Verify shop qty circle also updated
@@ -46,7 +46,7 @@ test('verify shop mode quantity stepper', async ({ page }) => {
     await expect(circleNum).toHaveText('2');
 
     // Click minus button
-    await page.click('.shop-stepper-btn.minus');
+    await page.click('.qty-stepper-btn.minus');
     await expect(valSpan).toHaveText('1');
     await expect(circleNum).toHaveText('1');
 

@@ -446,11 +446,11 @@ h1 {
 .quantity-controls {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     width: 104px;
     /* Fix width to enable transition */
     opacity: 1;
     overflow: visible;
-    /* Changed from hidden to allow expansion overlay */
     position: relative;
     z-index: 200;
     transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear;
@@ -930,159 +930,59 @@ h1 {
     color: var(--primary-color);
 }
 
-/* Quantity Controls (Home Mode - Combined Expandable) */
+/* Quantity Controls (Simplified Steppers) */
 
-.qty-combined-pill {
-    display: flex;
+.qty-stepper {
+    display: none;
     align-items: center;
-    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
-    border-radius: 14px;
-    overflow: hidden;
-    transition: margin-left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s ease;
-    margin-left: 0;
+    gap: 0.5rem;
+    position: relative;
+    z-index: 100;
 }
 
-@media (hover: hover) {
-    .qty-combined-pill:hover {
-        background: color-mix(in srgb, var(--primary-color) 25%, transparent);
-    }
-}
-
-.qty-combined-pill.active {
-    background: color-mix(in srgb, var(--primary-color) 25%, transparent);
-    /* Offset the exact width added by the two 26px buttons so the layout width is unchanged */
-    margin-left: -52px;
-}
-
-.qty-divider {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    font-weight: 500;
-    padding: 0 0.2rem;
-    user-select: none;
-}
-
-.qty-part {
+.home-mode.hide-drag-handles .have-stepper {
     display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: var(--transition);
-    border-radius: 14px;
-    border: 1px solid transparent;
-    /* Prevent layout shift when expanded adds border */
 }
 
-.qty-part .qty-val {
-    font-weight: 600;
-    font-size: 0.8rem;
-    padding: 0.3rem 0.6rem;
-    color: var(--text-color);
-    white-space: nowrap;
-    user-select: none;
-    min-width: 1rem;
-    text-align: center;
+.home-mode:not(.hide-drag-handles) .want-stepper,
+.shop-mode:not(.hide-drag-handles) .want-stepper {
+    display: flex;
 }
 
-.qty-part .qty-btn {
-    background: transparent;
-    border: none;
-    color: var(--primary-color);
-    width: 0;
-    opacity: 0;
-    pointer-events: none;
-    transform: scale(0.5);
-    padding: 0;
-    margin: 0;
+.qty-stepper-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* Expanded State */
-.qty-part.expanded {
-    background: var(--card-bg);
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
-    border: 1px solid var(--border-color);
-    cursor: default;
-    z-index: 100;
-    /* Ensure it stays on top of everything */
-}
-
-.qty-part.expanded .qty-btn {
-    width: 26px;
-    height: 26px;
-    opacity: 1;
-    pointer-events: auto;
-    transform: scale(1);
-}
-
-@media (hover: hover) {
-    .qty-part.expanded .qty-btn:hover {
-        background: var(--primary-color);
-        color: white;
-        border-radius: 44px;
-    }
-}
-
-.qty-part.expanded .qty-btn:active {
-    background: color-mix(in srgb, var(--primary-color) 40%, transparent);
+    background: transparent;
+    border: 2px solid var(--text-color);
+    color: var(--text-color);
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    padding: 0;
+}
+
+.qty-stepper-btn:active {
     transform: scale(0.85);
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
 }
 
-/* Delete Mode for Want Count - Icon Transition */
-.qty-part.expanded .qty-btn.minus {
-    position: relative;
-    /* For absolute positioning of icons */
-    overflow: hidden;
-    /* To keep scaling contained */
+.shop-chip.selected .qty-stepper-btn {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
-.qty-btn.minus .icon-default,
-.qty-btn.minus .icon-delete {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.qty-btn.minus .icon-default {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
-}
-
-.qty-btn.minus .icon-delete {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5) rotate(-90deg);
-}
-
-.qty-part.delete-mode.expanded .qty-btn.minus .icon-default {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5) rotate(90deg);
-}
-
-.qty-part.delete-mode.expanded .qty-btn.minus .icon-delete {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
-}
-
-.qty-part.delete-mode.expanded .qty-btn.minus {
-    color: var(--danger-color);
-}
-
-@media (hover: hover) {
-    .qty-part.delete-mode.expanded .qty-btn.minus:hover {
-        background: var(--danger-color);
-        color: white;
-    }
-}
-
-.qty-part.delete-mode.expanded .qty-btn.minus:active {
-    background: color-mix(in srgb, var(--danger-color) 40%, transparent);
-    transform: scale(0.85);
+.qty-stepper .qty-val {
+    min-width: 1.5rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    transition: var(--transition);
+    display: inline-block;
+    /* For transform animation */
 }
 
 /* Buy Badge (Shop Mode) */
@@ -1356,15 +1256,6 @@ h1 {
     transition: var(--transition);
 }
 
-.qty-part .qty-val {
-    min-width: 1.5rem;
-    text-align: center;
-    font-weight: 700;
-    font-size: 1rem;
-    transition: var(--transition);
-    display: inline-block;
-    /* For transform animation */
-}
 
 @keyframes pop {
     0% {
@@ -2068,12 +1959,14 @@ h1 {
 
 .shop-qty-circle {
     opacity: 0;
+    visibility: hidden;
     transform: translate(-50%, -50%) scale(0.5);
     pointer-events: none;
 }
 
 .hide-drag-handles .shop-qty-circle {
     opacity: 1;
+    visibility: visible;
     transform: translate(-50%, -50%) scale(1);
     pointer-events: auto;
 }
@@ -2244,49 +2137,13 @@ h1 {
 }
 
 
-.home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
 .shop-mode.hide-drag-handles .grocery-item .quantity-controls,
-.touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
 .touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
     width: 0;
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
-}
-
-.shop-qty-stepper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    position: relative;
-    z-index: 100;
-}
-
-.shop-stepper-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: 2px solid var(--text-color);
-    color: var(--text-color);
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    font-size: 0.7rem;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    padding: 0;
-}
-
-.shop-stepper-btn:active {
-    transform: scale(0.85);
-    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
-}
-
-.shop-chip.selected .shop-stepper-btn {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
 }
 
 /* Commit Animation States */
