@@ -2028,7 +2028,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     const controls = li.querySelector('.quantity-controls');
                     controls.appendChild(createQtyStepper(item, 'have'));
-                    controls.appendChild(createQtyStepper(item, 'want'));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     li.innerHTML = `

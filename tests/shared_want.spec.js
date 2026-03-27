@@ -55,7 +55,8 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
   const bananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(bananaRows).toHaveCount(2);
 
-  // Switch to Edit Mode to change wantCount
+  // Switch to Shop Mode to change wantCount (removed from Home Mode)
+  await page.click('#toolbar-mode');
   await page.click('#toolbar-reorder');
 
   const firstBanana = bananaRows.first();
@@ -65,7 +66,8 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
   await expect(bananaRows.first().locator('.want-stepper .qty-input')).toHaveValue('2');
   await expect(bananaRows.last().locator('.want-stepper .qty-input')).toHaveValue('2');
 
-  // We are already in Edit Mode
+  // Switch back to Home Mode to add another item
+  await page.click('#toolbar-mode');
   const addBtn = page.locator('.add-item-row .add-row-plus').first();
   await addBtn.click();
   const input = page.locator('.add-item-row input.add-item-input').first();
@@ -74,10 +76,11 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
 
   const allBananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(allBananaRows).toHaveCount(3);
-  // Verify wantCount sync in Edit Mode
-  await expect(allBananaRows.nth(0).locator('.want-stepper .qty-input')).toHaveValue('2');
-  await expect(allBananaRows.nth(1).locator('.want-stepper .qty-input')).toHaveValue('2');
-  await expect(allBananaRows.nth(2).locator('.want-stepper .qty-input')).toHaveValue('2');
+  // Verify wantCount sync in Shop Edit Mode
+  await page.click('#toolbar-mode');
+  await expect(page.locator('.app-container')).toHaveClass(/shop-mode/);
+  await expect(page.locator('.grocery-item:has-text("Bananas")')).toHaveCount(1);
+  await expect(page.locator('.grocery-item:has-text("Bananas")').locator('.want-stepper .qty-input')).toHaveValue('2');
 });
 
 test('Shop mode groups items with shared wantCount correctly', async ({ page }) => {
@@ -255,7 +258,10 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
     const appleRows = page.locator('.grocery-item:has-text("Apples")');
     await expect(appleRows).toHaveCount(2);
 
-    // Verify wantCount sync in Edit Mode
-    const wantTexts = await appleRows.locator('.want-stepper .qty-input').evaluateAll(inputs => inputs.map(i => i.value));
-    expect(wantTexts).toEqual(['10', '10']);
+    // Verify wantCount sync in Shop Edit Mode (removed from Home Mode)
+    await page.click('#toolbar-mode');
+    await expect(page.locator('.app-container')).toHaveClass(/shop-mode/);
+    const appleGroup = page.locator('.grocery-item:has-text("Apples")');
+    await expect(appleGroup).toHaveCount(1);
+    await expect(appleGroup.locator('.want-stepper .qty-input')).toHaveValue('10');
 });
