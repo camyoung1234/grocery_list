@@ -1628,21 +1628,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderList();
     }
 
-    function adjustHave(id, delta) {
+    function setHave(id, value) {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
         if (item) {
-            item.haveCount = Math.max(0, item.haveCount + delta);
+            item.haveCount = Math.max(0, parseInt(value) || 0);
             saveAppState();
-            // Optimization: Update only the relevant stepper if possible
+            // Optimization: Update only the relevant input if possible
             const stepper = document.querySelector(`.grocery-item[data-id="${id}"] .have-stepper`);
             if (stepper) {
-                const valSpan = stepper.querySelector('.qty-val');
-                if (valSpan) {
-                    valSpan.textContent = item.haveCount;
-                    valSpan.classList.remove('pop-animate');
-                    void valSpan.offsetWidth;
-                    valSpan.classList.add('pop-animate');
+                const input = stepper.querySelector('.qty-input');
+                if (input) {
+                    input.value = item.haveCount;
+                    input.classList.remove('pop-animate');
+                    void input.offsetWidth;
+                    input.classList.add('pop-animate');
                     return;
                 }
             }
@@ -1650,11 +1650,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function adjustWant(id, delta) {
+    function setWant(id, value) {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
         if (item) {
-            const newWant = Math.max(0, item.wantCount + delta);
+            const newWant = Math.max(0, parseInt(value) || 0);
             const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
             sameNameItems.forEach(i => i.wantCount = newWant);
             saveAppState();
@@ -1662,12 +1662,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             sameNameItems.forEach(i => {
                 const stepper = document.querySelector(`.grocery-item[data-id="${i.id}"] .want-stepper`);
                 if (stepper) {
-                    const valSpan = stepper.querySelector('.qty-val');
-                    if (valSpan) {
-                        valSpan.textContent = i.wantCount;
-                        valSpan.classList.remove('pop-animate');
-                        void valSpan.offsetWidth;
-                        valSpan.classList.add('pop-animate');
+                    const input = stepper.querySelector('.qty-input');
+                    if (input) {
+                        input.value = i.wantCount;
+                        input.classList.remove('pop-animate');
+                        void input.offsetWidth;
+                        input.classList.add('pop-animate');
                     }
                 }
                 const circle = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-qty-circle`);
@@ -2119,36 +2119,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         const group = document.createElement('div');
         group.className = `qty-stepper ${type}-stepper`;
 
-        const btnMinus = document.createElement('button');
-        btnMinus.className = 'qty-stepper-btn minus';
-        btnMinus.innerHTML = '<i class="fas fa-minus"></i>';
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.inputMode = 'numeric';
+        input.min = '0';
+        input.step = '1';
+        input.className = 'qty-input';
+        input.value = type === 'have' ? item.haveCount : item.wantCount;
 
-        const valSpan = document.createElement('span');
-        valSpan.className = 'qty-val';
-        valSpan.textContent = type === 'have' ? item.haveCount : item.wantCount;
+        group.appendChild(input);
 
-        const btnPlus = document.createElement('button');
-        btnPlus.className = 'qty-stepper-btn plus';
-        btnPlus.innerHTML = '<i class="fas fa-plus"></i>';
+        input.addEventListener('click', (e) => e.stopPropagation());
+        input.addEventListener('focus', function() {
+            this.select();
+        });
 
-        group.appendChild(btnMinus);
-        group.appendChild(valSpan);
-        group.appendChild(btnPlus);
-
-        btnMinus.addEventListener('click', (e) => {
-            e.stopPropagation();
+        input.addEventListener('input', () => {
             if (type === 'have') {
-                adjustHave(item.id, -1);
+                setHave(item.id, input.value);
             } else {
-                adjustWant(item.id, -1);
+                setWant(item.id, input.value);
             }
         });
-        btnPlus.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (type === 'have') {
-                adjustHave(item.id, 1);
-            } else {
-                adjustWant(item.id, 1);
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                // Find next visible qty-input
+                const allInputs = Array.from(document.querySelectorAll('.qty-input'));
+                const visibleInputs = allInputs.filter(inp => {
+                    const style = window.getComputedStyle(inp.parentElement);
+                    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+                });
+                const idx = visibleInputs.indexOf(input);
+                if (idx !== -1 && idx < visibleInputs.length - 1) {
+                    visibleInputs[idx + 1].focus();
+                } else {
+                    input.blur();
+                }
             }
         });
 

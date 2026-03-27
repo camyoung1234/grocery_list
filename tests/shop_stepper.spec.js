@@ -30,24 +30,22 @@ test('verify shop mode quantity stepper', async ({ page }) => {
     const qtyControls = page.locator('.grocery-item .quantity-controls');
     await expect(qtyControls).toBeVisible();
 
-    // Verify stepper exists
-    const stepper = page.locator('.want-stepper');
-    await expect(stepper).toBeVisible();
+    // Verify input exists
+    const wantInput = page.locator('.want-stepper .qty-input');
+    await expect(wantInput).toBeVisible();
+    await expect(wantInput).toHaveValue('1');
 
-    const valSpan = stepper.locator('.qty-val');
-    await expect(valSpan).toHaveText('1');
-
-    // Click plus button
-    await page.click('.qty-stepper-btn.plus');
-    await expect(valSpan).toHaveText('2');
+    // Change value
+    await wantInput.fill('2');
+    await expect(wantInput).toHaveValue('2');
 
     // Verify shop qty circle also updated
     const circleNum = page.locator('.shop-qty-circle .qty-number');
     await expect(circleNum).toHaveText('2');
 
-    // Click minus button
-    await page.click('.qty-stepper-btn.minus');
-    await expect(valSpan).toHaveText('1');
+    // Change back
+    await wantInput.fill('1');
+    await expect(wantInput).toHaveValue('1');
     await expect(circleNum).toHaveText('1');
 
     // Exit Edit Mode and verify controls are hidden

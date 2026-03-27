@@ -59,12 +59,11 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
   await page.click('#toolbar-reorder');
 
   const firstBanana = bananaRows.first();
-  const wantStepper = firstBanana.locator('.want-stepper');
-  const plusBtn = wantStepper.locator('.plus');
-  await plusBtn.click();
+  const wantInput = firstBanana.locator('.want-stepper .qty-input');
+  await wantInput.fill('2');
 
-  await expect(bananaRows.first().locator('.want-stepper .qty-val')).toHaveText('2');
-  await expect(bananaRows.last().locator('.want-stepper .qty-val')).toHaveText('2');
+  await expect(bananaRows.first().locator('.want-stepper .qty-input')).toHaveValue('2');
+  await expect(bananaRows.last().locator('.want-stepper .qty-input')).toHaveValue('2');
 
   // We are already in Edit Mode
   const addBtn = page.locator('.add-item-row .add-row-plus').first();
@@ -76,9 +75,9 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
   const allBananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(allBananaRows).toHaveCount(3);
   // Verify wantCount sync in Edit Mode
-  await expect(allBananaRows.nth(0).locator('.want-stepper .qty-val')).toHaveText('2');
-  await expect(allBananaRows.nth(1).locator('.want-stepper .qty-val')).toHaveText('2');
-  await expect(allBananaRows.nth(2).locator('.want-stepper .qty-val')).toHaveText('2');
+  await expect(allBananaRows.nth(0).locator('.want-stepper .qty-input')).toHaveValue('2');
+  await expect(allBananaRows.nth(1).locator('.want-stepper .qty-input')).toHaveValue('2');
+  await expect(allBananaRows.nth(2).locator('.want-stepper .qty-input')).toHaveValue('2');
 });
 
 test('Shop mode groups items with shared wantCount correctly', async ({ page }) => {
@@ -193,8 +192,8 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
     const bananaItems = page.locator('.grocery-item:has-text("Bananas")');
     await expect(bananaItems).toHaveCount(2);
 
-    const haveTexts = await bananaItems.locator('.have-stepper .qty-val').allTextContents();
-    const totalHave = haveTexts.reduce((sum, val) => sum + parseInt(val), 0);
+    const haveTexts = await bananaItems.locator('.have-stepper .qty-input').evaluateAll(inputs => inputs.map(i => i.value));
+    const totalHave = haveTexts.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
     expect(totalHave).toBe(5);
     expect(haveTexts).toContain('5');
     expect(haveTexts).toContain('0');
@@ -257,6 +256,6 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
     await expect(appleRows).toHaveCount(2);
 
     // Verify wantCount sync in Edit Mode
-    const wantTexts = await appleRows.locator('.want-stepper .qty-val').allTextContents();
+    const wantTexts = await appleRows.locator('.want-stepper .qty-input').evaluateAll(inputs => inputs.map(i => i.value));
     expect(wantTexts).toEqual(['10', '10']);
 });
