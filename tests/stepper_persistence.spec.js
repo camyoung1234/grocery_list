@@ -40,20 +40,16 @@ test('Stepper remains expanded after incrementing wanted quantity', async ({ pag
   const appContainer = page.locator('.app-container');
   await expect(appContainer).toHaveClass(/hide-drag-handles/);
 
+  // Note: Expansion logic was removed in favor of simplified always-visible steppers.
+  // This test is updated to verify simple increment in Edit Mode.
+  await page.click('#toolbar-reorder');
   const milkRow = page.locator('.grocery-item:has-text("Milk")');
-  const wantPart = milkRow.locator('.want-part');
+  const wantStepper = milkRow.locator('.want-stepper');
 
-  // 1. Expand the 'want' part
-  await wantPart.click();
-  await expect(wantPart).toHaveClass(/expanded/);
-
-  // 2. Click the plus button to increment
-  const plusBtn = wantPart.locator('.plus');
+  // 1. Click the plus button to increment
+  const plusBtn = wantStepper.locator('.plus');
   await plusBtn.click();
 
-  // 3. Verify quantity incremented
-  await expect(wantPart.locator('.qty-val')).toHaveText('2');
-
-  // 4. Verify stepper remains expanded
-  await expect(wantPart).toHaveClass(/expanded/);
+  // 2. Verify quantity incremented
+  await expect(wantStepper.locator('.qty-val')).toHaveText('2');
 });

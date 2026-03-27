@@ -55,17 +55,18 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
   const bananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(bananaRows).toHaveCount(2);
 
-  const firstBanana = bananaRows.first();
-  const wantPart = firstBanana.locator('.want-part');
-  await wantPart.click();
+  // Switch to Edit Mode to change wantCount
+  await page.click('#toolbar-reorder');
 
-  const plusBtn = wantPart.locator('.plus');
+  const firstBanana = bananaRows.first();
+  const wantStepper = firstBanana.locator('.want-stepper');
+  const plusBtn = wantStepper.locator('.plus');
   await plusBtn.click();
 
-  await expect(bananaRows.first().locator('.want-part .qty-val')).toHaveText('2');
-  await expect(bananaRows.last().locator('.want-part .qty-val')).toHaveText('2');
+  await expect(bananaRows.first().locator('.want-stepper .qty-val')).toHaveText('2');
+  await expect(bananaRows.last().locator('.want-stepper .qty-val')).toHaveText('2');
 
-  await page.click('#toolbar-reorder');
+  // We are already in Edit Mode
   const addBtn = page.locator('.add-item-row .add-row-plus').first();
   await addBtn.click();
   const input = page.locator('.add-item-row input.add-item-input').first();
@@ -74,10 +75,10 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
 
   const allBananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(allBananaRows).toHaveCount(3);
-  await page.click('#toolbar-reorder');
-  await expect(allBananaRows.nth(0).locator('.want-part .qty-val')).toHaveText('2');
-  await expect(allBananaRows.nth(1).locator('.want-part .qty-val')).toHaveText('2');
-  await expect(allBananaRows.nth(2).locator('.want-part .qty-val')).toHaveText('2');
+  // Verify wantCount sync in Edit Mode
+  await expect(allBananaRows.nth(0).locator('.want-stepper .qty-val')).toHaveText('2');
+  await expect(allBananaRows.nth(1).locator('.want-stepper .qty-val')).toHaveText('2');
+  await expect(allBananaRows.nth(2).locator('.want-stepper .qty-val')).toHaveText('2');
 });
 
 test('Shop mode groups items with shared wantCount correctly', async ({ page }) => {
@@ -192,7 +193,7 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
     const bananaItems = page.locator('.grocery-item:has-text("Bananas")');
     await expect(bananaItems).toHaveCount(2);
 
-    const haveTexts = await bananaItems.locator('.have-part .qty-val').allTextContents();
+    const haveTexts = await bananaItems.locator('.have-stepper .qty-val').allTextContents();
     const totalHave = haveTexts.reduce((sum, val) => sum + parseInt(val), 0);
     expect(totalHave).toBe(5);
     expect(haveTexts).toContain('5');
@@ -255,8 +256,7 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
     const appleRows = page.locator('.grocery-item:has-text("Apples")');
     await expect(appleRows).toHaveCount(2);
 
-    // Switch Edit Mode OFF to see controls
-    await page.click('#toolbar-reorder');
-    const wantTexts = await appleRows.locator('.want-part .qty-val').allTextContents();
+    // Verify wantCount sync in Edit Mode
+    const wantTexts = await appleRows.locator('.want-stepper .qty-val').allTextContents();
     expect(wantTexts).toEqual(['10', '10']);
 });
