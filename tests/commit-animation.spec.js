@@ -75,6 +75,6 @@ test('Commit animation logic and cancellation', async ({ page }) => {
   await page.click('#toolbar-mode');
   await page.waitForTimeout(500); // Animation
 
-  const haveCount = page.locator('.have-stepper .qty-val');
-  await expect(haveCount).toHaveText('1');
+  const haveCount = page.locator('.have-stepper .qty-input');
+  await expect(haveCount).toHaveValue('1');
 });

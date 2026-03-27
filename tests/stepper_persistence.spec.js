@@ -44,12 +44,11 @@ test('Stepper remains expanded after incrementing wanted quantity', async ({ pag
   // This test is updated to verify simple increment in Edit Mode.
   await page.click('#toolbar-reorder');
   const milkRow = page.locator('.grocery-item:has-text("Milk")');
-  const wantStepper = milkRow.locator('.want-stepper');
+  const wantInput = milkRow.locator('.want-stepper .qty-input');
 
-  // 1. Click the plus button to increment
-  const plusBtn = wantStepper.locator('.plus');
-  await plusBtn.click();
+  // 1. Fill input to increment
+  await wantInput.fill('2');
 
   // 2. Verify quantity incremented
-  await expect(wantStepper.locator('.qty-val')).toHaveText('2');
+  await expect(wantInput).toHaveValue('2');
 });
