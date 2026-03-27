@@ -43,6 +43,8 @@ test('Stepper remains expanded after incrementing wanted quantity', async ({ pag
   // Note: Expansion logic was removed in favor of simplified always-visible steppers.
   // This test is updated to verify simple increment in Edit Mode.
   await page.click('#toolbar-reorder');
+  // Switch to Shop Mode (want-stepper removed from Home Mode)
+  await page.click('#toolbar-mode');
   const milkRow = page.locator('.grocery-item:has-text("Milk")');
   const wantInput = milkRow.locator('.want-stepper .qty-input');
 

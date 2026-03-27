@@ -50,7 +50,7 @@ test('verify edit mode UI consistency', async ({ page }) => {
 
     // In Edit Mode (Home Mode):
     // 1. Delete button should be visible (width 40px)
-    // 2. Quantity controls should be visible (width 48px) - showing Want input
+    // 2. Quantity controls should be HIDDEN (width 0px) - want input removed
     // 3. Drag handle should be visible (opacity 1)
 
     const deleteBtn = page.locator('.item-delete-btn');
@@ -73,7 +73,7 @@ test('verify edit mode UI consistency', async ({ page }) => {
 
     const qtyWidth = await qtyControls.evaluate(el => getComputedStyle(el).width);
     console.log(`Qty controls width: ${qtyWidth}`);
-    expect(qtyWidth).toBe('48px');
+    expect(qtyWidth).toBe('0px');
 
     await expect(dragHandle).toBeVisible();
     const handleOpacity = await dragHandle.evaluate(el => getComputedStyle(el).opacity);
