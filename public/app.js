@@ -2119,18 +2119,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         group.className = `qty-stepper ${type}-stepper`;
 
         const input = document.createElement('input');
-        input.type = 'number';
+        input.type = 'text';
         input.inputMode = 'numeric';
-        input.min = '0';
-        input.step = '1';
         input.className = 'qty-input';
         input.value = type === 'have' ? item.haveCount : item.wantCount;
 
         group.appendChild(input);
 
         input.addEventListener('click', (e) => e.stopPropagation());
+        input.addEventListener('contextmenu', (e) => e.preventDefault());
         input.addEventListener('focus', function() {
-            this.select();
+            this.setSelectionRange(0, this.value.length);
         });
 
         input.addEventListener('input', () => {
