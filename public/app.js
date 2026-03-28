@@ -229,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 input.type = 'text';
                 input.value = section.name;
                 input.className = 'inline-section-input';
+                applyManualSelection(input);
 
                 const saveSectionName = () => {
                     const newName = input.value.trim();
@@ -250,7 +251,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 header.replaceChild(input, target);
                 input.focus();
-                input.setSelectionRange(0, input.value.length);
             }
             return;
         }
@@ -333,6 +333,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const restoreConfirmBtn = document.getElementById('restore-confirm-btn');
 
     // --- Helpers ---
+    const applyManualSelection = (input) => {
+        const handler = (e) => {
+            if (document.activeElement !== input) {
+                e.preventDefault();
+                input.focus();
+            }
+        };
+        input.addEventListener('mousedown', handler);
+        input.addEventListener('touchstart', handler, { passive: false });
+        input.addEventListener('focus', () => {
+            input.setSelectionRange(0, input.value.length);
+        });
+    };
+
+    applyManualSelection(modalInput);
+
     const escapeHTML = (str) => {
         if (typeof str !== 'string') return str;
         return str.replace(/[&<>"']/g, (m) => ({
@@ -1104,6 +1120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.value = item.text;
         input.size = 1;
         input.className = 'inline-edit-input';
+        applyManualSelection(input);
 
         const syncMirror = () => {
             mirror.textContent = input.value || ' ';
@@ -1142,7 +1159,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         container.appendChild(input);
         info.replaceChild(container, nameSpan);
         input.focus();
-        input.setSelectionRange(0, input.value.length);
     }
 
     function renameItem(id) {
@@ -2111,6 +2127,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const rows = groceryList.querySelectorAll('.grocery-item, .section-container, .section-header');
         rows.forEach(row => viewportObserver.observe(row));
 
+        // Apply manual selection to dynamically added inputs
+        groceryList.querySelectorAll('.add-item-input, .add-section-input').forEach(applyManualSelection);
+
         newlyDeletedIds.clear();
     }
 
@@ -2125,12 +2144,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.value = type === 'have' ? item.haveCount : item.wantCount;
 
         group.appendChild(input);
+        applyManualSelection(input);
 
         input.addEventListener('click', (e) => e.stopPropagation());
         input.addEventListener('contextmenu', (e) => e.preventDefault());
-        input.addEventListener('focus', function() {
-            this.setSelectionRange(0, this.value.length);
-        });
 
         input.addEventListener('input', () => {
             if (type === 'have') {
