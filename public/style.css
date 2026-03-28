@@ -1879,6 +1879,13 @@ h1 {
     pointer-events: none;
 }
 
+.home-mode.hide-drag-handles .add-item-row,
+.home-mode.hide-drag-handles .add-section-row {
+    height: 50px;
+    max-height: 50px;
+    opacity: 0;
+}
+
 .section-title {
     transition: margin 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
