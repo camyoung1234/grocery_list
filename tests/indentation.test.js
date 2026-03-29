@@ -73,8 +73,8 @@ test('verify indentation behavior', async ({ page }) => {
 
   // Item text should have moved left (reduced indentation)
   expect(itemX_EditOff).toBeLessThan(itemX_EditOn);
-  // Expecting a shift of approx 28px (40px -> 12px)
-  expect(itemX_EditOn - itemX_EditOff).toBeGreaterThan(20);
+  // Expecting a shift of approx 8px (40px -> 32px)
+  expect(itemX_EditOn - itemX_EditOff).toBeGreaterThan(5);
 
   // --- SHOP MODE ---
   console.log('Testing Shop Mode...');

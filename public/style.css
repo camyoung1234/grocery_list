@@ -425,7 +425,7 @@ h1 {
     background: transparent;
     transition: var(--transition);
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0;
     touch-action: pan-y;
 }
 
@@ -438,6 +438,7 @@ h1 {
     display: flex;
     align-items: center;
     min-width: 0;
+    margin-right: 0.5rem;
     overflow: visible;
     position: relative;
     transition: margin 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -504,6 +505,7 @@ h1 {
 
 .section-container .grocery-item.shop-chip {
     padding: 0 1rem 0 0;
+    justify-content: space-between !important;
     height: 50px;
     background: transparent;
     border-radius: 0;
@@ -1565,6 +1567,7 @@ h1 {
     display: flex;
     align-items: center;
     min-width: 0;
+    margin-right: 0.5rem;
 }
 
 .grocery-item.undo-row.sel-top {
@@ -1915,7 +1918,7 @@ h1 {
 }
 
 .app-container.home-mode.hide-drag-handles .grocery-item .left-action {
-    width: 12px;
+    width: 32px;
 }
 
 .app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn {
@@ -1923,6 +1926,8 @@ h1 {
     opacity: 1;
     transform: scale(1);
     pointer-events: auto;
+    padding: 1px 6px;
+    margin-left: 0.5rem;
 }
 
 /* Drag and Drop Styles */
@@ -2106,10 +2111,12 @@ h1 {
     font-size: 1.2rem;
     cursor: pointer;
     width: 0;
+    padding: 0;
+    margin: 0;
     height: 50px;
     align-items: center;
     justify-content: center;
-    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear;
+    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear, padding 0.3s linear, margin 0.3s linear;
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
@@ -2119,7 +2126,7 @@ h1 {
 .grocery-item.in-view .item-delete-btn,
 .section-container.in-view .section-delete-btn,
 .section-header.in-view .section-delete-btn {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), padding 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (hover: hover) {
