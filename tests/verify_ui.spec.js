@@ -69,7 +69,7 @@ test('verify edit mode UI consistency', async ({ page }) => {
     });
     const deleteWidth = await deleteBtn.evaluate(el => getComputedStyle(el).width);
     console.log(`Delete button width: ${deleteWidth}`);
-    expect(deleteWidth).toBe('40px');
+    expect(deleteWidth).toBe('48px');
 
     const qtyWidth = await qtyControls.evaluate(el => getComputedStyle(el).width);
     console.log(`Qty controls width: ${qtyWidth}`);

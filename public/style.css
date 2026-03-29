@@ -453,11 +453,11 @@ h1 {
     overflow: visible;
     position: relative;
     z-index: 200;
-    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear;
+    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear, margin-left 0.3s linear;
 }
 
 .grocery-item.in-view .quantity-controls {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 
@@ -1406,16 +1406,17 @@ h1 {
     height: 50px;
     position: relative;
     overflow: visible;
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     margin-left: auto;
 }
 
 .app-container:not(.hide-drag-handles) .section-actions,
 .shop-selection-mode .section-actions {
-    width: 40px !important;
-    min-width: 40px !important;
+    width: 48px !important;
+    min-width: 48px !important;
     opacity: 1 !important;
     pointer-events: auto !important;
+    margin-left: 0 !important;
 }
 
 .section-delete-btn,
@@ -1428,7 +1429,7 @@ h1 {
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     pointer-events: none;
     margin: 0 !important;
-    width: 40px !important;
+    width: 48px !important;
     height: 50px !important;
     display: flex !important;
     align-items: center !important;
@@ -1905,13 +1906,13 @@ h1 {
 .hide-drag-handles .section-header .section-actions {
     width: 0 !important;
     opacity: 0 !important;
-    margin-right: -0.5rem;
-    transition: width 0.3s linear, opacity 0.3s linear, margin-right 0.3s linear !important;
+    margin-left: -0.5rem;
+    transition: width 0.3s linear, opacity 0.3s linear, margin-left 0.3s linear !important;
 }
 
 .section-header.in-view .left-action,
 .section-header.in-view .section-actions {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin-right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
 .app-container.home-mode.hide-drag-handles .grocery-item .left-action {
@@ -1919,10 +1920,11 @@ h1 {
 }
 
 .app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn {
-    width: 40px;
+    width: 48px;
     opacity: 1;
     transform: scale(1);
     pointer-events: auto;
+    margin-left: 0;
 }
 
 /* Drag and Drop Styles */
@@ -2109,17 +2111,18 @@ h1 {
     height: 50px;
     align-items: center;
     justify-content: center;
-    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear;
+    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear, margin-left 0.3s linear;
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
+    margin-left: -0.5rem;
 }
 
 .grocery-item.in-view .item-delete-btn,
 .section-container.in-view .section-delete-btn,
 .section-header.in-view .section-delete-btn {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (hover: hover) {
@@ -2131,10 +2134,11 @@ h1 {
 
 .touch-ghost .item-delete-btn,
 .touch-ghost .section-delete-btn {
-    width: 40px;
+    width: 48px;
     opacity: 1;
     transform: scale(1);
     pointer-events: auto;
+    margin-left: 0;
 }
 
 
@@ -2147,6 +2151,7 @@ h1 {
     transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
+    margin-left: -0.5rem;
 }
 
 /* Commit Animation States */
