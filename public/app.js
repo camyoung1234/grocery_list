@@ -283,6 +283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toolbarListsBtn = document.getElementById('toolbar-lists');
     const currentListSwatch = document.getElementById('current-list-swatch');
     const toolbarModeBtn = document.getElementById('toolbar-mode');
+    const toolbarClearShopBtn = document.getElementById('toolbar-clear-shop');
     const toolbarReorderBtn = document.getElementById('toolbar-reorder');
     const toolbarShareBtn = document.getElementById('toolbar-share');
     const currentListNameSpan = document.getElementById('current-list-name');
@@ -621,6 +622,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         toolbarModeBtn.addEventListener('click', () => {
             const newMode = currentMode === 'home' ? 'shop' : 'home';
             switchMode(newMode, true);
+        });
+    }
+
+    if (toolbarClearShopBtn) {
+        toolbarClearShopBtn.addEventListener('click', () => {
+            const currentList = getCurrentList();
+            currentList.items.forEach(item => {
+                const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
+                const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
+                const toBuy = Math.max(0, item.wantCount - totalHave);
+                if (toBuy > 0) {
+                    item.shopCompleted = false;
+                    item.shopCheckOrder = null;
+                }
+            });
+            saveAppState();
+            renderList();
         });
     }
 
@@ -1326,6 +1344,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sameNameItems = currentList.items.filter(i => i.text === item.text);
         if (sameNameItems.some(i => animatingItems.has(i.id))) return;
 
+        const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
+        const toBuy = Math.max(0, item.wantCount - totalHave);
+
+        // Disable unchecking when the quantity to buy is 0
+        if (item.shopCompleted && toBuy <= 0) return;
+
         const newState = !item.shopCompleted;
 
         try {
@@ -1536,6 +1560,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (toolbarModeBtn) {
             toolbarModeBtn.classList.toggle('active', currentMode === 'shop');
             toolbarModeBtn.title = currentMode === 'shop' ? 'Switch to Home Mode' : 'Switch to Store Mode';
+        }
+
+        if (toolbarClearShopBtn) {
+            toolbarClearShopBtn.style.display = currentMode === 'shop' ? 'flex' : 'none';
         }
 
         if (toolbarReorderBtn) {
@@ -1784,7 +1812,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const li = document.createElement('li');
                 const isAnimating = animatingItems.get(item.id);
                 const isCompleted = item.shopCompleted;
-                li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${isCompleted && !isHome ? 'completed' : ''}`;
+
+                // when editing in store mode reset visual indicator even for 0-qty items
+                const showAsCompleted = isCompleted && !isHome && !(currentMode === 'shop' && editMode);
+
+                li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${showAsCompleted ? 'completed' : ''}`;
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
 
