@@ -334,14 +334,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Helpers ---
     const applyManualSelection = (input) => {
-        const handler = (e) => {
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (document.activeElement !== input) {
-                e.preventDefault();
                 input.focus();
             }
-        };
-        input.addEventListener('mousedown', handler);
-        input.addEventListener('touchstart', handler, { passive: false });
+        });
         input.addEventListener('focus', () => {
             input.setSelectionRange(0, input.value.length);
         });
@@ -2145,8 +2143,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         group.appendChild(input);
         applyManualSelection(input);
-
-        input.addEventListener('click', (e) => e.stopPropagation());
         input.addEventListener('contextmenu', (e) => e.preventDefault());
 
         input.addEventListener('input', () => {
