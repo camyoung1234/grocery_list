@@ -51,12 +51,12 @@ test('Item checking behavior (no commit)', async ({ page }) => {
   await page.waitForTimeout(1000);
   await expect(item).toBeVisible();
 
-  // Switch to Home mode and verify haveCount
+  // Switch to Home mode and verify haveCount remains 0 (checking in Shop doesn't change Have)
   await page.click('#toolbar-mode');
   await page.waitForTimeout(500); // Animation
 
   const haveCount = page.locator('.have-stepper .qty-input');
-  await expect(haveCount).toHaveValue('1');
+  await expect(haveCount).toHaveValue('0');
 
   // Switch back to Shop
   await page.click('#toolbar-mode');
@@ -67,7 +67,7 @@ test('Item checking behavior (no commit)', async ({ page }) => {
   await page.waitForTimeout(1000); // Increased timeout to ensure re-render happens
   await expect(item).not.toHaveClass(/completed/);
 
-  // Verify haveCount is reset in Home mode
+  // Verify haveCount is still 0 in Home mode
   await page.click('#toolbar-mode');
   await page.waitForTimeout(500);
   await expect(haveCount).toHaveValue('0');

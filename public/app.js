@@ -495,8 +495,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             appState.currentListId = appState.lists[0]?.id;
         }
 
-        // --- Auto-sync shopCompleted based on quantities ---
-        appState.lists.forEach(syncAllShopCompleted);
 
         // --- Shared Want Sync Migration ---
         if (!appState.sharedWantSynced) {
@@ -530,7 +528,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (newMode === currentMode) return;
 
         const doSwitch = () => {
-            // Auto-update "Have" counts and auto-sort when switching FROM Shop TO Home
+            // Auto-sort when switching FROM Shop TO Home
             if (currentMode === 'shop' && newMode === 'home') {
                 const currentList = getCurrentList();
 
@@ -557,32 +555,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         item.shopIndex = indices[i];
                     });
                 });
-
-                currentList.items.forEach(item => {
-                    if (item.shopCompleted) {
-                        const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
-                        sameNameItems.forEach((i, idx) => {
-                            if (idx === 0) {
-                                i.haveCount = i.wantCount;
-                            } else {
-                                i.haveCount = 0;
-                            }
-                            i.shopCompleted = false;
-                            i.shopCheckOrder = null;
-                        });
-                    }
-                });
                 saveAppState();
             }
 
             // Clear shop selection mode on any mode switch
             shopSelectionMode = false;
             selectedShopItems.clear();
-
-            if (newMode === 'shop') {
-                syncAllShopCompleted(getCurrentList());
-                saveAppState();
-            }
 
             currentMode = newMode;
             saveMode();
@@ -1392,13 +1370,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     i.shopCompleted = true;
                     i.shopCheckOrder = Date.now();
 
-                    // Immediately update quantity: first item gets wantCount, others 0
-                    if (idx === 0) {
-                        i.haveCount = i.wantCount;
-                    } else {
-                        i.haveCount = 0;
-                    }
-
                     // Manually update classes to maintain state without renderList()
                     const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
                     if (el) {
@@ -1414,7 +1385,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 sameNameItems.forEach(i => {
                     i.shopCompleted = false;
                     i.shopCheckOrder = null;
-                    i.haveCount = 0; // Reset haveCount when unchecking
 
                     // Manually update classes
                     const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
@@ -1500,13 +1470,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (item) {
             item.haveCount = Math.max(0, parseInt(value) || 0);
-
-            // Sync shopCompleted for item group
-            const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
-            const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
-            const isCompleted = totalHave >= item.wantCount;
-            sameNameItems.forEach(i => i.shopCompleted = isCompleted);
-
             saveAppState();
             // Optimization: Update only the relevant input if possible
             const stepper = document.querySelector(`.grocery-item[data-id="${id}"] .have-stepper`);
@@ -1517,7 +1480,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     input.classList.remove('pop-animate');
                     void input.offsetWidth;
                     input.classList.add('pop-animate');
-                    if (currentMode === 'home') return; // In home mode, full re-render is usually better for completion styling
+                    return;
                 }
             }
             renderList();
@@ -1531,12 +1494,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const newWant = Math.max(0, parseInt(value) || 0);
             const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
             sameNameItems.forEach(i => i.wantCount = newWant);
-
-            // Sync shopCompleted for item group
-            const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
-            const isCompleted = totalHave >= newWant;
-            sameNameItems.forEach(i => i.shopCompleted = isCompleted);
-
             saveAppState();
 
             sameNameItems.forEach(i => {
@@ -1560,7 +1517,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            renderList(); // Always re-render to update completion styling if it changed
             return;
         }
     }
@@ -1597,23 +1553,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function syncAllShopCompleted(list) {
-        if (!list || !list.items) return;
-        const groups = new Map(); // name -> { totalHave, wantCount, items }
-        list.items.forEach(item => {
-            const name = item.text.trim();
-            if (!groups.has(name)) {
-                groups.set(name, { totalHave: 0, wantCount: item.wantCount, items: [] });
-            }
-            const g = groups.get(name);
-            g.totalHave += item.haveCount;
-            g.items.push(item);
-        });
-        groups.forEach(g => {
-            const isCompleted = g.totalHave >= g.wantCount;
-            g.items.forEach(item => item.shopCompleted = isCompleted);
-        });
-    }
 
     function saveAppState() {
         // Clone appState for saving, filtering out items that are currently pending deletion
@@ -1844,7 +1783,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             sectionItems.forEach((item, idx) => {
                 const li = document.createElement('li');
                 const isAnimating = animatingItems.get(item.id);
-                const isCompleted = item.shopCompleted && isAnimating !== 'undoing';
+                const isCompleted = item.shopCompleted;
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${isCompleted && !isHome ? 'completed' : ''}`;
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
