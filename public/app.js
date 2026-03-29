@@ -26,8 +26,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
-    let committingControllers = new Map(); // name -> AbortController
-    let committingProgress = new Map(); // id -> progress (1.0 to 0.0)
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
     let selectionRenderTimeout = null;
 
@@ -494,8 +492,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Ensure currentListId is valid
         if (!appState.lists.find(l => l.id === appState.currentListId)) {
-            appState.currentListId = appState.lists[0].id;
+            appState.currentListId = appState.lists[0]?.id;
         }
+
+        // --- Auto-sync shopCompleted based on quantities ---
+        appState.lists.forEach(list => {
+            const groups = new Map(); // name -> { totalHave, wantCount, items }
+            list.items.forEach(item => {
+                const name = item.text.trim();
+                if (!groups.has(name)) {
+                    groups.set(name, { totalHave: 0, wantCount: item.wantCount, items: [] });
+                }
+                const g = groups.get(name);
+                g.totalHave += item.haveCount;
+                g.items.push(item);
+            });
+            groups.forEach(g => {
+                const isCompleted = g.totalHave >= g.wantCount;
+                g.items.forEach(item => item.shopCompleted = isCompleted);
+            });
+        });
 
         // --- Shared Want Sync Migration ---
         if (!appState.sharedWantSynced) {
@@ -559,9 +575,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 currentList.items.forEach(item => {
                     if (item.shopCompleted) {
-                        item.haveCount = item.wantCount;
-                        item.shopCompleted = false;
-                        item.shopCheckOrder = null;
+                        const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
+                        sameNameItems.forEach((i, idx) => {
+                            if (idx === 0) {
+                                i.haveCount = i.wantCount;
+                            } else {
+                                i.haveCount = 0;
+                            }
+                            i.shopCompleted = false;
+                            i.shopCheckOrder = null;
+                        });
                     }
                 });
                 saveAppState();
@@ -1325,34 +1348,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function createFuseSparks(x, y) {
-        const count = 2;
-        const color = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
-
-        for (let i = 0; i < count; i++) {
-            const spark = document.createElement('div');
-            spark.className = 'spark-particle fuse-spark-particle';
-            spark.style.backgroundColor = color;
-            spark.style.left = x + 'px';
-            spark.style.top = y + 'px';
-
-            document.body.appendChild(spark);
-
-            const angle = Math.random() * Math.PI * 2;
-            const velocity = 5 + Math.random() * 15;
-            const destinationX = Math.cos(angle) * velocity;
-            const destinationY = Math.sin(angle) * velocity;
-
-            spark.animate([
-                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
-                { transform: `translate(calc(-50% + ${destinationX}px), calc(-50% + ${destinationY}px)) scale(0)`, opacity: 0 }
-            ], {
-                duration: 400,
-                easing: 'ease-out',
-                fill: 'forwards'
-            }).onfinish = () => spark.remove();
-        }
-    }
 
     let animatingItems = new Map(); // id -> 'completing' | 'undoing'
     async function toggleShopCompleted(id) {
@@ -1366,22 +1361,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newState = !item.shopCompleted;
 
         try {
-            if (!newState) {
-                // Cancel any pending commit
-                if (committingControllers.has(item.text)) {
-                    committingControllers.get(item.text).abort();
-                    committingControllers.delete(item.text);
-                    sameNameItems.forEach(i => {
-                        committingProgress.delete(i.id);
-                        const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
-                        if (el) {
-                            el.classList.remove('is-committing');
-                            el.style.setProperty('--commit-progress', 1);
-                        }
-                    });
-                }
-            }
-
             sameNameItems.forEach(i => animatingItems.set(i.id, newState ? 'completing' : 'undoing'));
 
             sameNameItems.forEach(i => {
@@ -1390,19 +1369,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (newState) {
                         el.classList.add('is-completing');
                     } else {
-                        el.classList.remove('completed', 'is-committing');
                         el.classList.add('is-undoing');
+                        el.classList.remove('completed');
                     }
                 }
             });
 
             if (newState) {
-                // Pre-set progress to 1 for fading mask
-                sameNameItems.forEach(i => {
-                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
-                    if (el) el.style.setProperty('--commit-progress', 1);
-                });
-
                 // Completion sequence
                 // Both animations start immediately:
                 // 1. Circle fills (check icon appears) takes 0.3s
@@ -1425,109 +1398,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Wait for strike-through to complete (0.1s more)
                 await new Promise(r => setTimeout(r, 100));
 
-                sameNameItems.forEach(i => {
+                sameNameItems.forEach((i, idx) => {
                     i.shopCompleted = true;
                     i.shopCheckOrder = Date.now();
+
+                    // Immediately update quantity: first item gets wantCount, others 0
+                    if (idx === 0) {
+                        i.haveCount = i.wantCount;
+                    } else {
+                        i.haveCount = 0;
+                    }
 
                     // Manually update classes to maintain state without renderList()
                     const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
                     if (el) {
                         el.classList.remove('is-completing');
                         el.classList.add('completed');
-                        // Ensure it's not hidden as zero-qty since it's now completed
-                        el.classList.remove('zero-qty-item');
-                    }
-                });
-
-                // Start commit animation
-                const controller = new AbortController();
-                const signal = controller.signal;
-                committingControllers.set(item.text, controller);
-
-                const duration = 4000;
-                let startTime = null;
-
-                // Pre-set progress so renderList (if called) knows we are committing
-                sameNameItems.forEach(i => committingProgress.set(i.id, 1.0));
-
-                const runCommit = async () => {
-                    return new Promise((resolve) => {
-                        const frame = (now) => {
-                            if (signal.aborted) {
-                                resolve(false);
-                                return;
-                            }
-                            if (!startTime) startTime = now;
-
-                            const elapsed = now - startTime;
-                            const progress = Math.max(0, 1 - (elapsed / duration));
-
-                            sameNameItems.forEach(i => committingProgress.set(i.id, progress));
-
-                            const currentRows = sameNameItems.map(i => document.querySelector(`.grocery-item[data-id="${i.id}"]`)).filter(Boolean);
-                            currentRows.forEach(row => {
-                                row.classList.add('is-committing');
-                                row.style.setProperty('--commit-progress', progress);
-
-                                // Fuse sparks at tip
-                                const textSpan = row.querySelector('.item-text');
-                                if (textSpan) {
-                                    const rect = textSpan.getBoundingClientRect();
-                                    const tipX = rect.left + rect.width * progress;
-                                    const tipY = rect.top + rect.height / 2;
-                                    createFuseSparks(tipX, tipY);
-                                }
-                            });
-
-                            if (progress > 0) {
-                                requestAnimationFrame(frame);
-                            } else {
-                                resolve(true);
-                            }
-                        };
-                        requestAnimationFrame(frame);
-                    });
-                };
-
-                runCommit().then(async (completed) => {
-                    if (completed) {
-                        committingControllers.delete(item.text);
-
-                        const groupRows = sameNameItems.map(i => document.querySelector(`.grocery-item[data-id="${i.id}"]`)).filter(Boolean);
-                        groupRows.forEach(row => {
-                            row.classList.add('is-committed');
-                            row.classList.remove('is-committing');
-                            row.style.setProperty('--commit-progress', 0);
-
-                            const circle = row.querySelector('.shop-qty-circle');
-                            if (circle) {
-                                const rect = circle.getBoundingClientRect();
-                                createSparks(rect.left + rect.width / 2, rect.top + rect.height / 2);
-                            }
-                        });
-
-                        await new Promise(r => setTimeout(r, 800));
-                        groupRows.forEach(row => row.classList.add('collapsing'));
-                        await new Promise(r => setTimeout(r, 300));
-
-                        // Cleanup progress map after collapse starts
-                        sameNameItems.forEach(i => committingProgress.delete(i.id));
-
-                        const currentList = getCurrentList();
-                        sameNameItems.forEach((i, idx) => {
-                            const actualItem = currentList.items.find(it => it.id === i.id);
-                            if (actualItem) {
-                                if (idx === 0) {
-                                    actualItem.haveCount = actualItem.wantCount;
-                                } else {
-                                    actualItem.haveCount = 0;
-                                }
-                                actualItem.shopCompleted = false;
-                            }
-                        });
-
-                        saveAppState();
-                        renderList();
                     }
                 });
 
@@ -1538,32 +1424,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 sameNameItems.forEach(i => {
                     i.shopCompleted = false;
                     i.shopCheckOrder = null;
+                    i.haveCount = 0; // Reset haveCount when unchecking
 
                     // Manually update classes
                     const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
                     if (el) {
-                        el.classList.remove('is-undoing');
-                        // If it becomes zero-qty again, hide it
-                        const toBuy = Math.max(0, i.wantCount - i.haveCount);
-                        if (toBuy <= 0 && !editMode) {
-                            el.classList.add('zero-qty-item');
-                        }
-                    }
-                });
-
-                // Check if sections should be hidden manually
-                const sectionIds = new Set(sameNameItems.map(i => i.shopSectionId));
-                sectionIds.forEach(sectionId => {
-                    const sectionLi = document.querySelector(`.section-container[data-id="${sectionId}"]`);
-                    if (sectionLi) {
-                        // In shop mode, we group by name, so we need to check group visibility
-                        // But for a quick manual fix, we can just check if there are any chips without .zero-qty-item
-                        const visibleItems = sectionLi.querySelectorAll('.grocery-item:not(.zero-qty-item)');
-                        if (visibleItems.length === 0) {
-                            sectionLi.classList.add('zero-qty-section');
-                        } else {
-                            sectionLi.classList.remove('zero-qty-section');
-                        }
+                        el.classList.remove('is-undoing', 'completed');
                     }
                 });
             }
@@ -1573,10 +1439,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         saveAppState();
 
-        // Only re-render if no other items are currently animating to prevent jump
-        if (animatingItems.size === 0) {
-            renderList();
-        }
+        renderList();
     }
 
     function deleteItem(id) {
@@ -1647,6 +1510,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const item = currentList.items.find(i => i.id === id);
         if (item) {
             item.haveCount = Math.max(0, parseInt(value) || 0);
+
+            // Sync shopCompleted for item group
+            const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
+            const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
+            const isCompleted = totalHave >= item.wantCount;
+            sameNameItems.forEach(i => i.shopCompleted = isCompleted);
+
             saveAppState();
             // Optimization: Update only the relevant input if possible
             const stepper = document.querySelector(`.grocery-item[data-id="${id}"] .have-stepper`);
@@ -1657,7 +1527,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     input.classList.remove('pop-animate');
                     void input.offsetWidth;
                     input.classList.add('pop-animate');
-                    return;
+                    if (currentMode === 'home') return; // In home mode, full re-render is usually better for completion styling
                 }
             }
             renderList();
@@ -1671,6 +1541,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const newWant = Math.max(0, parseInt(value) || 0);
             const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
             sameNameItems.forEach(i => i.wantCount = newWant);
+
+            // Sync shopCompleted for item group
+            const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
+            const isCompleted = totalHave >= newWant;
+            sameNameItems.forEach(i => i.shopCompleted = isCompleted);
+
             saveAppState();
 
             sameNameItems.forEach(i => {
@@ -1694,6 +1570,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
+            renderList(); // Always re-render to update completion styling if it changed
             return;
         }
     }
@@ -1722,9 +1599,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Update zero-qty visibility classes
         const isHome = currentMode === 'home';
-        const hideZeroQty = !isHome && !editMode;
         if (appContainer) {
-            appContainer.classList.toggle('hide-zero-qty', hideZeroQty);
+            appContainer.classList.remove('hide-zero-qty');
             appContainer.classList.toggle('hide-drag-handles', !editMode);
             appContainer.classList.toggle('home-mode', isHome);
             appContainer.classList.toggle('shop-mode', !isHome);
@@ -1876,7 +1752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 group.wantCount = item.wantCount;
                 group.haveCount += item.haveCount;
                 group.allIds.push(item.id);
-                if (!item.shopCompleted) group.shopCompleted = false;
+                if (item.shopCompleted === false) group.shopCompleted = false;
             });
         }
 
@@ -1908,13 +1784,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             sectionLi.dataset.id = section.id;
             sectionLi.dataset.type = 'section';
 
-            if (!isHome) {
-                const hasVisibleItems = sectionItems.some(item => {
-                    const toBuy = item.wantCount - item.haveCount;
-                    return toBuy > 0 || item.shopCompleted || item.pendingDelete;
-                });
-                sectionLi.classList.toggle('zero-qty-section', !hasVisibleItems);
-            }
 
             // Section Header
             const header = document.createElement('div');
@@ -1965,10 +1834,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
 
-                if (committingProgress.has(item.id)) {
-                    li.classList.add('is-committing');
-                    li.style.setProperty('--commit-progress', committingProgress.get(item.id));
-                }
 
                 if (!isHome && !item.pendingDelete) {
                     const isSelected = selectedShopItems.has(item.id);
@@ -2015,11 +1880,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
 
-                if (!isHome) {
-                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    const isZeroQty = toBuy <= 0 && !item.shopCompleted && !item.pendingDelete;
-                    li.classList.toggle('zero-qty-item', isZeroQty);
-                }
 
 
                 li.dataset.id = item.id;
