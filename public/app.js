@@ -496,22 +496,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // --- Auto-sync shopCompleted based on quantities ---
-        appState.lists.forEach(list => {
-            const groups = new Map(); // name -> { totalHave, wantCount, items }
-            list.items.forEach(item => {
-                const name = item.text.trim();
-                if (!groups.has(name)) {
-                    groups.set(name, { totalHave: 0, wantCount: item.wantCount, items: [] });
-                }
-                const g = groups.get(name);
-                g.totalHave += item.haveCount;
-                g.items.push(item);
-            });
-            groups.forEach(g => {
-                const isCompleted = g.totalHave >= g.wantCount;
-                g.items.forEach(item => item.shopCompleted = isCompleted);
-            });
-        });
+        appState.lists.forEach(syncAllShopCompleted);
 
         // --- Shared Want Sync Migration ---
         if (!appState.sharedWantSynced) {
@@ -593,6 +578,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Clear shop selection mode on any mode switch
             shopSelectionMode = false;
             selectedShopItems.clear();
+
+            if (newMode === 'shop') {
+                syncAllShopCompleted(getCurrentList());
+                saveAppState();
+            }
 
             currentMode = newMode;
             saveMode();
@@ -1607,6 +1597,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function syncAllShopCompleted(list) {
+        if (!list || !list.items) return;
+        const groups = new Map(); // name -> { totalHave, wantCount, items }
+        list.items.forEach(item => {
+            const name = item.text.trim();
+            if (!groups.has(name)) {
+                groups.set(name, { totalHave: 0, wantCount: item.wantCount, items: [] });
+            }
+            const g = groups.get(name);
+            g.totalHave += item.haveCount;
+            g.items.push(item);
+        });
+        groups.forEach(g => {
+            const isCompleted = g.totalHave >= g.wantCount;
+            g.items.forEach(item => item.shopCompleted = isCompleted);
+        });
+    }
+
     function saveAppState() {
         // Clone appState for saving, filtering out items that are currently pending deletion
         const stateToSave = JSON.parse(JSON.stringify(appState));
@@ -1753,6 +1761,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 group.haveCount += item.haveCount;
                 group.allIds.push(item.id);
                 if (item.shopCompleted === false) group.shopCompleted = false;
+            });
+
+            // Enforce "zero left to buy = checked" for the group
+            groupedMap.forEach(group => {
+                if (group.haveCount >= group.wantCount) {
+                    group.shopCompleted = true;
+                }
             });
         }
 
