@@ -2065,36 +2065,6 @@ h1 {
 }
 
 
-.hide-zero-qty .zero-qty-item,
-.hide-zero-qty .zero-qty-section .section-header {
-    height: 0;
-    max-height: 0;
-    opacity: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    margin-top: 0;
-    margin-bottom: 0;
-    border-top-width: 0;
-    border-bottom-width: 0;
-    pointer-events: none;
-    overflow: hidden;
-}
-
-.hide-zero-qty .zero-qty-section {
-    max-height: 0 !important;
-    opacity: 0 !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    overflow: hidden;
-}
-
-.hide-zero-qty .zero-qty-section .section-items-list {
-    padding-top: 0;
-    padding-bottom: 0;
-    margin-top: 0;
-    margin-bottom: 0;
-    min-height: 0;
-}
 
 /* Delete buttons for Home Mode */
 .item-delete-btn,
@@ -2149,45 +2119,3 @@ h1 {
     overflow: hidden;
 }
 
-/* Commit Animation States */
-.grocery-item {
-    --commit-progress: 1;
-}
-
-.shop-chip.is-committing .item-text,
-.shop-chip.is-committed .item-text,
-.shop-chip.completed:not(.is-undoing) .item-text {
-    -webkit-mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
-    mask-image: linear-gradient(to right, black calc(var(--commit-progress) * 100%), transparent calc(var(--commit-progress) * 100%));
-}
-
-.shop-chip.is-committing .item-text::after,
-.shop-chip.is-committed .item-text::after {
-    width: calc(var(--commit-progress) * 100%) !important;
-    transition: none !important;
-}
-
-.shop-chip.is-committed .shop-qty-circle {
-    animation: explode-implode 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes explode-implode {
-    0% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 1;
-    }
-    30% {
-        transform: translate(-50%, -50%) scale(1.4);
-        opacity: 1;
-    }
-    100% {
-        transform: translate(-50%, -50%) scale(0);
-        opacity: 0;
-    }
-}
-
-.spark-particle.fuse-spark-particle {
-    width: 3px;
-    height: 3px;
-    z-index: 10001;
-}
