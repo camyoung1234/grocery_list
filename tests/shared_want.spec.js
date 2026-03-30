@@ -189,7 +189,7 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
     // The commit animation is 5s. We can either wait or switch modes to trigger auto-commit.
     await page.waitForTimeout(6000);
 
-    // Switch back to Home mode to check individual counts
+    // Switch back to Home mode to check individual counts - should still be 0
     await page.click('#toolbar-mode');
 
     const bananaItems = page.locator('.grocery-item:has-text("Bananas")');
@@ -197,9 +197,7 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
 
     const haveTexts = await bananaItems.locator('.have-stepper .qty-input').evaluateAll(inputs => inputs.map(i => i.value));
     const totalHave = haveTexts.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
-    expect(totalHave).toBe(5);
-    expect(haveTexts).toContain('5');
-    expect(haveTexts).toContain('0');
+    expect(totalHave).toBe(0);
 });
 
 test('Renaming an item to an existing name syncs wantCount', async ({ page }) => {

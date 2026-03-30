@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('Commit animation logic and cancellation', async ({ page }) => {
+test('Item checking behavior (no commit)', async ({ page }) => {
   page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
   await page.goto('http://localhost:3000#');
 
@@ -40,41 +40,35 @@ test('Commit animation logic and cancellation', async ({ page }) => {
   // Click to complete
   await item.click();
 
-  // Wait for flare (0.7s) + some time for commit to start
-  await page.waitForTimeout(2000);
+  // Wait for flare (approx 400ms)
+  await page.waitForTimeout(600);
 
-  // Check if .is-committing is applied
-  await expect(item).toHaveClass(/is-committing/);
-
-  // Check progress variable
-  let progress = await item.evaluate(el => parseFloat(el.style.getPropertyValue('--commit-progress')));
-  expect(progress).toBeLessThan(1);
-  expect(progress).toBeGreaterThan(0);
-
-  // Test cancellation
-  await item.click();
-  await page.waitForTimeout(100);
+  // Check if .completed is applied
+  await expect(item).toHaveClass(/completed/);
   await expect(item).not.toHaveClass(/is-committing/);
-  await expect(item).not.toHaveClass(/completed/); // newState false means it goes to is-undoing then back to normal
 
-  // Wait for undo sequence to finish and re-complete
-  await page.waitForTimeout(500);
-  await item.click();
-
-  // Wait for flare + start commit
+  // Item should still be visible (no more disappearing)
   await page.waitForTimeout(1000);
-  await expect(item).toHaveClass(/is-committing/);
+  await expect(item).toBeVisible();
 
-  // Wait for 4s commit + 0.8s circle + 0.3s collapse
-  await page.waitForTimeout(6000);
-
-  // Item should be gone from Shop mode
-  await expect(item).not.toBeVisible();
-
-  // Switch to Home mode and verify haveCount
+  // Switch to Home mode and verify haveCount remains 0 (checking in Shop doesn't change Have)
   await page.click('#toolbar-mode');
   await page.waitForTimeout(500); // Animation
 
   const haveCount = page.locator('.have-stepper .qty-input');
-  await expect(haveCount).toHaveValue('1');
+  await expect(haveCount).toHaveValue('0');
+
+  // Switch back to Shop
+  await page.click('#toolbar-mode');
+  await page.waitForTimeout(500);
+
+  // Uncheck it
+  await item.click();
+  await page.waitForTimeout(1000); // Increased timeout to ensure re-render happens
+  await expect(item).not.toHaveClass(/completed/);
+
+  // Verify haveCount is still 0 in Home mode
+  await page.click('#toolbar-mode');
+  await page.waitForTimeout(500);
+  await expect(haveCount).toHaveValue('0');
 });
