@@ -1784,14 +1784,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? `<button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button>`
                 : '';
 
-            header.innerHTML = `
-                ${dragHandleHTML}
-                <h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3>
-                <div class="section-actions">
-                    ${sectionDeleteHTML}
-                    ${moveHereHTML}
-                </div>
-            `;
+            header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sectionDeleteHTML}${moveHereHTML}</div>`;
 
             sectionLi.appendChild(header);
 
@@ -1854,13 +1847,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.dataset.type = 'item';
                     li.dataset.sectionId = section.id;
 
-                    li.innerHTML = `
-                        <div class="left-action"></div>
-                        <div class="item-info">
-                            <span class="item-text">${escapeHTML(item.text)}</span>
-                        </div>
-                        <button class="undo-btn-inline">Undo</button>
-                    `;
+                    li.innerHTML = `<div class="left-action"></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><button class="undo-btn-inline">Undo</button>`;
 
                     itemsUl.appendChild(li);
                     return;
@@ -1873,39 +1860,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.sectionId = section.id;
 
                 if (isHome) {
-                    li.innerHTML = `
-                        <div class="left-action">
-                            <div class="drag-handle" draggable="true">
-                                <i class="fas fa-grip-vertical"></i>
-                            </div>
-                        </div>
-                        <div class="item-info">
-                            <span class="item-text">${escapeHTML(item.text)}</span>
-                        </div>
-                        <div class="quantity-controls"></div>
-                        <button class="item-delete-btn"><i class="fas fa-times"></i></button>
-                    `;
-
+                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn"><i class="fas fa-times"></i></button>`;
                     const controls = li.querySelector('.quantity-controls');
                     controls.appendChild(createQtyStepper(item, 'have'));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    li.innerHTML = `
-                        <div class="left-action">
-                            <div class="drag-handle" draggable="true">
-                                <i class="fas fa-grip-vertical"></i>
-                            </div>
-                            <div class="shop-qty-circle">
-                                <span class="qty-number">${toBuy}</span>
-                                <i class="fas fa-check check-icon"></i>
-                            </div>
-                        </div>
-                        <div class="item-info">
-                            <span class="item-text">${escapeHTML(item.text)}</span>
-                        </div>
-                        <div class="quantity-controls"></div>
-                    `;
-
+                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-qty-circle"><span class="qty-number">${toBuy}</span><i class="fas fa-check check-icon"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
                     li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
                 }
 
@@ -1920,20 +1880,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (isSectionRestoration) addRow.classList.add('restoring-item');
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
-
-                addRow.innerHTML = `
-                    <div class="left-action">
-                        <div class="drag-handle add-row-plus">
-                            <i class="fas fa-plus"></i>
-                        </div>
-                    </div>
-                    <div class="item-info">
-                        <form class="input-group inline-input-group">
-                            <input type="text" class="inline-item-input add-item-input" placeholder="Add item">
-                        </form>
-                    </div>
-                `;
-
+                addRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item"></form></div>`;
                 itemsUl.appendChild(addRow);
             }
             sectionLi.appendChild(itemsUl);
@@ -1945,21 +1892,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Add "Add a section..." element at the bottom
         const addSecRow = document.createElement('li');
         addSecRow.className = 'grocery-item add-section-row';
-
         addSecRow.dataset.type = 'section-placeholder';
-
-        addSecRow.innerHTML = `
-            <div class="left-action">
-                <div class="drag-handle add-row-plus">
-                    <i class="fas fa-plus"></i>
-                </div>
-            </div>
-            <div class="item-info">
-                <form class="input-group inline-input-group">
-                    <input type="text" placeholder="Add section" class="inline-item-input add-section-input">
-                </form>
-            </div>
-        `;
+        addSecRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" placeholder="Add section" class="inline-item-input add-section-input"></form></div>`;
 
         fragment.appendChild(addSecRow);
 

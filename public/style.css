@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 :root {
     /* Theme Colors (Light Mode) - Material 500 */
     --theme-red: #f44336;
@@ -419,13 +423,12 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 1rem 0 0;
+    padding: 0 1rem 0 1rem;
     height: 50px;
     box-sizing: border-box;
     background: transparent;
     transition: var(--transition);
     flex-wrap: wrap;
-    gap: 0.5rem;
     touch-action: pan-y;
 }
 
@@ -440,6 +443,8 @@ h1 {
     min-width: 0;
     overflow: visible;
     position: relative;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
     transition: margin 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -448,6 +453,7 @@ h1 {
     align-items: center;
     justify-content: flex-end;
     width: 48px;
+    min-width: 48px;
     /* Fix width to enable transition */
     opacity: 1;
     overflow: visible;
@@ -503,7 +509,7 @@ h1 {
 
 
 .section-container .grocery-item.shop-chip {
-    padding: 0 1rem 0 0;
+    padding: 0 1rem 0 1rem;
     height: 50px;
     background: transparent;
     border-radius: 0;
@@ -513,7 +519,6 @@ h1 {
     transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    gap: 0.5rem;
     box-sizing: border-box;
     justify-content: flex-start;
 }
@@ -935,7 +940,6 @@ h1 {
 .qty-stepper {
     display: none;
     align-items: center;
-    gap: 0.5rem;
     position: relative;
     z-index: 100;
 }
@@ -1351,11 +1355,10 @@ h1 {
     justify-content: flex-start;
     align-items: center;
     border-bottom: none;
-    padding: 0 1rem 0 0;
+    padding: 0 1rem 0 1rem;
     margin-bottom: 0;
     height: 50px;
     user-select: none;
-    gap: 0.5rem;
 }
 
 .section-title {
@@ -1369,6 +1372,8 @@ h1 {
     padding: 3px 0;
     /* Add matching vertical space to compensate for input border/padding */
     flex: 1;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
 }
 
 
@@ -1416,7 +1421,7 @@ h1 {
     min-width: 48px !important;
     opacity: 1 !important;
     pointer-events: auto !important;
-    margin-left: 0 !important;
+    margin-left: 0.5rem !important;
 }
 
 .section-delete-btn,
@@ -1495,7 +1500,7 @@ h1 {
 }
 
 .section-container .add-item-row {
-    padding: 0 1rem 0 0;
+    padding: 0 1rem 0 1rem;
     height: 50px;
     box-sizing: border-box;
     display: flex;
@@ -1508,12 +1513,11 @@ h1 {
 /* Add a Section Row */
 .add-section-row {
     list-style: none;
-    padding: 0 1rem 0 0;
+    padding: 0 1rem 0 1rem;
     margin-top: 0;
     margin-bottom: 0;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     box-sizing: border-box;
 }
 
@@ -1522,7 +1526,7 @@ h1 {
 .grocery-item.undo-row {
     background: color-mix(in srgb, var(--primary-color) 15%, transparent) !important;
     border-radius: 12px;
-    padding: 0 1rem 0 0;
+    padding: 0 1rem 0 1rem;
     height: 50px !important;
     box-sizing: border-box;
     margin-bottom: 0;
@@ -1915,16 +1919,15 @@ h1 {
     transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
-.app-container.home-mode.hide-drag-handles .grocery-item .left-action {
-    width: 12px;
-}
+
 
 .app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn {
     width: 48px;
+    min-width: 48px;
     opacity: 1;
     transform: scale(1);
     pointer-events: auto;
-    margin-left: 0;
+    margin-left: 0.5rem;
 }
 
 /* Drag and Drop Styles */
@@ -2074,6 +2077,7 @@ h1 {
     display: flex;
     background: transparent;
     border: none;
+    padding: 0;
     color: var(--text-muted);
     font-size: 1.2rem;
     cursor: pointer;
@@ -2086,7 +2090,7 @@ h1 {
     transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
-    margin-left: -0.5rem;
+    margin-left: 0;
 }
 
 .grocery-item.in-view .item-delete-btn,
@@ -2108,7 +2112,7 @@ h1 {
     opacity: 1;
     transform: scale(1);
     pointer-events: auto;
-    margin-left: 0;
+    margin-left: 0.5rem;
 }
 
 
@@ -2116,11 +2120,12 @@ h1 {
 .touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
 .shop-mode.hide-drag-handles .grocery-item .quantity-controls,
 .touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
-    width: 0;
+    width: 0 !important;
+    min-width: 0 !important;
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
-    margin-left: -0.5rem;
+    margin-left: 0;
 }
 
