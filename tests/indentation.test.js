@@ -71,10 +71,8 @@ test('verify indentation behavior', async ({ page }) => {
   // Section header should have moved left
   expect(sectionX_EditOff).toBeLessThan(sectionX_EditOn);
 
-  // Item text should have moved left (reduced indentation)
-  expect(itemX_EditOff).toBeLessThan(itemX_EditOn);
-  // Expecting a shift of approx 28px (40px -> 12px)
-  expect(itemX_EditOn - itemX_EditOff).toBeGreaterThan(20);
+  // Item text should NOT have moved (consistent indentation)
+  expect(Math.abs(itemX_EditOff - itemX_EditOn)).toBeLessThan(2);
 
   // --- SHOP MODE ---
   console.log('Testing Shop Mode...');
