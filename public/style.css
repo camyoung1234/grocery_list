@@ -457,11 +457,11 @@ h1 {
     overflow: visible;
     position: relative;
     z-index: 200;
-    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear, margin-left 0.3s linear;
+    transition: opacity 0.3s linear, transform 0.3s linear;
 }
 
 .grocery-item.in-view .quantity-controls {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 
@@ -1407,7 +1407,7 @@ h1 {
     height: 50px;
     position: relative;
     overflow: visible;
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     margin-left: auto;
 }
 
@@ -1914,7 +1914,7 @@ h1 {
 .hide-drag-handles .section-header .section-actions {
     width: 0 !important;
     margin-left: 0.5rem !important;
-    transition: width 0.3s linear, margin-left 0.3s linear !important;
+    transition: opacity 0.3s linear !important;
 }
 
 .hide-drag-handles .grocery-item .left-action {
@@ -1924,7 +1924,7 @@ h1 {
 
 .section-header.in-view .left-action,
 .section-header.in-view .section-actions {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    transition: opacity 0.3s ease !important;
 }
 
 
@@ -2093,7 +2093,7 @@ h1 {
     height: 50px;
     align-items: center;
     justify-content: center;
-    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear, margin-left 0.3s linear;
+    transition: opacity 0.3s linear, transform 0.3s linear;
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
@@ -2104,7 +2104,7 @@ h1 {
 .grocery-item.in-view .item-delete-btn,
 .section-container.in-view .section-delete-btn,
 .section-header.in-view .section-delete-btn {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (hover: hover) {
