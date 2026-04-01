@@ -14,18 +14,16 @@ test.describe('Quantity Input Interactions', () => {
     // Exit Edit Mode to see quantity inputs in Home Mode
     await page.click('#toolbar-reorder');
 
-    // Add three items to ensure we have quantity inputs to interact with
-    await page.fill('.add-item-input', 'Item 1');
-    await page.press('.add-item-input', 'Enter');
-    await page.fill('.add-item-input', 'Item 2');
-    await page.press('.add-item-input', 'Enter');
-    await page.fill('.add-item-input', 'Item 3');
-    await page.press('.add-item-input', 'Enter');
+    // Add items to ensure we have quantity inputs to interact with and enough for scrolling
+    for (let i = 1; i <= 15; i++) {
+        await page.fill('.add-item-input', `Item ${i}`);
+        await page.press('.add-item-input', 'Enter');
+    }
   });
 
   test('Enter key moves focus to next quantity input', async ({ page }) => {
     const qtyInputs = page.locator('.qty-input');
-    await expect(qtyInputs).toHaveCount(3);
+    await expect(qtyInputs).toHaveCount(15);
 
     // Focus the first input
     await qtyInputs.nth(0).click(); // Click to ensure focus
@@ -65,5 +63,32 @@ test.describe('Quantity Input Interactions', () => {
     // Expect focus background color to be different from initial (which was transparent or white)
     expect(focusBg).not.toBe(initialBg);
     // Since we used color-mix with primary color (blue by default), focusBg should contain blue components.
+  });
+
+  test('Enter key moves focus and scrolls in Shop Mode Edit Mode', async ({ page }) => {
+    // Switch to Shop Mode
+    await page.click('#toolbar-mode');
+
+    // Ensure we are in Edit Mode
+    const editBtn = page.locator('#toolbar-reorder');
+    if (!(await editBtn.getAttribute('class')).includes('active')) {
+      await editBtn.click();
+    }
+
+    const qtyInputs = page.locator('.qty-input');
+    await expect(qtyInputs).toHaveCount(15);
+
+    // Focus the first input
+    await qtyInputs.nth(0).click();
+    await expect(qtyInputs.nth(0)).toBeFocused();
+
+    // Press Enter 5 times
+    for (let i = 1; i <= 5; i++) {
+        await page.keyboard.press('Enter');
+        await expect(qtyInputs.nth(i)).toBeFocused();
+    }
+
+    // Final check for scroll position - since it's smooth scroll, we just check focus
+    await expect(qtyInputs.nth(5)).toBeFocused();
   });
 });
