@@ -962,7 +962,7 @@ h1 {
     font-weight: 700;
     font-family: inherit;
     outline: none;
-    transition: border-color var(--transition);
+    transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-sizing: border-box;
     -moz-appearance: textfield;
 }
@@ -975,6 +975,7 @@ h1 {
 
 .qty-input:focus {
     border-color: var(--primary-color);
+    background-color: color-mix(in srgb, var(--primary-color) 10%, var(--card-bg));
 }
 
 .shop-chip.selected .qty-input {
