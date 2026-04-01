@@ -35,7 +35,7 @@ test('verify indentation behavior', async ({ page }) => {
     localStorage.setItem('grocery-edit-mode', 'true');
   });
 
-  await page.goto('http://localhost:3000');
+  await page.reload();
 
   // Wait for app to render
   const sectionTitle = page.locator('.section-title');
@@ -58,6 +58,9 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Home Edit ON - Section Title X: ${sectionX_EditOn}, Item Text X: ${itemX_EditOn}`);
 
+  // Both should align in edit mode (indented by drag handle)
+  expect(Math.abs(sectionX_EditOn - itemX_EditOn)).toBeLessThanOrEqual(1);
+
   // Toggle Edit Mode OFF
   await page.click('#toolbar-reorder');
   await expect(page.locator('.app-container')).toHaveClass(/hide-drag-handles/);
@@ -68,13 +71,14 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Home Edit OFF - Section Title X: ${sectionX_EditOff}, Item Text X: ${itemX_EditOff}`);
 
-  // Section header should have moved left
+  // Section title moved left
   expect(sectionX_EditOff).toBeLessThan(sectionX_EditOn);
 
-  // Item text should have moved left (reduced indentation)
-  expect(itemX_EditOff).toBeLessThan(itemX_EditOn);
-  // Expecting a shift of approx 28px (40px -> 12px)
-  expect(itemX_EditOn - itemX_EditOff).toBeGreaterThan(20);
+  // Item text remained indented (action container width 48px)
+  expect(Math.abs(itemX_EditOff - itemX_EditOn)).toBeLessThanOrEqual(1);
+
+  // Section title should be left of item text now
+  expect(sectionX_EditOff).toBeLessThan(itemX_EditOff);
 
   // --- SHOP MODE ---
   console.log('Testing Shop Mode...');
@@ -89,6 +93,9 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Shop Edit OFF - Section Title X: ${shopSectionX_EditOff}, Item Text X: ${shopItemX_EditOff}`);
 
+  // Item text remains indented for circle, Section title at edge
+  expect(shopSectionX_EditOff).toBeLessThan(shopItemX_EditOff);
+
   // Toggle Edit Mode ON in Shop Mode
   await page.click('#toolbar-reorder');
   await expect(page.locator('.app-container')).not.toHaveClass(/hide-drag-handles/);
@@ -99,9 +106,6 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Shop Edit ON - Section Title X: ${shopSectionX_EditOn}, Item Text X: ${shopItemX_EditOn}`);
 
-  // Section header should have moved right when entering edit mode
-  expect(shopSectionX_EditOff).toBeLessThan(shopSectionX_EditOn);
-
-  // Item text should remain indented
-  expect(Math.abs(shopItemX_EditOff - shopItemX_EditOn)).toBeLessThan(10);
+  // Both should align when editing (drag handles visible)
+  expect(Math.abs(shopSectionX_EditOn - shopItemX_EditOn)).toBeLessThanOrEqual(1);
 });
