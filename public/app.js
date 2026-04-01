@@ -1944,7 +1944,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 const idx = visibleInputs.indexOf(input);
                 if (idx !== -1 && idx < visibleInputs.length - 1) {
-                    visibleInputs[idx + 1].focus();
+                    const nextInput = visibleInputs[idx + 1];
+                    nextInput.focus();
+                    nextInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 } else {
                     input.blur();
                 }
