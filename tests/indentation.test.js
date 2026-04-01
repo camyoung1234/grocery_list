@@ -35,7 +35,7 @@ test('verify indentation behavior', async ({ page }) => {
     localStorage.setItem('grocery-edit-mode', 'true');
   });
 
-  await page.goto('http://localhost:3000');
+  await page.reload();
 
   // Wait for app to render
   const sectionTitle = page.locator('.section-title');
@@ -58,7 +58,7 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Home Edit ON - Section Title X: ${sectionX_EditOn}, Item Text X: ${itemX_EditOn}`);
 
-  // Titles should align in edit mode
+  // Both should align in edit mode (indented by drag handle)
   expect(Math.abs(sectionX_EditOn - itemX_EditOn)).toBeLessThanOrEqual(1);
 
   // Toggle Edit Mode OFF
@@ -71,12 +71,14 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Home Edit OFF - Section Title X: ${sectionX_EditOff}, Item Text X: ${itemX_EditOff}`);
 
-  // Both should have moved left to the baseline
+  // Section title moved left
   expect(sectionX_EditOff).toBeLessThan(sectionX_EditOn);
-  expect(itemX_EditOff).toBeLessThan(itemX_EditOn);
 
-  // Alignment check: they should match in standard view
-  expect(Math.abs(sectionX_EditOff - itemX_EditOff)).toBeLessThanOrEqual(1);
+  // Item text remained indented (action container width 48px)
+  expect(Math.abs(itemX_EditOff - itemX_EditOn)).toBeLessThanOrEqual(1);
+
+  // Section title should be left of item text now
+  expect(sectionX_EditOff).toBeLessThan(itemX_EditOff);
 
   // --- SHOP MODE ---
   console.log('Testing Shop Mode...');
@@ -91,7 +93,7 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Shop Edit OFF - Section Title X: ${shopSectionX_EditOff}, Item Text X: ${shopItemX_EditOff}`);
 
-  // Section title moved to edge (0 action), Item text indented for circle (48px action)
+  // Item text remains indented for circle, Section title at edge
   expect(shopSectionX_EditOff).toBeLessThan(shopItemX_EditOff);
 
   // Toggle Edit Mode ON in Shop Mode
