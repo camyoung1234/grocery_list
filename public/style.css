@@ -1450,6 +1450,13 @@ h1 {
     color: var(--primary-color) !important;
 }
 
+.shop-selection-mode .section-delete-btn,
+#grocery-list.shop-selection-mode .section-delete-btn {
+    opacity: 0 !important;
+    transform: translate(-50%, -50%) scale(0.5) !important;
+    pointer-events: none !important;
+}
+
 .shop-selection-mode .drag-handle:not(.add-row-plus) {
     opacity: 0.3 !important;
     pointer-events: none !important;
