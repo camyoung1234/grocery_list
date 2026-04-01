@@ -443,8 +443,6 @@ h1 {
     min-width: 0;
     overflow: visible;
     position: relative;
-    margin-left: 0.5rem;
-    margin-right: 0.5rem;
     transition: margin 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1372,8 +1370,6 @@ h1 {
     padding: 3px 0;
     /* Add matching vertical space to compensate for input border/padding */
     flex: 1;
-    margin-left: 0.5rem;
-    margin-right: 0.5rem;
 }
 
 
@@ -1493,7 +1489,7 @@ h1 {
 }
 
 .section-container .grocery-item {
-    padding: 0 1rem 0 0;
+    padding: 0 1rem 0 1rem;
     height: 50px;
     box-sizing: border-box;
     border-radius: 0;
@@ -1896,23 +1892,27 @@ h1 {
 }
 
 .left-action {
-    width: 40px;
+    width: 48px;
     height: 50px;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin-right 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    overflow: hidden;
 }
 
-.hide-drag-handles .section-header .left-action,
-.hide-drag-handles .section-header .section-actions {
+.hide-drag-handles .left-action,
+.hide-drag-handles .section-actions {
     width: 0 !important;
-    opacity: 0 !important;
-    margin-left: -0.5rem;
-    transition: width 0.3s linear, opacity 0.3s linear, margin-left 0.3s linear !important;
+    transition: width 0.3s linear !important;
 }
+
+.shop-mode.hide-drag-handles .grocery-item .left-action {
+    width: 48px !important;
+}
+
 
 .section-header.in-view .left-action,
 .section-header.in-view .section-actions {
@@ -1932,7 +1932,7 @@ h1 {
 
 /* Drag and Drop Styles */
 .drag-handle {
-    width: 40px;
+    width: 48px;
     height: 50px;
     display: flex;
     align-items: center;

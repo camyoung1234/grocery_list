@@ -58,6 +58,9 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Home Edit ON - Section Title X: ${sectionX_EditOn}, Item Text X: ${itemX_EditOn}`);
 
+  // Titles should align in edit mode
+  expect(Math.abs(sectionX_EditOn - itemX_EditOn)).toBeLessThanOrEqual(1);
+
   // Toggle Edit Mode OFF
   await page.click('#toolbar-reorder');
   await expect(page.locator('.app-container')).toHaveClass(/hide-drag-handles/);
@@ -68,11 +71,12 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Home Edit OFF - Section Title X: ${sectionX_EditOff}, Item Text X: ${itemX_EditOff}`);
 
-  // Section header should have moved left
+  // Both should have moved left to the baseline
   expect(sectionX_EditOff).toBeLessThan(sectionX_EditOn);
+  expect(itemX_EditOff).toBeLessThan(itemX_EditOn);
 
-  // Item text should NOT have moved (consistent indentation)
-  expect(Math.abs(itemX_EditOff - itemX_EditOn)).toBeLessThan(2);
+  // Alignment check: they should match in standard view
+  expect(Math.abs(sectionX_EditOff - itemX_EditOff)).toBeLessThanOrEqual(1);
 
   // --- SHOP MODE ---
   console.log('Testing Shop Mode...');
@@ -87,6 +91,9 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Shop Edit OFF - Section Title X: ${shopSectionX_EditOff}, Item Text X: ${shopItemX_EditOff}`);
 
+  // Section title moved to edge (0 action), Item text indented for circle (48px action)
+  expect(shopSectionX_EditOff).toBeLessThan(shopItemX_EditOff);
+
   // Toggle Edit Mode ON in Shop Mode
   await page.click('#toolbar-reorder');
   await expect(page.locator('.app-container')).not.toHaveClass(/hide-drag-handles/);
@@ -97,9 +104,6 @@ test('verify indentation behavior', async ({ page }) => {
 
   console.log(`Shop Edit ON - Section Title X: ${shopSectionX_EditOn}, Item Text X: ${shopItemX_EditOn}`);
 
-  // Section header should have moved right when entering edit mode
-  expect(shopSectionX_EditOff).toBeLessThan(shopSectionX_EditOn);
-
-  // Item text should remain indented
-  expect(Math.abs(shopItemX_EditOff - shopItemX_EditOn)).toBeLessThan(10);
+  // Both should align when editing (drag handles visible)
+  expect(Math.abs(shopSectionX_EditOn - shopItemX_EditOn)).toBeLessThanOrEqual(1);
 });
