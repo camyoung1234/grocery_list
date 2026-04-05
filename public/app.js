@@ -1,4 +1,31 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize Firebase Backup if available
+    if (window.firebaseBackup) {
+        try {
+            await window.firebaseBackup.init();
+            console.log('✅ Firebase Backup initialized');
+            
+            // Setup real-time sync
+            window.firebaseBackup.sync((lists) => {
+                if (lists.length > 0) {
+                    console.log('🔄 Firebase sync: received', lists.length, 'lists');
+                    // Merge synced lists with local state
+                    lists.forEach(syncedList => {
+                        const existingList = appState.lists.find(l => l.id === syncedList.id);
+                        if (existingList) {
+                            Object.assign(existingList, syncedList);
+                        } else {
+                            appState.lists.push(syncedList);
+                        }
+                    });
+                    renderList();
+                }
+            });
+        } catch (err) {
+            console.warn('Firebase init failed:', err);
+        }
+    }
+    
     // --- State ---
     let appState = {
         lists: [],
@@ -1589,6 +1616,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             list.items = list.items.filter(item => !item.pendingDelete);
         });
         localStorage.setItem('grocery-app-state', JSON.stringify(stateToSave));
+        
+        // Backup to Firestore if Firebase is available
+        if (window.firebaseBackup) {
+            window.firebaseBackup.save(stateToSave).catch(err => console.warn('Firebase backup failed:', err));
+        }
     }
 
     function saveMode() {
