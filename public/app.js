@@ -2,7 +2,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- State ---
     let appState = {
         lists: [],
-        currentListId: null
+        currentListId: null,
+        updatedAt: 0
+    };
+
+    let cloudSettings = {
+        accountId: '',
+        databaseId: '',
+        apiToken: ''
     };
 
     let currentMode = 'home'; // 'home' or 'shop'
@@ -331,6 +338,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const restoreCancelBtn = document.getElementById('restore-cancel-btn');
     const restoreConfirmBtn = document.getElementById('restore-confirm-btn');
 
+    // Settings Modal Elements
+    const settingsModalOverlay = document.getElementById('settings-modal-overlay');
+    const settingsAccountId = document.getElementById('settings-account-id');
+    const settingsDatabaseId = document.getElementById('settings-database-id');
+    const settingsApiToken = document.getElementById('settings-api-token');
+    const settingsCancelBtn = document.getElementById('settings-cancel-btn');
+    const settingsSaveBtn = document.getElementById('settings-save-btn');
+    const settingsSyncBtn = document.getElementById('settings-sync-btn');
+    const toolbarSettingsBtn = document.getElementById('toolbar-settings');
+
     // --- Helpers ---
     const applyManualSelection = (input) => {
         input.addEventListener('click', (e) => {
@@ -433,6 +450,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Initialization ---
     async function init() {
         await restoreFromHash();
+
+        // Load cloud settings
+        const storedCloudSettings = JSON.parse(localStorage.getItem('grocery-cloud-settings'));
+        if (storedCloudSettings) {
+            cloudSettings = { ...cloudSettings, ...storedCloudSettings };
+        }
         
         // Read localStorage after hash restore has had a chance to update it
         const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
@@ -444,6 +467,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (storedState && storedState.lists && storedState.lists.length > 0) {
             appState = storedState;
+            if (appState.updatedAt === undefined) appState.updatedAt = 0;
+
             // Migration for sections
             appState.lists.forEach(list => {
                 if (!list.homeSections) {
@@ -690,6 +715,49 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+
+    if (toolbarSettingsBtn) {
+        toolbarSettingsBtn.addEventListener('click', () => {
+            settingsAccountId.value = cloudSettings.accountId;
+            settingsDatabaseId.value = cloudSettings.databaseId;
+            settingsApiToken.value = cloudSettings.apiToken;
+            settingsModalOverlay.classList.add('visible');
+        });
+    }
+
+    if (settingsCancelBtn) {
+        settingsCancelBtn.addEventListener('click', () => {
+            settingsModalOverlay.classList.remove('visible');
+        });
+    }
+
+    if (settingsSaveBtn) {
+        settingsSaveBtn.addEventListener('click', () => {
+            cloudSettings.accountId = settingsAccountId.value.trim();
+            cloudSettings.databaseId = settingsDatabaseId.value.trim();
+            cloudSettings.apiToken = settingsApiToken.value.trim();
+            localStorage.setItem('grocery-cloud-settings', JSON.stringify(cloudSettings));
+
+            const btnIcon = settingsSaveBtn.querySelector('i') || settingsSaveBtn;
+            const originalText = settingsSaveBtn.textContent;
+            settingsSaveBtn.textContent = 'Saved!';
+            setTimeout(() => {
+                settingsSaveBtn.textContent = originalText;
+                settingsModalOverlay.classList.remove('visible');
+            }, 1000);
+        });
+    }
+
+    if (settingsSyncBtn) {
+        settingsSyncBtn.addEventListener('click', syncWithD1);
+    }
+
+    // Close settings on outside click
+    settingsModalOverlay.addEventListener('mousedown', (e) => {
+        if (e.target === settingsModalOverlay) {
+            settingsModalOverlay.classList.remove('visible');
+        }
+    });
 
     // --- Import / Export Logic ---
     if (exportBtn) exportBtn.addEventListener('click', () => {
@@ -1582,13 +1650,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 
-    function saveAppState() {
+    function saveAppState(updateTimestamp = true) {
         // Clone appState for saving, filtering out items that are currently pending deletion
+        if (updateTimestamp) {
+            appState.updatedAt = Date.now();
+        }
         const stateToSave = JSON.parse(JSON.stringify(appState));
         stateToSave.lists.forEach(list => {
             list.items = list.items.filter(item => !item.pendingDelete);
         });
         localStorage.setItem('grocery-app-state', JSON.stringify(stateToSave));
+    }
+
+    async function syncWithD1() {
+        if (!cloudSettings.accountId || !cloudSettings.databaseId || !cloudSettings.apiToken) {
+            alert('Please configure CloudSync settings first.');
+            return;
+        }
+
+        const syncIcon = settingsSyncBtn.querySelector('i');
+        syncIcon.classList.add('fa-spin-custom');
+        settingsSyncBtn.disabled = true;
+
+        try {
+            const executeD1 = async (sql, params = []) => {
+                const url = `https://api.cloudflare.com/client/v4/accounts/${cloudSettings.accountId}/d1/database/${cloudSettings.databaseId}/query`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${cloudSettings.apiToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sql, params })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.errors?.[0]?.message || 'D1 Error');
+                }
+                return data.result[0];
+            };
+
+            // 1. Ensure table exists
+            await executeD1('CREATE TABLE IF NOT EXISTS grocery_sync (id INTEGER PRIMARY KEY, state TEXT, updated_at INTEGER)');
+
+            // 2. Fetch cloud state
+            const cloudResult = await executeD1('SELECT state, updated_at FROM grocery_sync WHERE id = 1');
+            const cloudState = cloudResult?.results?.[0];
+
+            if (!cloudState || appState.updatedAt > cloudState.updated_at) {
+                // Local is newer or no cloud state: push local to cloud
+                const stateStr = JSON.stringify(appState);
+                await executeD1('INSERT OR REPLACE INTO grocery_sync (id, state, updated_at) VALUES (1, ?, ?)', [stateStr, appState.updatedAt]);
+                console.log('Sync: Local state pushed to cloud.');
+            } else if (cloudState.updated_at > appState.updatedAt) {
+                // Cloud is newer: pull cloud to local
+                const newAppState = JSON.parse(cloudState.state);
+                appState = newAppState;
+                saveAppState(false); // Update local storage with new state but preserve the cloud timestamp
+                console.log('Sync: Cloud state pulled to local.');
+                renderListsMenu();
+                updateModeUI();
+                renderList();
+            } else {
+                console.log('Sync: Already up to date.');
+            }
+
+            syncIcon.classList.remove('fa-spin-custom');
+            const originalClass = syncIcon.className;
+            syncIcon.className = 'fas fa-check';
+            setTimeout(() => {
+                syncIcon.className = originalClass;
+                settingsSyncBtn.disabled = false;
+            }, 2000);
+
+        } catch (err) {
+            console.error('Sync failed:', err);
+            alert(`Sync failed: ${err.message}`);
+            syncIcon.classList.remove('fa-spin-custom');
+            settingsSyncBtn.disabled = false;
+        }
     }
 
     function saveMode() {
