@@ -2,4 +2,7 @@ name = "grocery-list"
 compatibility_date = "2024-02-20"
 [assets]
 directory = "public"
-
+[[d1_databases]]
+binding = "grocery_list"
+database_name = "grocery-list"
+database_id = "09a7d5ef-67b3-424d-8263-151f8b610473"
