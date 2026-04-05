@@ -364,6 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncCancelBtn = document.getElementById('sync-cancel-btn');
     const syncCloseBtn = document.getElementById('sync-close-btn');
     const syncUserEmailSpan = document.getElementById('sync-user-email');
+    const syncErrorDiv = document.getElementById('sync-error');
 
     // --- Helpers ---
     const applyManualSelection = (input) => {
@@ -653,12 +654,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Toolbar Interactions ---
     if (toolbarSyncBtn) {
         toolbarSyncBtn.addEventListener('click', () => {
+            if (syncErrorDiv) {
+                syncErrorDiv.textContent = '';
+                syncErrorDiv.classList.add('hidden');
+            }
             syncModalOverlay.classList.add('visible');
         });
     }
 
     if (syncCancelBtn) syncCancelBtn.addEventListener('click', () => syncModalOverlay.classList.remove('visible'));
     if (syncCloseBtn) syncCloseBtn.addEventListener('click', () => syncModalOverlay.classList.remove('visible'));
+
+    const showSyncError = (msg) => {
+        if (syncErrorDiv) {
+            syncErrorDiv.textContent = msg;
+            syncErrorDiv.classList.remove('hidden');
+        }
+    };
 
     if (syncLoginBtn) {
         syncLoginBtn.addEventListener('click', async () => {
@@ -668,7 +680,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await signInWithEmailAndPassword(auth, email, password);
                 syncModalOverlay.classList.remove('visible');
             } catch (e) {
-                alert(e.message);
+                showSyncError(e.message);
             }
         });
     }
@@ -681,7 +693,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await createUserWithEmailAndPassword(auth, email, password);
                 syncModalOverlay.classList.remove('visible');
             } catch (e) {
-                alert(e.message);
+                showSyncError(e.message);
             }
         });
     }
@@ -692,7 +704,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await signOut(auth);
                 syncModalOverlay.classList.remove('visible');
             } catch (e) {
-                alert(e.message);
+                showSyncError(e.message);
             }
         });
     }
