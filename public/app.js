@@ -2255,37 +2255,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         groceryList.appendChild(document.querySelector('.add-section-row'));
     }
 
-    function restoreList() {
-        const elements = Array.from(groceryList.children);
-        const sections = Array.from(groceryList.querySelectorAll('.section-container'));
-        const sectionMap = new Map();
-        
-        sections.forEach(s => {
-            sectionMap.set(s.dataset.id, s);
-            const list = s.querySelector('.section-items-list');
-            list.innerHTML = ''; // Clear for rebuild
-            s.style.display = '';
-        });
-
-        let currentSectionId = null;
-        elements.forEach(el => {
-            if (el.classList.contains('section-header')) {
-                currentSectionId = el.dataset.originalSectionId;
-            } else if (el.classList.contains('grocery-item') || el.classList.contains('add-item-row') || el === placeholder) {
-                const targetId = el.dataset.originalSectionId || currentSectionId;
-                const section = sectionMap.get(targetId);
-                if (section) {
-                    section.querySelector('.section-items-list').appendChild(el);
-                }
-            } else if (el.classList.contains('add-section-row')) {
-                groceryList.appendChild(el); // Stays at bottom
-            }
-        });
-        
-        // Re-append sections in their current order (if they moved)
-        sections.forEach(s => groceryList.appendChild(s));
-    }
-
     function handleDragStart(e, element, type) {
         if (!editMode) {
             e.preventDefault();
