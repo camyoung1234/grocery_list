@@ -1592,12 +1592,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     let animatingItems = new Map(); // id -> 'completing' | 'undoing'
+    let precomputedSameNameItems = new Map(); // id -> [items]
+
     async function toggleShopCompleted(id) {
-        const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
+        const sameNameItems = precomputedSameNameItems.get(id);
+        if (!sameNameItems || sameNameItems.length === 0) return;
+
+        const item = sameNameItems.find(i => i.id === id);
         if (!item) return;
 
-        const sameNameItems = currentList.items.filter(i => i.text === item.text);
         if (sameNameItems.some(i => animatingItems.has(i.id))) return;
 
         const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
@@ -1954,10 +1957,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderList() {
         const fragment = document.createDocumentFragment();
         const currentList = getCurrentList();
+
+        precomputedSameNameItems.clear();
+
         if (!currentList) {
             groceryList.innerHTML = '';
             return;
         }
+
+        const byText = new Map();
+        currentList.items.forEach(i => {
+            if (!byText.has(i.text)) byText.set(i.text, []);
+            byText.get(i.text).push(i);
+        });
+        currentList.items.forEach(i => {
+            precomputedSameNameItems.set(i.id, byText.get(i.text));
+        });
 
         const isHome = currentMode === 'home';
         const sectionsKey = isHome ? 'homeSections' : 'shopSections';
