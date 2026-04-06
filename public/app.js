@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     let currentMode = 'home'; // 'home' or 'shop'
-    let editMode = false;
+    let editMode = true;
     let listsMenuOpen = false;
     let draggedElement = null;
     let dragType = null;
@@ -146,10 +146,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (currentMode === 'home' && !editMode) {
             const row = target.closest('.grocery-item:not(.add-item-row):not(.add-section-row), .section-header');
             if (row) {
-                // Don't intercept if clicking buttons
-                if (target.closest('button, .drag-handle, .quantity-controls')) return;
+                // Don't intercept if clicking buttons, BUT if we are already editing this row and clicked handle, let it through
+                if (target.closest('button, .quantity-controls')) return;
 
                 const id = row.dataset.id || row.querySelector('.section-title')?.dataset.id;
+                if (target.closest('.drag-handle')) return;
+
                 if (id) {
                     if (editingRowId !== id) {
                         editingRowId = id;
@@ -533,7 +535,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentMode = localStorage.getItem('grocery-mode') || 'home';
 
         const storedEditMode = localStorage.getItem('grocery-edit-mode');
-        editMode = storedEditMode !== null ? JSON.parse(storedEditMode) : false;
+        editMode = storedEditMode !== null ? JSON.parse(storedEditMode) : true;
 
         if (storedState && storedState.lists && storedState.lists.length > 0) {
             appState = storedState;
@@ -2099,8 +2101,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const canRename = isHome || section.id !== shopDefId;
+            const isEditing = editingRowId === section.id;
             const dragHandleHTML = canRename
-                ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
+                ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="${editMode || isEditing ? 'true' : 'false'}"><i class="fas fa-grip-vertical"></i></div></div>`
                 : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
 
             const sectionDeleteHTML = canRename
@@ -2188,12 +2191,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.sectionId = section.id;
 
                 if (isHome) {
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn"><i class="fas fa-times"></i></button>`;
+                    const isEditing = editingRowId === item.id;
+                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="${editMode || isEditing ? 'true' : 'false'}"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn"><i class="fas fa-times"></i></button>`;
                     const controls = li.querySelector('.quantity-controls');
                     controls.appendChild(createQtyStepper(item, 'have'));
                 } else {
-                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-qty-circle"><span class="qty-number">${toBuy}</span><i class="fas fa-check check-icon"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
+                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-qty-circle"><span class="qty-number">${Math.max(0, item.wantCount - item.haveCount)}</span><i class="fas fa-check check-icon"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
                     li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
                 }
 
@@ -2345,7 +2348,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleDragStart(e, element, type) {
-        if (!editMode) {
+        const isEditing = editingRowId === element.dataset.id ||
+                         (element.querySelector('.section-title') && editingRowId === element.querySelector('.section-title').dataset.id);
+
+        if (!editMode && !isEditing) {
             e.preventDefault();
             return;
         }
