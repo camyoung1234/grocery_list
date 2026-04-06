@@ -982,6 +982,11 @@ h1 {
     border-color: var(--primary-color);
 }
 
+.qty-input::selection {
+    background: transparent;
+    color: inherit;
+}
+
 .shop-chip.selected .qty-input {
     border-color: var(--primary-color);
 }
