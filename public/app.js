@@ -1951,6 +1951,158 @@ document.addEventListener('DOMContentLoaded', async () => {
         return leftAction;
     }
 
+    function renderGroceryItem(item, idx, sectionItems, sectionId, isHome) {
+        const li = document.createElement('li');
+        const isAnimating = animatingItems.get(item.id);
+        const isCompleted = item.shopCompleted;
+
+        // when editing in store mode reset visual indicator even for 0-qty items
+        const showAsCompleted = isCompleted && !isHome && !(currentMode === 'shop' && editMode);
+
+        li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${showAsCompleted ? 'completed' : ''}`;
+        if (isAnimating === 'completing') li.classList.add('is-completing');
+        if (isAnimating === 'undoing') li.classList.add('is-undoing');
+
+        if (!isHome && !item.pendingDelete) {
+            const isSelected = selectedShopItems.has(item.id);
+            if (isSelected) {
+                li.classList.add('selected');
+                const prevItem = sectionItems[idx - 1];
+                const nextItem = sectionItems[idx + 1];
+                if (prevItem && selectedShopItems.has(prevItem.id)) li.classList.add('sel-top');
+                if (nextItem && selectedShopItems.has(nextItem.id)) li.classList.add('sel-bottom');
+            }
+        }
+
+        if (isSectionRestoration) li.classList.add('restoring-item');
+        li.dataset.id = item.id;
+        li.dataset.type = 'item';
+        li.dataset.sectionId = sectionId;
+
+        if (item.pendingDelete) {
+            li.classList.add('undo-row');
+            if (newlyDeletedIds.has(item.id)) {
+                li.classList.add('undo-row-animate');
+            }
+
+            if (isHome) {
+                const prevItem = sectionItems[idx - 1];
+                const nextItem = sectionItems[idx + 1];
+                if (prevItem && prevItem.pendingDelete) li.classList.add('sel-top');
+                if (nextItem && nextItem.pendingDelete) li.classList.add('sel-bottom');
+            }
+
+            li.innerHTML = `<div class="left-action"></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><button class="undo-btn-inline">Undo</button>`;
+            return li;
+        }
+
+        if (isHome) {
+            li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn"><i class="fas fa-times"></i></button>`;
+            const controls = li.querySelector('.quantity-controls');
+            controls.appendChild(createQtyStepper(item, 'have'));
+        } else {
+            const toBuy = Math.max(0, item.wantCount - item.haveCount);
+            li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-qty-circle"><span class="qty-number">${toBuy}</span><i class="fas fa-check check-icon"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
+            li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
+        }
+
+        return li;
+    }
+
+    function renderSection(section, sectionItems, isHome, indexKey) {
+        const sectionLi = document.createElement('li');
+        sectionLi.className = 'section-container';
+        sectionLi.dataset.id = section.id;
+        sectionLi.dataset.type = 'section';
+
+        // Section Header
+        const header = document.createElement('div');
+        header.className = 'section-header';
+
+        const canRename = isHome || section.id !== shopDefId;
+        const dragHandleHTML = canRename
+            ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
+            : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
+
+        const sectionDeleteHTML = canRename
+            ? `<button class="section-delete-btn"><i class="fas fa-times"></i></button>`
+            : '';
+
+        const moveHereHTML = !isHome
+            ? `<button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button>`
+            : '';
+
+        header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sectionDeleteHTML}${moveHereHTML}</div>`;
+
+        sectionLi.appendChild(header);
+
+        // Nested UL for items
+        const itemsUl = document.createElement('ul');
+        itemsUl.className = 'section-items-list';
+        itemsUl.dataset.sectionId = section.id;
+        itemsUl.dataset.type = 'item-placeholder'; // Allow empty UL to receive drops
+
+        sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
+
+        if (!isHome) {
+            itemsUl.classList.add('shop-mode');
+        }
+
+        sectionItems.forEach((item, idx) => {
+            const li = renderGroceryItem(item, idx, sectionItems, section.id, isHome);
+            itemsUl.appendChild(li);
+        });
+
+        // Add "Add item" row for this section
+        if (isHome) {
+            const addRow = document.createElement('li');
+            addRow.className = 'grocery-item add-item-row';
+            if (isSectionRestoration) addRow.classList.add('restoring-item');
+            addRow.dataset.type = 'item-placeholder';
+            addRow.dataset.sectionId = section.id;
+            addRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item" autocomplete="off"></form></div>`;
+            itemsUl.appendChild(addRow);
+        }
+        sectionLi.appendChild(itemsUl);
+
+        return sectionLi;
+    }
+
+    function groupShopItems(currentList) {
+        const groupedMap = new Map();
+        const nameToSection = new Map();
+        currentList.items.forEach(item => {
+            const name = item.text.trim();
+            if (!groupedMap.has(name)) {
+                groupedMap.set(name, {
+                    id: item.id,
+                    text: name,
+                    wantCount: 0,
+                    haveCount: 0,
+                    shopCompleted: true,
+                    shopSectionId: item.shopSectionId,
+                    shopIndex: item.shopIndex,
+                    allIds: []
+                });
+                nameToSection.set(name, item.shopSectionId);
+            }
+            const group = groupedMap.get(name);
+            group.wantCount = item.wantCount;
+            group.haveCount += item.haveCount;
+            group.allIds.push(item.id);
+            if (item.shopCompleted === false) group.shopCompleted = false;
+        });
+
+        // Enforce "zero left to buy = checked" for the group
+        groupedMap.forEach(group => {
+            if (group.haveCount >= group.wantCount) {
+                group.shopCompleted = true;
+            }
+        });
+
+        return { groupedMap, nameToSection };
+    }
+
     function renderList() {
         const fragment = document.createDocumentFragment();
         const currentList = getCurrentList();
@@ -1975,37 +2127,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
         // Pre-group items for shop mode
-        const groupedMap = new Map();
-        const nameToSection = new Map();
+        let groupedMap, nameToSection;
         if (!isHome) {
-            currentList.items.forEach(item => {
-                const name = item.text.trim();
-                if (!groupedMap.has(name)) {
-                    groupedMap.set(name, {
-                        id: item.id,
-                        text: name,
-                        wantCount: 0,
-                        haveCount: 0,
-                        shopCompleted: true,
-                        shopSectionId: item.shopSectionId,
-                        shopIndex: item.shopIndex,
-                        allIds: []
-                    });
-                    nameToSection.set(name, item.shopSectionId);
-                }
-                const group = groupedMap.get(name);
-                group.wantCount = item.wantCount;
-                group.haveCount += item.haveCount;
-                group.allIds.push(item.id);
-                if (item.shopCompleted === false) group.shopCompleted = false;
-            });
-
-            // Enforce "zero left to buy = checked" for the group
-            groupedMap.forEach(group => {
-                if (group.haveCount >= group.wantCount) {
-                    group.shopCompleted = true;
-                }
-            });
+            ({ groupedMap, nameToSection } = groupShopItems(currentList));
         }
 
         sections.forEach((section) => {
@@ -2030,131 +2154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
-
-            const sectionLi = document.createElement('li');
-            sectionLi.className = 'section-container';
-            sectionLi.dataset.id = section.id;
-            sectionLi.dataset.type = 'section';
-
-
-            // Section Header
-            const header = document.createElement('div');
-            header.className = 'section-header';
-
-            const canRename = isHome || section.id !== shopDefId;
-            const dragHandleHTML = canRename
-                ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
-                : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
-
-            const sectionDeleteHTML = canRename
-                ? `<button class="section-delete-btn"><i class="fas fa-times"></i></button>`
-                : '';
-
-            const moveHereHTML = !isHome
-                ? `<button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button>`
-                : '';
-
-            header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sectionDeleteHTML}${moveHereHTML}</div>`;
-
-            sectionLi.appendChild(header);
-
-            // Nested UL for items
-            const itemsUl = document.createElement('ul');
-            itemsUl.className = 'section-items-list';
-            itemsUl.dataset.sectionId = section.id;
-            itemsUl.dataset.type = 'item-placeholder'; // Allow empty UL to receive drops
-
-            sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
-
-            if (!isHome) {
-                itemsUl.classList.add('shop-mode');
-            }
-
-
-            sectionItems.forEach((item, idx) => {
-                const li = document.createElement('li');
-                const isAnimating = animatingItems.get(item.id);
-                const isCompleted = item.shopCompleted;
-
-                // when editing in store mode reset visual indicator even for 0-qty items
-                const showAsCompleted = isCompleted && !isHome && !(currentMode === 'shop' && editMode);
-
-                li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${showAsCompleted ? 'completed' : ''}`;
-                if (isAnimating === 'completing') li.classList.add('is-completing');
-                if (isAnimating === 'undoing') li.classList.add('is-undoing');
-
-
-                if (!isHome && !item.pendingDelete) {
-                    const isSelected = selectedShopItems.has(item.id);
-                    if (isSelected) {
-                        li.classList.add('selected');
-                        const prevItem = sectionItems[idx - 1];
-                        const nextItem = sectionItems[idx + 1];
-                        if (prevItem && selectedShopItems.has(prevItem.id)) li.classList.add('sel-top');
-                        if (nextItem && selectedShopItems.has(nextItem.id)) li.classList.add('sel-bottom');
-                    }
-                }
-
-                if (isSectionRestoration) li.classList.add('restoring-item');
-                li.dataset.id = item.id;
-                li.dataset.type = 'item';
-                li.dataset.sectionId = section.id;
-
-                if (item.pendingDelete) {
-                    li.classList.add('undo-row');
-                    if (newlyDeletedIds.has(item.id)) {
-                        li.classList.add('undo-row-animate');
-                    }
-
-                    if (isHome) {
-                        const prevItem = sectionItems[idx - 1];
-                        const nextItem = sectionItems[idx + 1];
-                        if (prevItem && prevItem.pendingDelete) li.classList.add('sel-top');
-                        if (nextItem && nextItem.pendingDelete) li.classList.add('sel-bottom');
-                    }
-
-                    li.dataset.id = item.id;
-                    li.dataset.type = 'item';
-                    li.dataset.sectionId = section.id;
-
-                    li.innerHTML = `<div class="left-action"></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><button class="undo-btn-inline">Undo</button>`;
-
-                    itemsUl.appendChild(li);
-                    return;
-                }
-
-
-
-                li.dataset.id = item.id;
-                li.dataset.type = 'item';
-                li.dataset.sectionId = section.id;
-
-                if (isHome) {
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn"><i class="fas fa-times"></i></button>`;
-                    const controls = li.querySelector('.quantity-controls');
-                    controls.appendChild(createQtyStepper(item, 'have'));
-                } else {
-                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-qty-circle"><span class="qty-number">${toBuy}</span><i class="fas fa-check check-icon"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
-                    li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
-                }
-
-                itemsUl.appendChild(li);
-            });
-
-
-            // Add "Add item" row for this section
-            if (isHome) {
-                const addRow = document.createElement('li');
-                addRow.className = 'grocery-item add-item-row';
-                if (isSectionRestoration) addRow.classList.add('restoring-item');
-                addRow.dataset.type = 'item-placeholder';
-                addRow.dataset.sectionId = section.id;
-                addRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item" autocomplete="off"></form></div>`;
-                itemsUl.appendChild(addRow);
-            }
-            sectionLi.appendChild(itemsUl);
-
+            const sectionLi = renderSection(section, sectionItems, isHome, indexKey);
             fragment.appendChild(sectionLi);
         });
 
