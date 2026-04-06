@@ -365,6 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncCloseBtn = document.getElementById('sync-close-btn');
     const syncUserEmailSpan = document.getElementById('sync-user-email');
     const syncErrorDiv = document.getElementById('sync-error');
+    const syncIcon = document.getElementById('sync-icon');
 
     // Conflict Modal Elements
     const conflictModalOverlay = document.getElementById('conflict-modal-overlay');
@@ -479,12 +480,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 syncLoggedOutDiv.classList.add('hidden');
                 syncLoggedInDiv.classList.remove('hidden');
                 syncUserEmailSpan.textContent = user.email;
-                toolbarSyncBtn.classList.add('active');
+                if (syncIcon) {
+                    syncIcon.className = 'fas fa-cloud';
+                }
+                firstSync = true; // Reset for new user session
                 syncWithFirestore(user);
             } else {
                 syncLoggedOutDiv.classList.remove('hidden');
                 syncLoggedInDiv.classList.add('hidden');
-                toolbarSyncBtn.classList.remove('active');
+                if (syncIcon) {
+                    syncIcon.className = 'fas fa-cloud-slash';
+                }
                 if (unsubscribeFirestore) {
                     unsubscribeFirestore();
                     unsubscribeFirestore = null;
@@ -1202,7 +1208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const localHasData = appState.lists && appState.lists.length > 0 && appState.lists[0].items && appState.lists[0].items.length > 0;
                     const cloudHasData = remoteState.lists && remoteState.lists.length > 0;
 
-                    if (localHasData && cloudHasData && remoteState.updatedAt !== appState.updatedAt) {
+                    if (localHasData && cloudHasData) {
                         showConflictModal(appState, remoteState);
                         return;
                     }
