@@ -1,8 +1,27 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyA8hTcqZ_I3zIsSC9Vq_XEg6T6KWaUav20",
+    authDomain: "grocery-list-a5729.firebaseapp.com",
+    projectId: "grocery-list-a5729",
+    storageBucket: "grocery-list-a5729.firebasestorage.app",
+    messagingSenderId: "114178464356",
+    appId: "1:114178464356:web:7511e575c26f7681985d71",
+    measurementId: "G-SGT26GXZT0"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
 document.addEventListener('DOMContentLoaded', async () => {
     // --- State ---
     let appState = {
         lists: [],
-        currentListId: null
+        currentListId: null,
+        updatedAt: 0
     };
 
     let currentMode = 'home'; // 'home' or 'shop'
@@ -28,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
     let selectionRenderTimeout = null;
+    let unsubscribeFirestore = null;
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -280,6 +300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, { passive: false });
 
     // Toolbar Elements
+    const toolbarSyncBtn = document.getElementById('toolbar-sync');
     const toolbarListsBtn = document.getElementById('toolbar-lists');
     const currentListSwatch = document.getElementById('current-list-swatch');
     const toolbarModeBtn = document.getElementById('toolbar-mode');
@@ -330,6 +351,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const restoreModalOverlay = document.getElementById('restore-modal-overlay');
     const restoreCancelBtn = document.getElementById('restore-cancel-btn');
     const restoreConfirmBtn = document.getElementById('restore-confirm-btn');
+
+    // Sync Modal Elements
+    const syncModalOverlay = document.getElementById('sync-modal-overlay');
+    const syncLoggedOutDiv = document.getElementById('sync-logged-out');
+    const syncLoggedInDiv = document.getElementById('sync-logged-in');
+    const syncEmailInput = document.getElementById('sync-email');
+    const syncPasswordInput = document.getElementById('sync-password');
+    const syncLoginBtn = document.getElementById('sync-login-btn');
+    const syncSignupBtn = document.getElementById('sync-signup-btn');
+    const syncLogoutBtn = document.getElementById('sync-logout-btn');
+    const syncCancelBtn = document.getElementById('sync-cancel-btn');
+    const syncCloseBtn = document.getElementById('sync-close-btn');
+    const syncUserEmailSpan = document.getElementById('sync-user-email');
+    const syncErrorDiv = document.getElementById('sync-error');
+    const syncIcon = document.getElementById('sync-icon');
+
+    // Conflict Modal Elements
+    const conflictModalOverlay = document.getElementById('conflict-modal-overlay');
+    const localSummaryDiv = document.getElementById('local-summary');
+    const cloudSummaryDiv = document.getElementById('cloud-summary');
+    const keepLocalBtn = document.getElementById('keep-local-btn');
+    const keepCloudBtn = document.getElementById('keep-cloud-btn');
 
     // --- Helpers ---
     const applyManualSelection = (input) => {
@@ -432,6 +475,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Initialization ---
     async function init() {
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                syncLoggedOutDiv.classList.add('hidden');
+                syncLoggedInDiv.classList.remove('hidden');
+                syncUserEmailSpan.textContent = user.email;
+                if (syncIcon) {
+                    syncIcon.className = 'fas fa-cloud';
+                }
+                firstSync = true; // Reset for new user session
+                syncWithFirestore(user);
+            } else {
+                syncLoggedOutDiv.classList.remove('hidden');
+                syncLoggedInDiv.classList.add('hidden');
+                if (syncIcon) {
+                    syncIcon.className = 'fas fa-cloud-slash';
+                }
+                if (unsubscribeFirestore) {
+                    unsubscribeFirestore();
+                    unsubscribeFirestore = null;
+                }
+            }
+        });
+
         await restoreFromHash();
         
         // Read localStorage after hash restore has had a chance to update it
@@ -444,6 +510,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (storedState && storedState.lists && storedState.lists.length > 0) {
             appState = storedState;
+            if (appState.updatedAt === undefined) appState.updatedAt = 0;
             // Migration for sections
             appState.lists.forEach(list => {
                 if (!list.homeSections) {
@@ -598,6 +665,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Toolbar Interactions ---
+    if (toolbarSyncBtn) {
+        toolbarSyncBtn.addEventListener('click', () => {
+            if (syncErrorDiv) {
+                syncErrorDiv.textContent = '';
+                syncErrorDiv.classList.add('hidden');
+            }
+            syncModalOverlay.classList.add('visible');
+        });
+    }
+
+    if (syncCancelBtn) syncCancelBtn.addEventListener('click', () => syncModalOverlay.classList.remove('visible'));
+    if (syncCloseBtn) syncCloseBtn.addEventListener('click', () => syncModalOverlay.classList.remove('visible'));
+
+    const showSyncError = (msg) => {
+        if (syncErrorDiv) {
+            syncErrorDiv.textContent = msg;
+            syncErrorDiv.classList.remove('hidden');
+        }
+    };
+
+    if (syncLoginBtn) {
+        syncLoginBtn.addEventListener('click', async () => {
+            const email = syncEmailInput.value;
+            const password = syncPasswordInput.value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                syncModalOverlay.classList.remove('visible');
+            } catch (e) {
+                showSyncError(e.message);
+            }
+        });
+    }
+
+    if (syncSignupBtn) {
+        syncSignupBtn.addEventListener('click', async () => {
+            const email = syncEmailInput.value;
+            const password = syncPasswordInput.value;
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                syncModalOverlay.classList.remove('visible');
+            } catch (e) {
+                showSyncError(e.message);
+            }
+        });
+    }
+
+    if (syncLogoutBtn) {
+        syncLogoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                syncModalOverlay.classList.remove('visible');
+            } catch (e) {
+                showSyncError(e.message);
+            }
+        });
+    }
+
     if (toolbarListsBtn) {
         toolbarListsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1069,6 +1193,66 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function getCurrentList() {
         return appState.lists.find(l => l.id === appState.currentListId);
+    }
+
+    let firstSync = true;
+    async function syncWithFirestore(user) {
+        if (!user) return;
+        const docRef = doc(db, "users", user.uid);
+        unsubscribeFirestore = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const remoteState = docSnap.data();
+                if (firstSync) {
+                    firstSync = false;
+                    // Check for conflict on login
+                    const localHasData = appState.lists && appState.lists.length > 0 && appState.lists[0].items && appState.lists[0].items.length > 0;
+                    const cloudHasData = remoteState.lists && remoteState.lists.length > 0;
+
+                    if (localHasData && cloudHasData) {
+                        showConflictModal(appState, remoteState);
+                        return;
+                    }
+                }
+
+                if (remoteState.updatedAt > appState.updatedAt) {
+                    appState = remoteState;
+                    saveAppState(false); // Update local but don't bump timestamp
+                    renderListsMenu();
+                    updateModeUI();
+                    renderList();
+                }
+            } else if (firstSync) {
+                firstSync = false;
+                // Cloud is empty, push local data if any
+                saveAppState(true);
+            }
+        });
+    }
+
+    function showConflictModal(localState, cloudState) {
+        const getSummary = (state) => {
+            if (!state || !state.lists) return 'No data';
+            return state.lists.map(l => `${l.name} (${l.items ? l.items.length : 0} items)`).join('<br>');
+        };
+
+        localSummaryDiv.innerHTML = getSummary(localState);
+        cloudSummaryDiv.innerHTML = getSummary(cloudState);
+
+        conflictModalOverlay.classList.add('visible');
+
+        keepLocalBtn.onclick = () => {
+            saveAppState(true); // Forces local timestamp bump and upload
+            conflictModalOverlay.classList.remove('visible');
+        };
+
+        keepCloudBtn.onclick = () => {
+            appState = cloudState;
+            saveAppState(false); // Update local but keep cloud's timestamp
+            conflictModalOverlay.classList.remove('visible');
+            renderListsMenu();
+            updateModeUI();
+            renderList();
+        };
     }
 
     // --- List Management ---
@@ -1582,13 +1766,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 
-    function saveAppState() {
+    async function saveAppState(updateTimestamp = true) {
+        if (updateTimestamp) {
+            appState.updatedAt = Date.now();
+        }
         // Clone appState for saving, filtering out items that are currently pending deletion
         const stateToSave = JSON.parse(JSON.stringify(appState));
         stateToSave.lists.forEach(list => {
             list.items = list.items.filter(item => !item.pendingDelete);
         });
         localStorage.setItem('grocery-app-state', JSON.stringify(stateToSave));
+
+        // Sync with Firestore if logged in
+        if (updateTimestamp && auth.currentUser) {
+            try {
+                await setDoc(doc(db, "users", auth.currentUser.uid), stateToSave);
+            } catch (e) {
+                console.error("Error syncing with Firestore:", e);
+            }
+        }
     }
 
     function saveMode() {
