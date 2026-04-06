@@ -1,10 +1,17 @@
 const { test, expect } = require('@playwright/test');
 
 test('Clicking on item name in Shop mode toggles completion', async ({ page }) => {
-  await page.goto('http://localhost:3000#');
+  await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
+  await page.evaluate(async () => window.dispatchEvent(new CustomEvent('mock-login', { detail: { email: 'test@example.com' } })));
 
   // Seed state: One item, Shop mode, Edit mode OFF
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const listId = Date.now().toString();
     const state = {
       lists: [{

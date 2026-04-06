@@ -4,11 +4,19 @@ const { test, expect } = require('@playwright/test');
 test('verify edit mode UI consistency', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
     await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
+  await page.reload();
+    await page.evaluate(async () => window.dispatchEvent(new CustomEvent('mock-login', { detail: { email: 'test@example.com' } })));
     await page.evaluate(() => localStorage.clear());
     await page.reload();
 
     // Add one item
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
         const state = {
             lists: [{
                 id: 'list-1',
@@ -58,7 +66,7 @@ test('verify edit mode UI consistency', async ({ page }) => {
     const dragHandle = page.locator('.drag-handle').first();
 
     await expect(deleteBtn).toBeVisible();
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
         const el = document.querySelector('.item-delete-btn');
         console.log('--- DEBUG DELETE BTN ---');
         console.log('ID:', el.id);

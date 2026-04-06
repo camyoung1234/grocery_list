@@ -52,6 +52,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectionRenderTimeout = null;
     let unsubscribeFirestore = null;
 
+    // --- Mock Login for Testing ---
+    window.__MOCK_LOGIN__ = async (email) => {
+        localStorage.setItem('__MOCK_LOGIN_EMAIL__', email);
+        const user = { email: email, uid: 'mock-uid' };
+        syncLoggedOutDiv.classList.add('hidden');
+        syncLoggedInDiv.classList.remove('hidden');
+        syncUserEmailSpan.textContent = user.email;
+        if (syncIcon) syncIcon.innerHTML = SYNC_ICON_SVG;
+        await loadAppState();
+        syncModalOverlay.classList.remove('visible');
+    };
+
+    const mockEmail = localStorage.getItem('__MOCK_LOGIN_EMAIL__');
+    if (mockEmail) {
+        window.__MOCK_LOGIN__(mockEmail);
+    }
+
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
     const appContainer = document.querySelector('.app-container');
@@ -494,6 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 syncLoggedOutDiv.classList.remove('hidden');
                 syncLoggedInDiv.classList.add('hidden');
+                syncModalOverlay.classList.add('visible');
                 if (syncIcon) {
                     syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
                 }
@@ -501,12 +519,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     unsubscribeFirestore();
                     unsubscribeFirestore = null;
                 }
+                // Clear app state on logout
+                appState = { lists: [], currentListId: null, updatedAt: 0 };
+                groceryList.innerHTML = '';
             }
         });
 
         await restoreFromHash();
-        
-        // Read localStorage after hash restore has had a chance to update it
+    }
+
+    async function loadAppState() {
+        // Read localStorage after hash restore or successful sync
         const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
         const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
         currentMode = localStorage.getItem('grocery-mode') || 'home';
@@ -550,9 +573,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }))
             }];
             appState.currentListId = defaultListId;
-
-            // Clean up legacy item logic (optional, we might keep it to avoid data loss if revert?)
-            // For now, let's just save the new state and rely on it.
             saveAppState();
         } else {
             // Fresh start
@@ -687,8 +707,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (syncCancelBtn) syncCancelBtn.addEventListener('click', () => syncModalOverlay.classList.remove('visible'));
-    if (syncCloseBtn) syncCloseBtn.addEventListener('click', () => syncModalOverlay.classList.remove('visible'));
+    if (syncCancelBtn) syncCancelBtn.addEventListener('click', () => {
+        if (auth.currentUser) syncModalOverlay.classList.remove('visible');
+    });
+    if (syncCloseBtn) syncCloseBtn.addEventListener('click', () => {
+        if (auth.currentUser) syncModalOverlay.classList.remove('visible');
+    });
 
     const showSyncError = (msg) => {
         if (syncErrorDiv) {
@@ -703,7 +727,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const password = syncPasswordInput.value;
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                syncModalOverlay.classList.remove('visible');
             } catch (e) {
                 showSyncError(e.message);
             }
@@ -716,7 +739,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const password = syncPasswordInput.value;
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
-                syncModalOverlay.classList.remove('visible');
             } catch (e) {
                 showSyncError(e.message);
             }
@@ -1251,22 +1273,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     let firstSync = true;
     async function syncWithFirestore(user) {
         if (!user) return;
+        if (unsubscribeFirestore) {
+            unsubscribeFirestore();
+        }
         const docRef = doc(db, "users", user.uid);
-        unsubscribeFirestore = onSnapshot(docRef, (docSnap) => {
+        unsubscribeFirestore = onSnapshot(docRef, async (docSnap) => {
             if (docSnap.exists()) {
                 const remoteState = docSnap.data();
                 if (firstSync) {
                     firstSync = false;
                     // Initial sync: download from cloud if it exists
                     appState = remoteState;
-                    saveAppState(false);
-                    renderListsMenu();
-                    updateModeUI();
-                    renderList();
+                    await saveAppState(false);
+                    await loadAppState();
+                    syncModalOverlay.classList.remove('visible');
                 } else {
                     // Ongoing sync: cloud data always wins
                     appState = remoteState;
-                    saveAppState(false); // Update local but don't bump timestamp
+                    await saveAppState(false); // Update local but don't bump timestamp
                     renderListsMenu();
                     updateModeUI();
                     renderList();
@@ -1274,7 +1298,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else if (firstSync) {
                 firstSync = false;
                 // Cloud is empty on first login, push local data
-                saveAppState(true);
+                await loadAppState();
+                await saveAppState(true);
+                syncModalOverlay.classList.remove('visible');
             }
         });
     }

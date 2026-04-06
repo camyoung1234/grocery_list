@@ -1,10 +1,17 @@
 const { test, expect } = require('@playwright/test');
 
 test('switching mode preserves edit mode', async ({ page }) => {
-  await page.goto('http://localhost:3000#');
+  await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
+  await page.evaluate(async () => window.dispatchEvent(new CustomEvent('mock-login', { detail: { email: 'test@example.com' } })));
 
   // Seed the state: in home mode with edit mode ON
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     localStorage.setItem('grocery-edit-mode', 'true');
     localStorage.setItem('grocery-mode', 'home');
   });

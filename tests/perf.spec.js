@@ -3,13 +3,21 @@ const { test, expect } = require('@playwright/test');
 
 test('generate large list and measure edit mode toggle', async ({ page }) => {
     await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
+  await page.reload();
+    await page.evaluate(async () => window.dispatchEvent(new CustomEvent('mock-login', { detail: { email: 'test@example.com' } })));
 
     // Clear existing data
     await page.evaluate(() => localStorage.clear());
     await page.reload();
 
     // Generate 500 items
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
         const items = [];
         for (let i = 0; i < 500; i++) {
             items.push({

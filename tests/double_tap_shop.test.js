@@ -3,10 +3,16 @@ const path = require('path');
 
 test.beforeEach(async ({ page }) => {
   await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
 });
 
 test('Double tap on item in Shop mode should NOT trigger inline edit', async ({ page }) => {
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const listId = 'test-list-1';
     const state = {
       lists: [{

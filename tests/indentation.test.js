@@ -2,11 +2,17 @@ const { test, expect } = require('@playwright/test');
 
 test('verify indentation behavior', async ({ page }) => {
   await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
 
   await page.waitForSelector('.bottom-toolbar');
 
   // Setup state and reload
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     localStorage.clear();
     const listId = 'L1';
     const appState = {
