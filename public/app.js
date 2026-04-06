@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncIcon = document.getElementById('sync-icon');
 
     // --- Animation Synchronization ---
-    const pageStartTime = Date.now();
+    const pageStartPerfTime = performance.now();
     const stableOffsets = new Map();
 
     function getStableOffset(id) {
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function applyAnimationDelays(element, id) {
         if (!element) return;
         const offset = getStableOffset(id);
-        const elapsed = (Date.now() - pageStartTime) / 1000;
+        const elapsed = (performance.now() - pageStartPerfTime) / 1000;
         const delay = offset - elapsed;
 
         element.style.setProperty('--glow-delay', `${delay}s`);
@@ -402,6 +402,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         element.style.setProperty('--pulse-delay', `${delay}s`);
         element.style.setProperty('--delete-delay', `${delay}s`);
     }
+
+    // Apply delays to focused elements immediately
+    document.addEventListener('focusin', (e) => {
+        if (e.target.matches('input, .qty-input, .add-item-input, .add-section-input')) {
+            const id = e.target.closest('[data-id]')?.dataset.id || e.target.id || 'focus-target';
+            applyAnimationDelays(e.target, id + '-focus');
+        }
+    });
 
     // Conflict Modal Elements
     const conflictModalOverlay = document.getElementById('conflict-modal-overlay');
@@ -1662,8 +1670,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
 
-                // Wait for strike-through to complete (0.1s more)
-                await new Promise(r => setTimeout(r, 100));
+                // Wait for strike-through/color transition to complete (0.2s more, 0.5s total)
+                await new Promise(r => setTimeout(r, 200));
 
                 sameNameItems.forEach((i, idx) => {
                     i.shopCompleted = true;
@@ -1672,6 +1680,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Manually update classes to maintain state without renderList()
                     const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
                     if (el) {
+                        applyAnimationDelays(el, i.id);
                         el.classList.remove('is-completing');
                         el.classList.add('completed');
                     }
