@@ -1940,17 +1940,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return handle;
     }
 
-    function createLeftAction(children = []) {
-        const leftAction = document.createElement('div');
-        leftAction.className = 'left-action';
-        if (Array.isArray(children)) {
-            children.forEach(child => leftAction.appendChild(child));
-        } else if (children) {
-            leftAction.appendChild(children);
-        }
-        return leftAction;
-    }
-
     function renderList() {
         const fragment = document.createDocumentFragment();
         const currentList = getCurrentList();
