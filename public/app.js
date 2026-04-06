@@ -248,6 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const header = target.closest('.section-header');
                 const input = document.createElement('input');
                 input.type = 'text';
+                input.autocomplete = 'off';
                 input.value = section.name;
                 input.className = 'inline-section-input';
                 applyManualSelection(input);
@@ -1378,6 +1379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const input = document.createElement('input');
         input.type = 'text';
+        input.autocomplete = 'off';
         input.value = item.text;
         input.size = 1;
         input.className = 'inline-edit-input';
@@ -2148,7 +2150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (isSectionRestoration) addRow.classList.add('restoring-item');
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
-                addRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item"></form></div>`;
+                addRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item" autocomplete="off"></form></div>`;
                 itemsUl.appendChild(addRow);
             }
             sectionLi.appendChild(itemsUl);
@@ -2161,7 +2163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addSecRow = document.createElement('li');
         addSecRow.className = 'grocery-item add-section-row';
         addSecRow.dataset.type = 'section-placeholder';
-        addSecRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" placeholder="Add section" class="inline-item-input add-section-input"></form></div>`;
+        addSecRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" placeholder="Add section" class="inline-item-input add-section-input" autocomplete="off"></form></div>`;
 
         fragment.appendChild(addSecRow);
 
@@ -2185,6 +2187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const input = document.createElement('input');
         input.type = 'text';
+        input.autocomplete = 'off';
         input.inputMode = 'numeric';
         input.className = 'qty-input';
         input.value = type === 'have' ? item.haveCount : item.wantCount;
