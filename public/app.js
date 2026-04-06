@@ -379,11 +379,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncIcon = document.getElementById('sync-icon');
 
     // Conflict Modal Elements
-    const conflictModalOverlay = document.getElementById('conflict-modal-overlay');
-    const localSummaryDiv = document.getElementById('local-summary');
-    const cloudSummaryDiv = document.getElementById('cloud-summary');
-    const keepLocalBtn = document.getElementById('keep-local-btn');
-    const keepCloudBtn = document.getElementById('keep-cloud-btn');
 
     // --- Helpers ---
     const applyManualSelection = (input) => {
@@ -707,11 +702,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const email = syncEmailInput.value;
             const password = syncPasswordInput.value;
             try {
-                isManualLogin = true;
                 await signInWithEmailAndPassword(auth, email, password);
                 syncModalOverlay.classList.remove('visible');
             } catch (e) {
-                isManualLogin = false;
                 showSyncError(e.message);
             }
         });
@@ -722,11 +715,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const email = syncEmailInput.value;
             const password = syncPasswordInput.value;
             try {
-                isManualLogin = true;
                 await createUserWithEmailAndPassword(auth, email, password);
                 syncModalOverlay.classList.remove('visible');
             } catch (e) {
-                isManualLogin = false;
                 showSyncError(e.message);
             }
         });
@@ -1257,7 +1248,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return appState.lists.find(l => l.id === appState.currentListId);
     }
 
-    let isManualLogin = false;
     let firstSync = true;
     async function syncWithFirestore(user) {
         if (!user) return;
@@ -1266,27 +1256,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (docSnap.exists()) {
                 const remoteState = docSnap.data();
                 if (firstSync) {
-                    const manual = isManualLogin;
                     firstSync = false;
-                    isManualLogin = false;
-
-                    if (manual) {
-                        // Check for conflict on manual login
-                        const localHasData = appState.lists && appState.lists.length > 0 && appState.lists[0].items && appState.lists[0].items.length > 0;
-                        const cloudHasData = remoteState.lists && remoteState.lists.length > 0;
-
-                        if (localHasData && cloudHasData) {
-                            showConflictModal(appState, remoteState);
-                            return;
-                        }
-                    } else if (appState.updatedAt > remoteState.updatedAt) {
-                        // On auto-login (page reload), if local is newer, push it
-                        saveAppState(true);
-                        return;
-                    }
-                }
-
-                if (remoteState.updatedAt > appState.updatedAt) {
+                    // Initial sync: download from cloud if it exists
+                    appState = remoteState;
+                    saveAppState(false);
+                    renderListsMenu();
+                    updateModeUI();
+                    renderList();
+                } else {
+                    // Ongoing sync: cloud data always wins
                     appState = remoteState;
                     saveAppState(false); // Update local but don't bump timestamp
                     renderListsMenu();
@@ -1295,37 +1273,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } else if (firstSync) {
                 firstSync = false;
-                // Cloud is empty, push local data if any
+                // Cloud is empty on first login, push local data
                 saveAppState(true);
             }
         });
     }
 
-    function showConflictModal(localState, cloudState) {
-        const getSummary = (state) => {
-            if (!state || !state.lists) return 'No data';
-            return state.lists.map(l => `${l.name} (${l.items ? l.items.length : 0} items)`).join('<br>');
-        };
-
-        localSummaryDiv.innerHTML = getSummary(localState);
-        cloudSummaryDiv.innerHTML = getSummary(cloudState);
-
-        conflictModalOverlay.classList.add('visible');
-
-        keepLocalBtn.onclick = () => {
-            saveAppState(true); // Forces local timestamp bump and upload
-            conflictModalOverlay.classList.remove('visible');
-        };
-
-        keepCloudBtn.onclick = () => {
-            appState = cloudState;
-            saveAppState(false); // Update local but keep cloud's timestamp
-            conflictModalOverlay.classList.remove('visible');
-            renderListsMenu();
-            updateModeUI();
-            renderList();
-        };
-    }
 
     // --- List Management ---
     function addNewList(name, theme, accent) {
