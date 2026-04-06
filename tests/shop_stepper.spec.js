@@ -2,7 +2,15 @@ const { test, expect } = require('@playwright/test');
 
 test('verify shop mode quantity stepper', async ({ page }) => {
     await page.goto('http://localhost:3000');
-    await page.evaluate(() => {
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
+  await page.reload();
+    await page.evaluate(async () => window.dispatchEvent(new CustomEvent('mock-login', { detail: { email: 'test@example.com' } })));
+    await page.evaluate(async () => {
         localStorage.clear();
         localStorage.setItem('grocery-edit-mode', 'false');
     });

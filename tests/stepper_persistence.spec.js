@@ -2,12 +2,17 @@ const { test, expect } = require('@playwright/test');
 
 test.beforeEach(async ({ page }) => {
   await page.goto('http://localhost:3000');
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
   await page.reload();
 });
 
 test('Stepper remains expanded after incrementing wanted quantity', async ({ page }) => {
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const listId = 'list-1';
     const state = {
       lists: [{

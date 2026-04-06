@@ -2,12 +2,17 @@ const { test, expect } = require('@playwright/test');
 
 test.beforeEach(async ({ page }) => {
   await page.goto('http://localhost:3000');
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
   await page.reload();
 });
 
 test('Shared wantCount synchronizes across items with same name', async ({ page }) => {
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const listId = 'list-1';
     const state = {
       lists: [{
@@ -84,7 +89,7 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
 });
 
 test('Shop mode groups items with shared wantCount correctly', async ({ page }) => {
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const listId = 'list-1';
     const state = {
       lists: [{
@@ -137,7 +142,7 @@ test('Shop mode groups items with shared wantCount correctly', async ({ page }) 
 });
 
 test('Committing a grouped item in Shop mode distributes haveCount correctly', async ({ page }) => {
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
         const listId = 'list-1';
         const state = {
           lists: [{
@@ -201,7 +206,7 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
 });
 
 test('Renaming an item to an existing name syncs wantCount', async ({ page }) => {
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
         const listId = 'list-1';
         const state = {
           lists: [{

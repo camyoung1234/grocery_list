@@ -2,10 +2,18 @@ const { test, expect } = require('@playwright/test');
 
 test('Item checking behavior (no commit)', async ({ page }) => {
   page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
-  await page.goto('http://localhost:3000#');
+  await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
+  await page.reload();
+  await page.evaluate(async () => window.dispatchEvent(new CustomEvent('mock-login', { detail: { email: 'test@example.com' } })));
 
   // Seed state: One item, Shop mode, Edit mode OFF
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const listId = 'list-1';
     const state = {
       lists: [{

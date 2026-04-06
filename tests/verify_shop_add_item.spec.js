@@ -1,10 +1,18 @@
 const { test, expect } = require('@playwright/test');
 
 test('Add item rows are NOT visible in shop mode when editing', async ({ page }) => {
-  await page.goto('http://localhost:3000#');
+  await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
+  await page.reload();
+  await page.evaluate(async () => window.dispatchEvent(new CustomEvent('mock-login', { detail: { email: 'test@example.com' } })));
 
   // Seed state: Add a section so we have a place for "Add item"
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const listId = Date.now().toString();
     const state = {
       lists: [{
@@ -53,10 +61,18 @@ test('Add item rows are NOT visible in shop mode when editing', async ({ page })
 });
 
 test('Add item rows ARE visible in home mode when editing', async ({ page }) => {
-  await page.goto('http://localhost:3000#');
+  await page.goto('http://localhost:3000');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await window.__MOCK_LOGIN__('test@example.com');
+  });
+  await expect(page.locator('#sync-modal-overlay')).not.toBeVisible();
+  await page.reload();
+  await page.reload();
+  await page.evaluate(async () => window.dispatchEvent(new CustomEvent('mock-login', { detail: { email: 'test@example.com' } })));
 
   // Seed state: Add a section, Home mode, Edit mode ON
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const listId = Date.now().toString();
     const state = {
       lists: [{
