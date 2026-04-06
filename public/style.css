@@ -1449,7 +1449,8 @@ h1 {
     justify-content: center !important;
 }
 
-.app-container:not(.hide-drag-handles) .section-delete-btn {
+.app-container:not(.hide-drag-handles) .section-delete-btn,
+.is-editing .section-delete-btn {
     opacity: 1 !important;
     transform: translate(-50%, -50%) scale(1) !important;
     pointer-events: auto !important;
@@ -1903,6 +1904,13 @@ h1 {
     width: 0 !important;
 }
 
+.is-editing .drag-handle {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+    width: 40px !important;
+}
+
 .grocery-item.in-view .drag-handle {
     transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
@@ -1951,6 +1959,15 @@ h1 {
     transition: width 0.3s linear, margin-left 0.3s linear !important;
 }
 
+.is-editing .left-action,
+.is-editing .section-actions {
+    width: 48px !important;
+    min-width: 48px !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    margin-left: 0.5rem !important;
+}
+
 .hide-drag-handles .grocery-item .left-action {
     width: 40px !important;
 }
@@ -1963,13 +1980,14 @@ h1 {
 
 
 
-.app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn {
-    width: 48px;
-    min-width: 48px;
-    opacity: 1;
-    transform: scale(1);
-    pointer-events: auto;
-    margin-left: 0.5rem;
+.app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn,
+.is-editing .item-delete-btn {
+    width: 48px !important;
+    min-width: 48px !important;
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+    margin-left: 0.5rem !important;
 }
 
 /* Drag and Drop Styles */
@@ -2164,15 +2182,16 @@ h1 {
 
 .home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
 .touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
+.is-editing .quantity-controls,
 .shop-mode.hide-drag-handles .grocery-item .quantity-controls,
 .touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
     width: 0 !important;
     min-width: 0 !important;
-    opacity: 0;
-    transform: scale(0.5);
-    pointer-events: none;
-    overflow: hidden;
-    margin-left: 0;
+    opacity: 0 !important;
+    transform: scale(0.5) !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    margin-left: 0 !important;
 }
 
 

@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     let currentMode = 'home'; // 'home' or 'shop'
-    let editMode = true;
+    let editMode = false;
     let listsMenuOpen = false;
     let draggedElement = null;
     let dragType = null;
@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isSectionRestoration = false; // Flag to trigger drop animations
     let currentShopFilter = 'unbought'; // 'unbought' or 'all'
     let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
+    let editingRowId = null; // Tracks which specific row is currently in 'tap-to-edit' state
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
@@ -56,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const groceryList = document.getElementById('grocery-list');
     const appContainer = document.querySelector('.app-container');
     const listsMenu = document.getElementById('lists-menu');
+    const bottomToolbar = document.querySelector('.bottom-toolbar');
 
     // --- Intersection Observer for Performance ---
     const viewportObserver = new IntersectionObserver((entries) => {
@@ -138,6 +140,46 @@ document.addEventListener('DOMContentLoaded', async () => {
             const row = addSecPlus.closest('.add-section-row');
             row.querySelector('.add-section-input').focus();
             return;
+        }
+
+        // Tap to Edit (Home Mode)
+        if (currentMode === 'home' && !editMode) {
+            const row = target.closest('.grocery-item:not(.add-item-row):not(.add-section-row), .section-header');
+            if (row) {
+                // Don't intercept if clicking buttons
+                if (target.closest('button, .drag-handle, .quantity-controls')) return;
+
+                const id = row.dataset.id || row.querySelector('.section-title')?.dataset.id;
+                if (id) {
+                    if (editingRowId !== id) {
+                        editingRowId = id;
+                        renderList();
+                        return;
+                    } else {
+                        // Already editing this row, check for name/title tap
+                        if (target.classList.contains('item-text')) {
+                            const item = getCurrentList().items.find(i => i.id === id);
+                            if (item) {
+                                startInlineItemEdit(item, target.closest('.item-info'), target);
+                            }
+                            return;
+                        }
+                        if (target.classList.contains('section-title')) {
+                            const section = getCurrentList().homeSections.find(s => s.id === id);
+                            if (section) {
+                                startInlineSectionEdit(section, target.closest('.section-header'), target);
+                            }
+                            return;
+                        }
+                    }
+                }
+            } else {
+                // Tapped outside any editable row
+                if (editingRowId !== null && !target.closest('.bottom-toolbar')) {
+                    editingRowId = null;
+                    renderList();
+                }
+            }
         }
 
         // Shop Chip Toggle / Selection
@@ -225,8 +267,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!editMode) return;
         const target = e.target;
 
-        // Item Title Double Tap
-        if (target.classList.contains('item-text') && currentMode === 'home') {
+        // Item Title Double Tap (Store Mode only, Home Mode uses Single Tap to Edit)
+        if (target.classList.contains('item-text') && currentMode === 'shop') {
             e.stopPropagation();
             const li = target.closest('.grocery-item');
             const id = li.dataset.id;
@@ -237,42 +279,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Section Title Double Tap
-        if (target.classList.contains('section-title')) {
+        // Section Title Double Tap (Store Mode only, Home Mode uses Single Tap to Edit)
+        if (target.classList.contains('section-title') && currentMode === 'shop') {
             e.stopPropagation();
             const container = target.closest('.section-container');
             const section = getCurrentList().homeSections.find(s => s.id === container.dataset.id) ||
                             getCurrentList().shopSections.find(s => s.id === container.dataset.id);
 
             if (section && (currentMode === 'home' || section.id !== shopDefId)) {
-                const header = target.closest('.section-header');
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.autocomplete = 'off';
-                input.value = section.name;
-                input.className = 'inline-section-input';
-                applyManualSelection(input);
-
-                const saveSectionName = () => {
-                    const newName = input.value.trim();
-                    if (newName && newName !== section.name) {
-                        section.name = newName;
-                        saveAppState();
-                    }
-                    renderList();
-                };
-
-                input.addEventListener('blur', saveSectionName);
-                input.addEventListener('keydown', (ke) => {
-                    if (ke.key === 'Enter') {
-                        input.blur();
-                    } else if (ke.key === 'Escape') {
-                        renderList();
-                    }
-                });
-
-                header.replaceChild(input, target);
-                input.focus();
+                startInlineSectionEdit(section, target.closest('.section-header'), target);
             }
             return;
         }
@@ -518,7 +533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentMode = localStorage.getItem('grocery-mode') || 'home';
 
         const storedEditMode = localStorage.getItem('grocery-edit-mode');
-        editMode = storedEditMode !== null ? JSON.parse(storedEditMode) : true;
+        editMode = storedEditMode !== null ? JSON.parse(storedEditMode) : false;
 
         if (storedState && storedState.lists && storedState.lists.length > 0) {
             appState = storedState;
@@ -736,6 +751,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 syncModalOverlay.classList.remove('visible');
             } catch (e) {
                 showSyncError(e.message);
+            }
+        });
+    }
+
+    if (bottomToolbar) {
+        bottomToolbar.addEventListener('click', () => {
+            if (editingRowId !== null) {
+                editingRowId = null;
+                renderList();
             }
         });
     }
@@ -1424,6 +1448,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.focus();
     }
 
+    function startInlineSectionEdit(section, header, target) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.autocomplete = 'off';
+        input.value = section.name;
+        input.className = 'inline-section-input';
+        applyManualSelection(input);
+
+        const saveSectionName = () => {
+            const newName = input.value.trim();
+            if (newName && newName !== section.name) {
+                section.name = newName;
+                saveAppState();
+            }
+            renderList();
+        };
+
+        input.addEventListener('blur', saveSectionName);
+        input.addEventListener('keydown', (ke) => {
+            if (ke.key === 'Enter') {
+                input.blur();
+            } else if (ke.key === 'Escape') {
+                renderList();
+            }
+        });
+
+        header.replaceChild(input, target);
+        input.focus();
+    }
+
     function renameItem(id) {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
@@ -2040,6 +2094,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Section Header
             const header = document.createElement('div');
             header.className = 'section-header';
+            if (editingRowId === section.id) {
+                header.classList.add('is-editing');
+            }
 
             const canRename = isHome || section.id !== shopDefId;
             const dragHandleHTML = canRename
@@ -2082,6 +2139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${showAsCompleted ? 'completed' : ''}`;
                 if (isAnimating === 'completing') li.classList.add('is-completing');
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
+                if (editingRowId === item.id) li.classList.add('is-editing');
 
 
                 if (!isHome && !item.pendingDelete) {
