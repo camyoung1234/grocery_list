@@ -2139,3 +2139,46 @@ h1 {
     margin-left: 0;
 }
 
+
+@property --glow-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
+@keyframes rotate-glow {
+    from {
+        --glow-angle: 0deg;
+    }
+    to {
+        --glow-angle: 360deg;
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 5px 1px color-mix(in srgb, var(--primary-color) 30%, transparent);
+    }
+    50% {
+        box-shadow: 0 0 10px 3px color-mix(in srgb, var(--primary-color) 50%, transparent);
+    }
+}
+
+.qty-input:focus,
+.inline-item-input:focus,
+.inline-edit-input:focus,
+.inline-section-input:focus,
+.add-item-input:focus,
+.add-section-input:focus,
+.tab-edit-input:focus,
+#modal-input:focus,
+#sync-email:focus,
+#sync-password:focus {
+    outline: none;
+    border: 2px solid transparent !important;
+    background-image: linear-gradient(var(--card-bg), var(--card-bg)),
+                      conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    animation: rotate-glow 3s linear infinite, pulse-glow 2s ease-in-out infinite;
+}
