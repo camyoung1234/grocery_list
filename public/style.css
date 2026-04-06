@@ -1438,7 +1438,8 @@ h1 {
     justify-content: center !important;
 }
 
-.app-container:not(.hide-drag-handles) .section-delete-btn {
+.app-container.shop-mode:not(.hide-drag-handles) .section-delete-btn,
+.home-mode .row-editing .section-delete-btn {
     opacity: 1 !important;
     transform: translate(-50%, -50%) scale(1) !important;
     pointer-events: auto !important;
@@ -1863,12 +1864,32 @@ h1 {
     margin: 0.5rem 0;
 }
 
-.hide-drag-handles .drag-handle {
+.hide-drag-handles .drag-handle,
+.home-mode .drag-handle:not(.add-row-plus) {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translate(-50%, -50%) scale(0.5) !important;
-    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear !important;
-    width: 0 !important;
+    transition: opacity 0.3s linear, transform 0.3s linear !important;
+}
+
+.shop-mode:not(.hide-drag-handles) .drag-handle,
+.home-mode .row-editing .drag-handle:not(.add-row-plus),
+.home-mode .dragging .drag-handle:not(.add-row-plus) {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+}
+
+/* During dragging, hide all handles except the one being dragged */
+.app-container.home-mode.is-dragging .drag-handle:not(.add-row-plus) {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.app-container.home-mode.is-dragging .dragging .drag-handle:not(.add-row-plus) {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translate(-50%, -50%) scale(1) !important;
 }
 
 .grocery-item.in-view .drag-handle {
@@ -1931,7 +1952,8 @@ h1 {
 
 
 
-.app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn {
+.app-container.shop-mode:not(.hide-drag-handles) .grocery-item .item-delete-btn,
+.home-mode .row-editing .item-delete-btn {
     width: 48px;
     min-width: 48px;
     opacity: 1;
