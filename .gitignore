@@ -10,3 +10,5 @@ server.log
 wrangler.log
 test-results/
 .last-run.json
+edit-mode-large.png
+verify-ui-edit-mode.png
