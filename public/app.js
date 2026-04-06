@@ -58,12 +58,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listsMenu = document.getElementById('lists-menu');
 
     // --- Intersection Observer for Performance ---
+    const inViewportSet = new Set();
     const viewportObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
+            const isRelevant = entry.target.classList.contains('grocery-item') || entry.target.classList.contains('section-header');
             if (entry.isIntersecting) {
                 entry.target.classList.add('in-view');
+                if (isRelevant) inViewportSet.add(entry.target);
             } else {
                 entry.target.classList.remove('in-view');
+                inViewportSet.delete(entry.target);
             }
         });
     }, {
@@ -798,18 +802,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         toolbarReorderBtn.addEventListener('click', () => {
             // Find the row currently at the top of the viewport
             let topRow = null;
-            let topOffset = 0;
+            let topOffset = Infinity;
 
-            // Optimization: Only scan visible rows to find topRow
-            const visibleRows = Array.from(document.querySelectorAll('.grocery-item.in-view, .section-header.in-view'));
-            for (const row of visibleRows) {
+            // Optimization: Only scan visible rows using the IntersectionObserver's tracked Set
+            for (const row of inViewportSet) {
                 const rect = row.getBoundingClientRect();
-                if (rect.bottom > 0) {
+                if (rect.bottom > 0 && rect.top < topOffset) {
                     topRow = row;
                     topOffset = rect.top;
-                    break;
                 }
             }
+
+            // In case no valid row was found (e.g. empty list or layout quirk), fallback gracefully
+            if (!topRow) topOffset = 0;
 
             editMode = !editMode;
             saveMode();
@@ -2172,6 +2177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Update intersection observer
         viewportObserver.disconnect();
+        inViewportSet.clear();
         const rows = groceryList.querySelectorAll('.grocery-item, .section-container, .section-header');
         rows.forEach(row => viewportObserver.observe(row));
 
