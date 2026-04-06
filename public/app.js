@@ -334,11 +334,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentAccentSwatch = document.getElementById('current-accent-swatch');
     const currentAccentName = document.getElementById('current-accent-name');
 
-    const modalHomeSectionGroup = document.getElementById('modal-home-section-group');
-    const modalShopSectionGroup = document.getElementById('modal-shop-section-group');
-    const modalHomeSectionSelect = document.getElementById('modal-home-section');
-    const modalShopSectionSelect = document.getElementById('modal-shop-section');
-
     // Import / Export Elements
     const importBtn = document.getElementById('import-btn');
     const exportBtn = document.getElementById('export-btn');
@@ -1030,9 +1025,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentDeleteActionCallback = null;
         }
 
-        modalHomeSectionGroup.classList.add('hidden');
-        modalShopSectionGroup.classList.add('hidden');
-
         currentModalCallback = callback;
         modalOverlay.classList.add('visible');
 
@@ -1422,48 +1414,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         container.appendChild(input);
         info.replaceChild(container, nameSpan);
         input.focus();
-    }
-
-    function renameItem(id) {
-        const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
-        if (!item) return;
-
-        modalHomeSectionSelect.innerHTML = '';
-        currentList.homeSections.forEach(sec => {
-            const opt = document.createElement('option');
-            opt.value = sec.id;
-            opt.textContent = sec.name;
-            modalHomeSectionSelect.appendChild(opt);
-        });
-        modalHomeSectionSelect.value = item.homeSectionId;
-
-        modalShopSectionSelect.innerHTML = '';
-        currentList.shopSections.forEach(sec => {
-            const opt = document.createElement('option');
-            opt.value = sec.id;
-            opt.textContent = sec.name;
-            modalShopSectionSelect.appendChild(opt);
-        });
-        modalShopSectionSelect.value = item.shopSectionId;
-
-        showModal('Edit Item', item.text, false, null, null, (newName) => {
-            if (newName && newName.trim() !== '') {
-                const trimmedNewName = newName.trim();
-                const existing = currentList.items.find(i => i.text.trim() === trimmedNewName && i.id !== item.id);
-                if (existing) {
-                    item.wantCount = existing.wantCount;
-                }
-                item.text = trimmedNewName;
-                item.homeSectionId = modalHomeSectionSelect.value;
-                item.shopSectionId = modalShopSectionSelect.value;
-                saveAppState();
-                renderList();
-            }
-        }, () => deleteItem(id));
-
-        modalHomeSectionGroup.classList.remove('hidden');
-        modalShopSectionGroup.classList.remove('hidden');
     }
 
     function addSection(name, isHome) {
