@@ -26,8 +26,13 @@
                 const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
                 if (storedState && storedState.lists && storedState.currentListId) {
                     const currentList = storedState.lists.find(l => l.id === storedState.currentListId);
-                    if (currentList && currentList.theme) {
-                        document.documentElement.style.setProperty('--primary-color', currentList.theme);
+                    if (currentList) {
+                        if (currentList.theme) {
+                            document.documentElement.style.setProperty('--primary-color', currentList.theme);
+                        }
+                        if (currentList.accent) {
+                            document.documentElement.style.setProperty('--accent-color', currentList.accent);
+                        }
                     }
                 }
             } catch (e) {
@@ -96,6 +101,22 @@
                         </svg>
                     </div>
                     <div class="theme-options" id="theme-options">
+                        <!-- Options injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" id="modal-accent-group">
+                <label class="modal-label">Accent Color</label>
+                <div class="custom-theme-dropdown" id="accent-dropdown">
+                    <div class="theme-trigger" id="accent-trigger">
+                        <div class="theme-swatch" id="current-accent-swatch"></div>
+                        <span id="current-accent-name">Amber</span>
+                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 10L12 16L18 10"></path>
+                        </svg>
+                    </div>
+                    <div class="theme-options" id="accent-options">
                         <!-- Options injected by JS -->
                     </div>
                 </div>
