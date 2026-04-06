@@ -366,6 +366,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncUserEmailSpan = document.getElementById('sync-user-email');
     const syncErrorDiv = document.getElementById('sync-error');
 
+    // Conflict Modal Elements
+    const conflictModalOverlay = document.getElementById('conflict-modal-overlay');
+    const localSummaryDiv = document.getElementById('local-summary');
+    const cloudSummaryDiv = document.getElementById('cloud-summary');
+    const keepLocalBtn = document.getElementById('keep-local-btn');
+    const keepCloudBtn = document.getElementById('keep-cloud-btn');
+
     // --- Helpers ---
     const applyManualSelection = (input) => {
         input.addEventListener('click', (e) => {
@@ -1182,12 +1189,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         return appState.lists.find(l => l.id === appState.currentListId);
     }
 
+    let firstSync = true;
     async function syncWithFirestore(user) {
         if (!user) return;
         const docRef = doc(db, "users", user.uid);
         unsubscribeFirestore = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const remoteState = docSnap.data();
+                if (firstSync) {
+                    firstSync = false;
+                    // Check for conflict on login
+                    const localHasData = appState.lists && appState.lists.length > 0 && appState.lists[0].items && appState.lists[0].items.length > 0;
+                    const cloudHasData = remoteState.lists && remoteState.lists.length > 0;
+
+                    if (localHasData && cloudHasData && remoteState.updatedAt !== appState.updatedAt) {
+                        showConflictModal(appState, remoteState);
+                        return;
+                    }
+                }
+
                 if (remoteState.updatedAt > appState.updatedAt) {
                     appState = remoteState;
                     saveAppState(false); // Update local but don't bump timestamp
@@ -1195,8 +1215,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                     updateModeUI();
                     renderList();
                 }
+            } else if (firstSync) {
+                firstSync = false;
+                // Cloud is empty, push local data if any
+                saveAppState(true);
             }
         });
+    }
+
+    function showConflictModal(localState, cloudState) {
+        const getSummary = (state) => {
+            if (!state || !state.lists) return 'No data';
+            return state.lists.map(l => `${l.name} (${l.items ? l.items.length : 0} items)`).join('<br>');
+        };
+
+        localSummaryDiv.innerHTML = getSummary(localState);
+        cloudSummaryDiv.innerHTML = getSummary(cloudState);
+
+        conflictModalOverlay.classList.add('visible');
+
+        keepLocalBtn.onclick = () => {
+            saveAppState(true); // Forces local timestamp bump and upload
+            conflictModalOverlay.classList.remove('visible');
+        };
+
+        keepCloudBtn.onclick = () => {
+            appState = cloudState;
+            saveAppState(false); // Update local but keep cloud's timestamp
+            conflictModalOverlay.classList.remove('visible');
+            renderListsMenu();
+            updateModeUI();
+            renderList();
+        };
     }
 
     // --- List Management ---
