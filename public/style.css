@@ -569,42 +569,52 @@ h1 {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .section-container .grocery-item.shop-chip.is-completing .shop-qty-circle,
 .section-container .grocery-item.shop-chip.completed .shop-qty-circle {
-    background: var(--primary-color);
+    background: transparent;
+    border: 2px solid var(--primary-color);
     color: var(--card-bg);
-    border-color: var(--primary-color);
 }
 
-.shop-chip.is-completing .shop-qty-circle {
+.section-container .grocery-item.shop-chip.is-completing .shop-qty-circle {
     animation: checkmark-swell 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     transition: none;
 }
 
+@keyframes move-strike {
+    from {
+        background-position: 0% 0%;
+    }
+    to {
+        background-position: 200% 0%;
+    }
+}
+
 /* Flare Animation Styles */
-.shop-chip .item-text::after {
+.shop-chip .item-text::after,
+.grocery-item .item-text::after {
     content: '';
     position: absolute;
     left: 0;
     top: 50%;
     width: 0;
     height: 2px;
-    background-color: var(--primary-color);
+    background-image: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--primary-color));
+    background-size: 200% 100%;
     transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 5;
     pointer-events: none;
+    border-radius: 1px;
 }
 
-.shop-chip.is-completing .item-text::after {
+.shop-chip.is-completing .item-text::after,
+.shop-chip.completed .item-text::after,
+.grocery-item.completed .item-text::after {
     width: 100%;
-}
-
-.shop-chip.completed .item-text::after {
-    width: 100%;
+    animation: move-strike 3s linear infinite;
 }
 
 .shop-chip.is-undoing .item-text::after {
@@ -637,7 +647,7 @@ h1 {
     left: 50%;
     width: 0;
     height: 0;
-    background-color: var(--primary-color);
+    background-image: conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
     border-radius: 50%;
     transform: translate(-50%, -50%);
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -652,6 +662,7 @@ h1 {
 .shop-chip.completed .shop-qty-circle::before {
     width: 100%;
     height: 100%;
+    animation: rotate-glow 3s linear infinite;
 }
 
 .shop-chip.is-completing .shop-qty-circle .qty-number {
@@ -722,16 +733,6 @@ h1 {
 
 
 
-.item-text::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 0;
-    height: 2px;
-    background-color: currentColor;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
 .tab-text {
     line-height: 1.2;
@@ -802,9 +803,6 @@ h1 {
     color: var(--text-muted);
 }
 
-.grocery-item.completed .item-text::after {
-    width: 100%;
-}
 
 /* Inline Editing Styles */
 .item-edit-container {
