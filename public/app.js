@@ -2244,7 +2244,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             items.forEach(item => {
                 item.dataset.originalSectionId = section.dataset.id;
-                item.classList.add('flattened-indent');
                 groceryList.appendChild(item);
             });
             
@@ -2267,7 +2266,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let currentSectionId = null;
         elements.forEach(el => {
-            el.classList.remove('flattened-indent');
             if (el.classList.contains('section-header')) {
                 currentSectionId = el.dataset.originalSectionId;
             } else if (el.classList.contains('grocery-item') || el.classList.contains('add-item-row') || el === placeholder) {
@@ -2336,7 +2334,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (type === 'item') {
                 flattenList();
-                placeholder.classList.add('flattened-indent');
             }
 
             if (type === 'section') {
@@ -2616,7 +2613,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         touchGhost.style.left = rect.left + 'px';
         touchGhost.style.top = (point.clientY - dragOffset.y) + 'px';
 
-        document.body.appendChild(touchGhost);
+        appContainer.appendChild(touchGhost);
     }
 
     function handleTouchStart(e, element, type) {

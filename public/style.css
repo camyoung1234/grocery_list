@@ -1499,9 +1499,6 @@ h1 {
     min-height: 0;
 }
 
-.flattened-indent {
-    padding-left: 0 !important;
-}
 
 .section-items-list.shop-mode:empty {
     padding-top: 0;
