@@ -2328,6 +2328,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             isDragStarted = true;
             groceryList.classList.add('no-transition');
+            document.documentElement.classList.add('is-dragging');
             document.body.style.overflow = 'hidden';
 
             // Initialize placeholder at starting position to prevent layout shift
@@ -2799,6 +2800,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Small delay to let browser process the new DOM before re-enabling transitions
             requestAnimationFrame(() => {
                 groceryList.classList.remove('no-transition');
+                document.documentElement.classList.remove('is-dragging');
                 document.body.style.overflow = '';
             });
         };
