@@ -707,9 +707,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const email = syncEmailInput.value;
             const password = syncPasswordInput.value;
             try {
+                isManualLogin = true;
                 await signInWithEmailAndPassword(auth, email, password);
                 syncModalOverlay.classList.remove('visible');
             } catch (e) {
+                isManualLogin = false;
                 showSyncError(e.message);
             }
         });
@@ -720,9 +722,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const email = syncEmailInput.value;
             const password = syncPasswordInput.value;
             try {
+                isManualLogin = true;
                 await createUserWithEmailAndPassword(auth, email, password);
                 syncModalOverlay.classList.remove('visible');
             } catch (e) {
+                isManualLogin = false;
                 showSyncError(e.message);
             }
         });
@@ -1253,6 +1257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return appState.lists.find(l => l.id === appState.currentListId);
     }
 
+    let isManualLogin = false;
     let firstSync = true;
     async function syncWithFirestore(user) {
         if (!user) return;
@@ -1261,13 +1266,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (docSnap.exists()) {
                 const remoteState = docSnap.data();
                 if (firstSync) {
+                    const manual = isManualLogin;
                     firstSync = false;
-                    // Check for conflict on login
-                    const localHasData = appState.lists && appState.lists.length > 0 && appState.lists[0].items && appState.lists[0].items.length > 0;
-                    const cloudHasData = remoteState.lists && remoteState.lists.length > 0;
+                    isManualLogin = false;
 
-                    if (localHasData && cloudHasData) {
-                        showConflictModal(appState, remoteState);
+                    if (manual) {
+                        // Check for conflict on manual login
+                        const localHasData = appState.lists && appState.lists.length > 0 && appState.lists[0].items && appState.lists[0].items.length > 0;
+                        const cloudHasData = remoteState.lists && remoteState.lists.length > 0;
+
+                        if (localHasData && cloudHasData) {
+                            showConflictModal(appState, remoteState);
+                            return;
+                        }
+                    } else if (appState.updatedAt > remoteState.updatedAt) {
+                        // On auto-login (page reload), if local is newer, push it
+                        saveAppState(true);
                         return;
                     }
                 }
