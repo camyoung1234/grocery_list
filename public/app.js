@@ -2102,6 +2102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const canRename = isHome || section.id !== shopDefId;
             const isEditing = editingRowId === section.id;
+            if (canRename && (editMode || isEditing)) {
+                sectionLi.draggable = true;
+            }
             const dragHandleHTML = canRename
                 ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="${editMode || isEditing ? 'true' : 'false'}"><i class="fas fa-grip-vertical"></i></div></div>`
                 : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
@@ -2193,6 +2196,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (isHome) {
                     const isEditing = editingRowId === item.id;
                     li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="${editMode || isEditing ? 'true' : 'false'}"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn"><i class="fas fa-times"></i></button>`;
+                    if (editMode || isEditing) {
+                        li.draggable = true;
+                    }
                     const controls = li.querySelector('.quantity-controls');
                     controls.appendChild(createQtyStepper(item, 'have'));
                 } else {
@@ -2355,6 +2361,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             return;
         }
+
+        groceryList.classList.add('is-dragging-global');
         if (currentMode !== 'home' && type === 'section' && element.dataset.id === shopDefId) {
             e.preventDefault();
             return;
@@ -2767,6 +2775,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     function handleDragEnd(wasDropped = false) {
+        groceryList.classList.remove('is-dragging-global');
         const el = draggedElement;
         const type = dragType;
         const ghost = touchGhost;
