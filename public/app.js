@@ -2215,7 +2215,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 const idx = visibleInputs.indexOf(input);
                 if (idx !== -1 && idx < visibleInputs.length - 1) {
-                    visibleInputs[idx + 1].focus();
+                    const nextInput = visibleInputs[idx + 1];
+                    const currentTop = input.getBoundingClientRect().top;
+                    nextInput.focus();
+                    const nextTop = nextInput.getBoundingClientRect().top;
+                    window.scrollBy({
+                        top: nextTop - currentTop,
+                        behavior: 'smooth'
+                    });
                 } else {
                     input.blur();
                 }
