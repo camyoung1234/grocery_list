@@ -294,8 +294,13 @@ h1 {
 }
 
 .inline-item-input::placeholder {
-    color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
+    background-image: conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: rotate-glow 3s linear infinite;
     font-weight: 500;
+    opacity: 1;
 }
 
 /* Grocery List */
@@ -1970,7 +1975,11 @@ h1 {
 
 .drag-handle.add-row-plus {
     cursor: pointer;
-    color: color-mix(in srgb, var(--primary-color) 60%, var(--card-bg));
+    background-image: conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: rotate-glow 3s linear infinite;
 }
 
 .drag-handle:active:not(.add-row-plus) {
