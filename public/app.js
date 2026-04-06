@@ -728,6 +728,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (toolbarListsBtn) {
         toolbarListsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+
+            // Calculate tap position relative to the menu for the circular reveal
+            const menuRect = listsMenu.getBoundingClientRect();
+            // Default to bottom center if event coordinates are missing (e.g. keyboard)
+            const x = e.clientX ? e.clientX - menuRect.left : menuRect.width / 2;
+            const y = e.clientY ? e.clientY - menuRect.top : menuRect.height;
+
+            listsMenu.style.setProperty('--reveal-x', `${x}px`);
+            listsMenu.style.setProperty('--reveal-y', `${y}px`);
+
             toggleListsMenu();
         });
 
@@ -1801,7 +1811,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const addBtn = document.createElement('div');
         addBtn.className = 'menu-item';
-        addBtn.innerHTML = '<i class="fas fa-plus" style="width: 12px; text-align: center;"></i> <span>Create New List</span>';
+        addBtn.innerHTML = '<i class="fas fa-plus" style="width: 12px; text-align: center;"></i> <span class="create-list-text">Create New List</span>';
         addBtn.addEventListener('click', () => {
             showModal('Create New List', 'New List', true, 'var(--theme-blue)', (name, theme) => {
                 if (name) addNewList(name, theme);
