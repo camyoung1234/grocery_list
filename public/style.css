@@ -207,7 +207,7 @@ h1 {
 
 /* Delete list mode styles */
 .tab-item.delete-mode {
-    animation: deleteModePulse 1.5s ease-in-out infinite;
+    animation: deleteModePulse 1.5s ease-in-out infinite var(--delete-delay, 0s);
 }
 
 @keyframes deleteModePulse {
@@ -299,7 +299,7 @@ h1 {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: rotate-glow 3s linear infinite;
+    animation: rotate-glow 3s linear infinite var(--glow-delay, 0s);
     font-weight: 500;
     opacity: 1;
 }
@@ -614,7 +614,7 @@ h1 {
 .shop-chip.completed .item-text::after,
 .grocery-item.completed .item-text::after {
     width: 100%;
-    animation: move-strike 3s linear infinite;
+    animation: move-strike 3s linear infinite var(--strike-delay, 0s);
 }
 
 .shop-chip.is-undoing .item-text::after {
@@ -662,7 +662,7 @@ h1 {
 .shop-chip.completed .shop-qty-circle::before {
     width: 100%;
     height: 100%;
-    animation: rotate-glow 3s linear infinite;
+    animation: rotate-glow 3s linear infinite var(--glow-delay, 0s);
 }
 
 .shop-chip.is-completing .shop-qty-circle .qty-number {
@@ -1612,7 +1612,7 @@ h1 {
     margin-left: auto;
     margin-right: 0;
     box-shadow: 0 0 0 0 rgba(var(--primary-color), 0.4);
-    animation: undoBtnFadeIn 0.4s ease-out, undo-pulse 2s infinite;
+    animation: undoBtnFadeIn 0.4s ease-out, undo-pulse 2s infinite var(--undo-delay, 0s);
     height: 24px;
     line-height: 1;
     display: flex;
@@ -1985,7 +1985,7 @@ h1 {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: rotate-glow 3s linear infinite;
+    animation: rotate-glow 3s linear infinite var(--glow-delay, 0s);
 }
 
 .drag-handle:active:not(.add-row-plus) {
@@ -2204,5 +2204,5 @@ h1 {
                       conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
     background-origin: border-box;
     background-clip: padding-box, border-box;
-    animation: rotate-glow 3s linear infinite, pulse-glow 2s ease-in-out infinite;
+    animation: rotate-glow 3s linear infinite var(--glow-delay, 0s), pulse-glow 2s ease-in-out infinite var(--pulse-delay, 0s);
 }

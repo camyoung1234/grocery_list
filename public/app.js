@@ -378,6 +378,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncErrorDiv = document.getElementById('sync-error');
     const syncIcon = document.getElementById('sync-icon');
 
+    // --- Animation Synchronization ---
+    const pageStartTime = Date.now();
+    const stableOffsets = new Map();
+
+    function getStableOffset(id) {
+        if (!stableOffsets.has(id)) {
+            stableOffsets.set(id, Math.random() * -10); // Random offset up to 10s
+        }
+        return stableOffsets.get(id);
+    }
+
+    function applyAnimationDelays(element, id) {
+        if (!element) return;
+        const offset = getStableOffset(id);
+        const elapsed = (Date.now() - pageStartTime) / 1000;
+        const delay = offset - elapsed;
+
+        element.style.setProperty('--glow-delay', `${delay}s`);
+        element.style.setProperty('--strike-delay', `${delay}s`);
+        element.style.setProperty('--undo-delay', `${delay}s`);
+        element.style.setProperty('--focus-delay', `${delay}s`);
+        element.style.setProperty('--pulse-delay', `${delay}s`);
+        element.style.setProperty('--delete-delay', `${delay}s`);
+    }
+
     // Conflict Modal Elements
     const conflictModalOverlay = document.getElementById('conflict-modal-overlay');
     const localSummaryDiv = document.getElementById('local-summary');
@@ -486,6 +511,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Initialization ---
     async function init() {
+        // Apply delays to static elements
+        const staticInputs = [modalInput, syncEmailInput, syncPasswordInput, importInput];
+        staticInputs.forEach(input => {
+            if (input) applyAnimationDelays(input, input.id || 'static-input');
+        });
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 syncLoggedOutDiv.classList.add('hidden');
@@ -2023,6 +2054,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             sectionLi.className = 'section-container';
             sectionLi.dataset.id = section.id;
             sectionLi.dataset.type = 'section';
+            applyAnimationDelays(sectionLi, section.id);
 
 
             // Section Header
@@ -2043,6 +2075,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : '';
 
             header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sectionDeleteHTML}${moveHereHTML}</div>`;
+            applyAnimationDelays(header, section.id + '-header');
 
             sectionLi.appendChild(header);
 
@@ -2087,6 +2120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.id = item.id;
                 li.dataset.type = 'item';
                 li.dataset.sectionId = section.id;
+                applyAnimationDelays(li, item.id);
 
                 if (item.pendingDelete) {
                     li.classList.add('undo-row');
@@ -2139,6 +2173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
                 addRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item"></form></div>`;
+                applyAnimationDelays(addRow, section.id + '-add-row');
                 itemsUl.appendChild(addRow);
             }
             sectionLi.appendChild(itemsUl);
@@ -2152,6 +2187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         addSecRow.className = 'grocery-item add-section-row';
         addSecRow.dataset.type = 'section-placeholder';
         addSecRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" placeholder="Add section" class="inline-item-input add-section-input"></form></div>`;
+        applyAnimationDelays(addSecRow, 'global-add-section');
 
         fragment.appendChild(addSecRow);
 
@@ -2178,6 +2214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.inputMode = 'numeric';
         input.className = 'qty-input';
         input.value = type === 'have' ? item.haveCount : item.wantCount;
+        applyAnimationDelays(input, item.id + '-qty-' + type);
 
         group.appendChild(input);
         applyManualSelection(input);
