@@ -325,6 +325,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const themeOptions = document.getElementById('theme-options');
     const currentThemeSwatch = document.getElementById('current-theme-swatch');
     const currentThemeName = document.getElementById('current-theme-name');
+
+    const modalAccentGroup = document.getElementById('modal-accent-group');
+    const accentDropdown = document.getElementById('accent-dropdown');
+    const accentTrigger = document.getElementById('accent-trigger');
+    const accentOptions = document.getElementById('accent-options');
+    const currentAccentSwatch = document.getElementById('current-accent-swatch');
+    const currentAccentName = document.getElementById('current-accent-name');
+
     const modalHomeSectionGroup = document.getElementById('modal-home-section-group');
     const modalShopSectionGroup = document.getElementById('modal-shop-section-group');
     const modalHomeSectionSelect = document.getElementById('modal-home-section');
@@ -516,6 +524,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (appState.updatedAt === undefined) appState.updatedAt = 0;
             // Migration for sections
             appState.lists.forEach(list => {
+                if (!list.accent) {
+                    list.accent = 'var(--theme-amber)';
+                }
                 if (!list.homeSections) {
                     list.homeSections = [{ id: 'sec-h-def', name: 'Uncategorized' }];
                     list.shopSections = [{ id: 'sec-s-def', name: 'Uncategorized' }];
@@ -533,6 +544,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             appState.lists = [{
                 id: defaultListId,
                 name: 'Grocery List',
+                theme: 'var(--theme-blue)',
+                accent: 'var(--theme-amber)',
                 homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
                 shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
                 items: legacyItems.map(item => ({
@@ -553,6 +566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 id: defaultListId,
                 name: 'Grocery List',
                 theme: 'var(--theme-blue)', // Default Theme
+                accent: 'var(--theme-amber)', // Default Accent
                 homeSections: [], // Start with no sections
                 shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
                 items: []
@@ -897,9 +911,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     ];
 
     let selectedThemeValue = 'var(--theme-blue)';
+    let selectedAccentValue = 'var(--theme-amber)';
 
-    function initThemeDropdown() {
-        themeOptions.innerHTML = '';
+    function initColorDropdown(type) {
+        const optionsContainer = type === 'theme' ? themeOptions : accentOptions;
+        const dropdown = type === 'theme' ? themeDropdown : accentDropdown;
+
+        optionsContainer.innerHTML = '';
         themes.forEach(theme => {
             const option = document.createElement('div');
             option.className = 'theme-option';
@@ -909,10 +927,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <span>${theme.name}</span>
             `;
             option.addEventListener('click', () => {
-                selectTheme(theme.value);
-                themeDropdown.classList.remove('open');
+                if (type === 'theme') {
+                    selectTheme(theme.value);
+                } else {
+                    selectAccent(theme.value);
+                }
+                dropdown.classList.remove('open');
             });
-            themeOptions.appendChild(option);
+            optionsContainer.appendChild(option);
         });
     }
 
@@ -922,8 +944,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentThemeSwatch.style.background = theme.value;
         currentThemeName.textContent = theme.name;
 
-        // Update selected class in options
-        document.querySelectorAll('.theme-option').forEach(opt => {
+        // Update selected class in theme options
+        themeOptions.querySelectorAll('.theme-option').forEach(opt => {
             opt.classList.toggle('selected', opt.dataset.value === value);
         });
 
@@ -931,33 +953,62 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.documentElement.style.setProperty('--primary-color', theme.value);
     }
 
+    function selectAccent(value) {
+        const theme = themes.find(t => t.value === value) || themes[13]; // Default to Amber
+        selectedAccentValue = theme.value;
+        currentAccentSwatch.style.background = theme.value;
+        currentAccentName.textContent = theme.name;
+
+        // Update selected class in accent options
+        accentOptions.querySelectorAll('.theme-option').forEach(opt => {
+            opt.classList.toggle('selected', opt.dataset.value === value);
+        });
+
+        // Trigger live preview
+        document.documentElement.style.setProperty('--accent-color', theme.value);
+    }
+
     themeTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
         themeDropdown.classList.toggle('open');
+        accentDropdown.classList.remove('open');
     });
 
-    // Close dropdown when clicking outside
+    accentTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        accentDropdown.classList.toggle('open');
+        themeDropdown.classList.remove('open');
+    });
+
+    // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
         if (!themeDropdown.contains(e.target)) {
             themeDropdown.classList.remove('open');
         }
+        if (!accentDropdown.contains(e.target)) {
+            accentDropdown.classList.remove('open');
+        }
     });
 
-    initThemeDropdown();
+    initColorDropdown('theme');
+    initColorDropdown('accent');
 
 
     let currentModalCallback = null;
     let currentDeleteActionCallback = null;
 
-    function showModal(title, initialValue, showTheme, initialTheme, callback, deleteCallback) {
+    function showModal(title, initialValue, showTheme, initialTheme, initialAccent, callback, deleteCallback) {
         modalTitle.textContent = title;
         modalInput.value = initialValue || '';
 
         if (showTheme) {
             modalThemeGroup.classList.remove('hidden');
+            modalAccentGroup.classList.remove('hidden');
             selectTheme(initialTheme || 'var(--theme-blue)');
+            selectAccent(initialAccent || 'var(--theme-amber)');
         } else {
             modalThemeGroup.classList.add('hidden');
+            modalAccentGroup.classList.add('hidden');
         }
 
         if (deleteCallback) {
@@ -979,6 +1030,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function hideModal() {
         modalOverlay.classList.remove('visible');
         themeDropdown.classList.remove('open');
+        accentDropdown.classList.remove('open');
         currentModalCallback = null;
         currentDeleteActionCallback = null;
         updateModeUI(); // Restore original theme
@@ -996,8 +1048,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalSaveBtn.addEventListener('click', () => {
         const val = modalInput.value.trim();
         const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
+        const accent = !modalAccentGroup.classList.contains('hidden') ? selectedAccentValue : null;
         if (currentModalCallback) {
-            currentModalCallback(val, theme);
+            currentModalCallback(val, theme, accent);
         }
         hideModal();
     });
@@ -1008,8 +1061,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target === modalOverlay) {
             const val = modalInput.value.trim();
             const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
+            const accent = !modalAccentGroup.classList.contains('hidden') ? selectedAccentValue : null;
             if (currentModalCallback) {
-                currentModalCallback(val, theme);
+                currentModalCallback(val, theme, accent);
             }
             hideModal();
         }
@@ -1019,8 +1073,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.key === 'Enter') {
             const val = modalInput.value.trim();
             const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
+            const accent = !modalAccentGroup.classList.contains('hidden') ? selectedAccentValue : null;
             if (currentModalCallback) {
-                currentModalCallback(val, theme);
+                currentModalCallback(val, theme, accent);
             }
             hideModal();
         }
@@ -1259,11 +1314,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- List Management ---
-    function addNewList(name, theme) {
+    function addNewList(name, theme, accent) {
         const newList = {
             id: Date.now().toString(),
             name: name,
             theme: theme || 'var(--theme-blue)',
+            accent: accent || 'var(--theme-amber)',
             homeSections: [], // Start with no sections in Home Mode
             shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
             items: []
@@ -1290,10 +1346,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const list = appState.lists.find(l => l.id === id);
         if (!list) return;
 
-        showModal('Edit List', list.name, true, list.theme, (newName, newTheme) => {
+        showModal('Edit List', list.name, true, list.theme, list.accent, (newName, newTheme, newAccent) => {
             if (newName) {
                 list.name = newName;
                 if (newTheme) list.theme = newTheme;
+                if (newAccent) list.accent = newAccent;
                 saveAppState();
                 renderListsMenu();
                 updateModeUI(); // Re-apply theme if current list changed
@@ -1378,7 +1435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         modalShopSectionSelect.value = item.shopSectionId;
 
-        showModal('Edit Item', item.text, false, null, (newName) => {
+        showModal('Edit Item', item.text, false, null, null, (newName) => {
             if (newName && newName.trim() !== '') {
                 const trimmedNewName = newName.trim();
                 const existing = currentList.items.find(i => i.text.trim() === trimmedNewName && i.id !== item.id);
@@ -1735,7 +1792,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateModeUI() {
         const currentList = getCurrentList();
         const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
+        const accentColor = currentList && currentList.accent ? currentList.accent : 'var(--theme-amber)';
         document.documentElement.style.setProperty('--primary-color', themeColor);
+        document.documentElement.style.setProperty('--accent-color', accentColor);
 
         // Update list picker name and swatch
         if (currentList) {
@@ -1803,8 +1862,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         addBtn.className = 'menu-item';
         addBtn.innerHTML = '<i class="fas fa-plus" style="width: 12px; text-align: center;"></i> <span>Create New List</span>';
         addBtn.addEventListener('click', () => {
-            showModal('Create New List', 'New List', true, 'var(--theme-blue)', (name, theme) => {
-                if (name) addNewList(name, theme);
+            showModal('Create New List', 'New List', true, 'var(--theme-blue)', 'var(--theme-amber)', (name, theme, accent) => {
+                if (name) addNewList(name, theme, accent);
             });
             toggleListsMenu(false);
         });
