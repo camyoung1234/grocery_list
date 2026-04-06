@@ -568,17 +568,13 @@ h1 {
 
 .section-container .grocery-item.shop-chip.is-completing .shop-qty-circle,
 .section-container .grocery-item.shop-chip.completed .shop-qty-circle {
-    background-image: conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color)),
-                      conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
-    border: 2px solid transparent !important;
+    background: transparent;
+    border: 2px solid var(--primary-color);
     color: var(--card-bg);
-    animation: rotate-glow 3s linear infinite, pulse-glow 2s ease-in-out infinite;
 }
 
 .section-container .grocery-item.shop-chip.is-completing .shop-qty-circle {
-    animation: checkmark-swell 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards, rotate-glow 3s linear infinite, pulse-glow 2s ease-in-out infinite;
+    animation: checkmark-swell 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     transition: none;
 }
 
@@ -612,7 +608,7 @@ h1 {
 .shop-chip.completed .item-text::after,
 .grocery-item.completed .item-text::after {
     width: 100%;
-    animation: move-strike 3s linear infinite, pulse-glow 2s ease-in-out infinite;
+    animation: move-strike 3s linear infinite;
 }
 
 .shop-chip.is-undoing .item-text::after {
@@ -660,6 +656,7 @@ h1 {
 .shop-chip.completed .shop-qty-circle::before {
     width: 100%;
     height: 100%;
+    animation: rotate-glow 3s linear infinite;
 }
 
 .shop-chip.is-completing .shop-qty-circle .qty-number {
