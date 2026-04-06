@@ -16,6 +16,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+const SYNC_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>`;
+const SYNC_SLASH_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
+
 document.addEventListener('DOMContentLoaded', async () => {
     // --- State ---
     let appState = {
@@ -481,7 +484,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 syncLoggedInDiv.classList.remove('hidden');
                 syncUserEmailSpan.textContent = user.email;
                 if (syncIcon) {
-                    syncIcon.className = 'fas fa-cloud';
+                    syncIcon.innerHTML = SYNC_ICON_SVG;
                 }
                 firstSync = true; // Reset for new user session
                 syncWithFirestore(user);
@@ -489,7 +492,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 syncLoggedOutDiv.classList.remove('hidden');
                 syncLoggedInDiv.classList.add('hidden');
                 if (syncIcon) {
-                    syncIcon.className = 'fas fa-cloud-slash';
+                    syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
                 }
                 if (unsubscribeFirestore) {
                     unsubscribeFirestore();

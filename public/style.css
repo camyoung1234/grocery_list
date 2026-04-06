@@ -1776,7 +1776,16 @@ h1 {
     color: var(--primary-color);
 }
 
+.sync-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
+.sync-icon svg {
+    width: 20px;
+    height: 20px;
+}
 
 .dropdown-arrow {
     width: 0.8rem;
