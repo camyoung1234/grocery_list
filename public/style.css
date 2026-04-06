@@ -1824,8 +1824,8 @@ h1 {
     z-index: 2000;
     opacity: 0;
     pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    transform: translateY(10px);
+    clip-path: circle(0% at var(--reveal-x, 50%) var(--reveal-y, 100%));
+    transition: clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
 }
 
 @media (min-width: 600px) {
@@ -1837,7 +1837,13 @@ h1 {
 .lists-menu.open {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(0);
+    clip-path: circle(150% at var(--reveal-x, 50%) var(--reveal-y, 100%));
+    border: 2px solid transparent !important;
+    background-image: linear-gradient(var(--card-bg), var(--card-bg)),
+                      conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    animation: rotate-glow 3s linear infinite, pulse-glow 2s ease-in-out infinite;
 }
 
 .menu-item {
@@ -1875,6 +1881,15 @@ h1 {
     height: 12px;
     border-radius: 50%;
     flex-shrink: 0;
+}
+
+.create-list-text {
+    background-image: conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: rotate-glow 3s linear infinite;
+    font-weight: 600;
 }
 
 .menu-divider {
