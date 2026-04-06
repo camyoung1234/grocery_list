@@ -1845,10 +1845,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             appState.updatedAt = Date.now();
         }
         // Clone appState for saving, filtering out items that are currently pending deletion
-        const stateToSave = JSON.parse(JSON.stringify(appState));
-        stateToSave.lists.forEach(list => {
-            list.items = list.items.filter(item => !item.pendingDelete);
-        });
+        const stateToSave = {
+            ...appState,
+            lists: appState.lists.map(list => ({
+                ...list,
+                items: list.items.filter(item => !item.pendingDelete)
+            }))
+        };
         localStorage.setItem('grocery-app-state', JSON.stringify(stateToSave));
 
         // Sync with Firestore if logged in
