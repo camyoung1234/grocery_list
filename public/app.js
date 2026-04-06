@@ -427,14 +427,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const compressed = await new Response(stream).arrayBuffer();
             const bytes = new Uint8Array(compressed);
 
-            // Optimized conversion to binary string using chunks to avoid stack overflow
-            let binary = '';
+            // Optimized conversion to binary string using chunks and array joining for efficiency
+            const chunks = [];
             const CHUNK_SIZE = 0x8000;
             for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE));
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE)));
             }
 
-            return btoa(binary);
+            return btoa(chunks.join(''));
         } catch (e) {
             console.warn('Failed to generate state URL hash:', e);
             return '';
