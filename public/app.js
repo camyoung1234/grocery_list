@@ -717,9 +717,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (toolbarClearShopBtn) {
         toolbarClearShopBtn.addEventListener('click', () => {
             const currentList = getCurrentList();
+
+            const totalHaveMap = new Map();
             currentList.items.forEach(item => {
-                const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
-                const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
+                const name = item.text.trim();
+                totalHaveMap.set(name, (totalHaveMap.get(name) || 0) + item.haveCount);
+            });
+
+            currentList.items.forEach(item => {
+                const totalHave = totalHaveMap.get(item.text.trim());
                 const toBuy = Math.max(0, item.wantCount - totalHave);
                 if (toBuy > 0) {
                     item.shopCompleted = false;
