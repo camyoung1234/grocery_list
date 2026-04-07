@@ -1,12 +1,10 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test('verify shop mode quantity stepper', async ({ page }) => {
-    await page.goto('http://localhost:3000');
-    await page.evaluate(() => {
-        localStorage.clear();
-        localStorage.setItem('grocery-edit-mode', 'false');
-    });
-    await page.reload();
+    await mockFirebase(page);
+await page.goto('http://localhost:3000');
+    await setMockState(page, { mode: 'home', editMode: true });
 
     // Create a section first to ensure an item can be added
     await page.fill('.add-section-input', 'Fruits');
@@ -20,9 +18,15 @@ test('verify shop mode quantity stepper', async ({ page }) => {
     await page.click('#toolbar-mode');
     await page.waitForTimeout(600);
     await expect(page.locator('.app-container')).toHaveClass(/shop-mode/);
+
+    // In Shop Mode, hide-drag-handles should be NOT present if editMode is true
+    await expect(page.locator('.app-container')).not.toHaveClass(/hide-drag-handles/);
+
+    // Toggle editMode off
+    await page.click('#toolbar-reorder');
     await expect(page.locator('.app-container')).toHaveClass(/hide-drag-handles/);
 
-    // Enter Edit Mode - Toggle reorder
+    // Toggle editMode back on
     await page.click('#toolbar-reorder');
     await expect(page.locator('.app-container')).not.toHaveClass(/hide-drag-handles/);
 

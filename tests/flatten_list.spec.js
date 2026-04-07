@@ -1,13 +1,13 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test('flattenList behavior during drag', async ({ page }) => {
+  await mockFirebase(page);
   await page.goto('/');
 
   // Setup state and reload
-  await page.evaluate(() => {
-    localStorage.clear();
-    const listId = 'L1';
-    const appState = {
+  const listId = 'list-1';
+  const state = {
       lists: [{
         id: listId,
         name: 'Test List',
@@ -28,12 +28,7 @@ test('flattenList behavior during drag', async ({ page }) => {
       }],
       currentListId: listId
     };
-    localStorage.setItem('grocery-app-state', JSON.stringify(appState));
-    localStorage.setItem('grocery-mode', 'home');
-    localStorage.setItem('grocery-edit-mode', 'true');
-  });
-
-  await page.reload();
+await setMockState(page, { ...state, mode: 'home', editMode: true });
 
   // Wait for app to render
   const item = page.locator('.grocery-item[data-id="item-1"]');

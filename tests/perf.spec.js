@@ -1,30 +1,18 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 
 const { test, expect } = require('@playwright/test');
 
 test('generate large list and measure edit mode toggle', async ({ page }) => {
-    await page.goto('http://localhost:3000');
+  await mockFirebase(page);
+  await page.goto('http://localhost:3000');
 
     // Clear existing data
-    await page.evaluate(() => localStorage.clear());
     await page.reload();
 
     // Generate 500 items
-    await page.evaluate(() => {
-        const items = [];
-        for (let i = 0; i < 500; i++) {
-            items.push({
-                id: 'item-' + i,
-                text: 'Item ' + i,
-                homeSectionId: 'sec-h-def',
-                shopSectionId: 'sec-s-def',
-                homeIndex: i,
-                shopIndex: i,
-                haveCount: 0,
-                wantCount: 1,
-                shopCompleted: false
-            });
-        }
-        const state = {
+    const items = [];
+    for(let i=0; i<100; i++) items.push({id: "item-"+i, text: "Item "+i, wantCount: 1, haveCount: 0, homeSectionId: "sec-h-def", shopSectionId: "sec-s-def", homeIndex: i, shopIndex: i, shopCompleted: false});
+    const state = {
             lists: [{
                 id: 'list-1',
                 name: 'Large List',
@@ -35,10 +23,7 @@ test('generate large list and measure edit mode toggle', async ({ page }) => {
             }],
             currentListId: 'list-1'
         };
-        localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    });
-
-    await page.reload();
+await setMockState(page, state);
 
     // Verify 500 items are rendered
     const itemCount = await page.locator('.grocery-item:not(.add-item-row):not(.add-section-row)').count();

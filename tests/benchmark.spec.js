@@ -1,6 +1,8 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test('benchmark reorder', async ({ page }) => {
+  await mockFirebase(page);
   await page.goto('http://localhost:3000');
 
   // Create 5000 items to make the DOM large
