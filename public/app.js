@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
+    let precomputedSameNameItems = new Map(); // id -> [items]
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
     let selectionRenderTimeout = null;
     let unsubscribeFirestore = null;
@@ -1482,10 +1483,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let animatingItems = new Map(); // id -> 'completing' | 'undoing'
     async function toggleShopCompleted(id) {
         const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
+        const sameNameItems = precomputedSameNameItems.get(id) || [];
+        const item = sameNameItems.find(i => i.id === id);
         if (!item) return;
 
-        const sameNameItems = currentList.items.filter(i => i.text === item.text);
         if (sameNameItems.some(i => animatingItems.has(i.id))) return;
 
         const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
@@ -1662,10 +1663,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function setWant(id, value) {
         const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
+        const sameNameItems = precomputedSameNameItems.get(id) || [];
+        const item = sameNameItems.find(i => i.id === id);
         if (item) {
             const newWant = Math.max(0, parseInt(value) || 0);
-            const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
             sameNameItems.forEach(i => i.wantCount = newWant);
             saveAppState();
 
@@ -1841,6 +1842,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             groceryList.innerHTML = '';
             return;
         }
+
+        // Precompute same name items for O(1) lookups
+        precomputedSameNameItems.clear();
+        const nameMap = new Map();
+        currentList.items.forEach(item => {
+            const name = item.text.trim();
+            let arr = nameMap.get(name);
+            if (!arr) {
+                arr = [];
+                nameMap.set(name, arr);
+            }
+            arr.push(item);
+        });
+        currentList.items.forEach(item => {
+            precomputedSameNameItems.set(item.id, nameMap.get(item.text.trim()));
+        });
 
         const isHome = currentMode === 'home';
         const sectionsKey = isHome ? 'homeSections' : 'shopSections';
