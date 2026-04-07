@@ -1,14 +1,14 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('http://localhost:3000');
+  await mockFirebase(page);
 });
 
 test('Double tap on item in Shop mode should NOT trigger inline edit', async ({ page }) => {
-  await page.evaluate(() => {
-    const listId = 'test-list-1';
-    const state = {
+  const listId = 'list-1';
+  const state = {
       lists: [{
         id: listId,
         name: 'Test List',
@@ -29,11 +29,7 @@ test('Double tap on item in Shop mode should NOT trigger inline edit', async ({ 
       }],
       currentListId: listId
     };
-    localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-mode', 'shop');
-    localStorage.setItem('grocery-edit-mode', 'true');
-  });
-  await page.reload();
+await setMockState(page, { ...state, mode: 'shop', editMode: true });
 
   const cancelBtn = page.locator('#restore-cancel-btn');
   if (await cancelBtn.isVisible()) {

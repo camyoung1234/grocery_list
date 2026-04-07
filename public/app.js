@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA8hTcqZ_I3zIsSC9Vq_XEg6T6KWaUav20",
@@ -14,7 +14,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 
 const SYNC_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>`;
 const SYNC_SLASH_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
@@ -24,6 +26,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let appState = {
         lists: [],
         currentListId: null,
+        mode: 'home',
+        editMode: true,
         updatedAt: 0
     };
 
@@ -420,8 +424,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function generateHash() {
         try {
             const payload = JSON.stringify({
-                appState: JSON.parse(localStorage.getItem('grocery-app-state') || 'null'),
-                mode: localStorage.getItem('grocery-mode') || 'home'
+                appState: appState,
+                mode: currentMode
             });
             const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'));
             const compressed = await new Response(stream).arrayBuffer();
@@ -441,7 +445,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Restore state from URL hash (if present) before reading localStorage
+    // Restore state from URL hash (if present)
     async function restoreFromHash() {
         try {
             const hash = window.location.hash.slice(1);
@@ -455,10 +459,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const decompressed = await new Response(stream).text();
             const data = JSON.parse(decompressed);
             if (data && data.appState && data.appState.lists) {
-                const currentStoredState = localStorage.getItem('grocery-app-state');
-                
                 // If hash state matches current state, skip prompt
-                if (currentStoredState && JSON.stringify(data.appState) === currentStoredState) {
+                if (JSON.stringify(data.appState) === JSON.stringify(appState)) {
                     return;
                 }
 
@@ -466,10 +468,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 return new Promise((resolve) => {
                     restoreConfirmBtn.onclick = () => {
-                        localStorage.setItem('grocery-app-state', JSON.stringify(data.appState));
+                        appState = data.appState;
                         if (data.mode) {
-                            localStorage.setItem('grocery-mode', data.mode);
+                            currentMode = data.mode;
                         }
+                        saveAppState(true);
                         restoreModalOverlay.classList.remove('visible');
                         resolve();
                     };
@@ -486,122 +489,50 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Initialization ---
     async function init() {
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 syncLoggedOutDiv.classList.add('hidden');
                 syncLoggedInDiv.classList.remove('hidden');
-                syncUserEmailSpan.textContent = user.email;
+                syncUserEmailSpan.textContent = user.email || 'Guest';
                 if (syncIcon) {
                     syncIcon.innerHTML = SYNC_ICON_SVG;
                 }
                 firstSync = true; // Reset for new user session
                 syncWithFirestore(user);
             } else {
-                syncLoggedOutDiv.classList.remove('hidden');
-                syncLoggedInDiv.classList.add('hidden');
-                if (syncIcon) {
-                    syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
-                }
-                if (unsubscribeFirestore) {
-                    unsubscribeFirestore();
-                    unsubscribeFirestore = null;
+                try {
+                    await signInAnonymously(auth);
+                } catch (e) {
+                    console.error("Error signing in anonymously:", e);
+                    syncLoggedOutDiv.classList.remove('hidden');
+                    syncLoggedInDiv.classList.add('hidden');
+                    if (syncIcon) {
+                        syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
+                    }
+                    if (unsubscribeFirestore) {
+                        unsubscribeFirestore();
+                        unsubscribeFirestore = null;
+                    }
                 }
             }
         });
 
+        // Fresh start default state (will be overwritten by Firestore if data exists)
+        const defaultListId = Date.now().toString();
+        appState.lists = [{
+            id: defaultListId,
+            name: 'Grocery List',
+            theme: 'var(--theme-blue)',
+            accent: 'var(--theme-amber)',
+            homeSections: [],
+            shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+            items: []
+        }];
+        appState.currentListId = defaultListId;
+        appState.mode = 'home';
+        appState.editMode = true;
+
         await restoreFromHash();
-        
-        // Read localStorage after hash restore has had a chance to update it
-        const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
-        const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
-        currentMode = localStorage.getItem('grocery-mode') || 'home';
-
-        const storedEditMode = localStorage.getItem('grocery-edit-mode');
-        editMode = storedEditMode !== null ? JSON.parse(storedEditMode) : true;
-
-        if (storedState && storedState.lists && storedState.lists.length > 0) {
-            appState = storedState;
-            if (appState.updatedAt === undefined) appState.updatedAt = 0;
-            // Migration for sections
-            appState.lists.forEach(list => {
-                if (!list.accent) {
-                    list.accent = 'var(--theme-amber)';
-                }
-                if (!list.homeSections) {
-                    list.homeSections = [{ id: 'sec-h-def', name: 'Uncategorized' }];
-                    list.shopSections = [{ id: 'sec-s-def', name: 'Uncategorized' }];
-                    if (list.items) {
-                        list.items.forEach(item => {
-                            item.homeSectionId = 'sec-h-def';
-                            item.shopSectionId = 'sec-s-def';
-                        });
-                    }
-                }
-            });
-        } else if (legacyItems && Array.isArray(legacyItems)) {
-            // Migration: Convert legacy items to new structure
-            const defaultListId = Date.now().toString();
-            appState.lists = [{
-                id: defaultListId,
-                name: 'Grocery List',
-                theme: 'var(--theme-blue)',
-                accent: 'var(--theme-amber)',
-                homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
-                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                items: legacyItems.map(item => ({
-                    ...item,
-                    homeSectionId: 'sec-h-def',
-                    shopSectionId: 'sec-s-def'
-                }))
-            }];
-            appState.currentListId = defaultListId;
-
-            // Clean up legacy item logic (optional, we might keep it to avoid data loss if revert?)
-            // For now, let's just save the new state and rely on it.
-            saveAppState();
-        } else {
-            // Fresh start
-            const defaultListId = Date.now().toString();
-            appState.lists = [{
-                id: defaultListId,
-                name: 'Grocery List',
-                theme: 'var(--theme-blue)', // Default Theme
-                accent: 'var(--theme-amber)', // Default Accent
-                homeSections: [], // Start with no sections
-                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                items: []
-            }];
-            appState.currentListId = defaultListId;
-            saveAppState();
-        }
-
-        // Ensure currentListId is valid
-        if (!appState.lists.find(l => l.id === appState.currentListId)) {
-            appState.currentListId = appState.lists[0]?.id;
-        }
-
-
-        // --- Shared Want Sync Migration ---
-        if (!appState.sharedWantSynced) {
-            appState.lists.forEach(list => {
-                const maxWants = new Map();
-                list.items.forEach(item => {
-                    const name = item.text.trim();
-                    const currentMax = maxWants.get(name) || 0;
-                    if (item.wantCount > currentMax) {
-                        maxWants.set(name, item.wantCount);
-                    }
-                });
-                list.items.forEach(item => {
-                    const name = item.text.trim();
-                    if (maxWants.has(name)) {
-                        item.wantCount = maxWants.get(name);
-                    }
-                });
-            });
-            appState.sharedWantSynced = true;
-            saveAppState();
-        }
 
         updateModeUI();
         renderListsMenu();
@@ -1282,7 +1213,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (remoteState.updatedAt > appState.updatedAt) {
                     appState = remoteState;
-                    saveAppState(false); // Update local but don't bump timestamp
+                    currentMode = remoteState.mode || 'home';
+                    editMode = remoteState.editMode !== undefined ? remoteState.editMode : true;
                     renderListsMenu();
                     updateModeUI();
                     renderList();
@@ -1313,7 +1245,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         keepCloudBtn.onclick = () => {
             appState = cloudState;
-            saveAppState(false); // Update local but keep cloud's timestamp
+            currentMode = cloudState.mode || 'home';
+            editMode = cloudState.editMode !== undefined ? cloudState.editMode : true;
             conflictModalOverlay.classList.remove('visible');
             renderListsMenu();
             updateModeUI();
@@ -1799,15 +1732,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (updateTimestamp) {
             appState.updatedAt = Date.now();
         }
+        appState.mode = currentMode;
+        appState.editMode = editMode;
+
         // Clone appState for saving, filtering out items that are currently pending deletion
         const stateToSave = JSON.parse(JSON.stringify(appState));
         stateToSave.lists.forEach(list => {
             list.items = list.items.filter(item => !item.pendingDelete);
         });
-        localStorage.setItem('grocery-app-state', JSON.stringify(stateToSave));
 
         // Sync with Firestore if logged in
-        if (updateTimestamp && auth.currentUser) {
+        if (auth.currentUser) {
             try {
                 await setDoc(doc(db, "users", auth.currentUser.uid), stateToSave);
             } catch (e) {
@@ -1817,8 +1752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function saveMode() {
-        localStorage.setItem('grocery-mode', currentMode);
-        localStorage.setItem('grocery-edit-mode', JSON.stringify(editMode));
+        saveAppState(false);
     }
 
     function renderListsMenu() {

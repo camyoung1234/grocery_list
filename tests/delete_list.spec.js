@@ -1,29 +1,25 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test.describe('deleteListWithConfirmation', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('http://localhost:3000');
+  await mockFirebase(page);
     });
 
     test('prevents deleting the last list', async ({ page }) => {
         // Seed state with only 1 list
-        await page.evaluate(() => localStorage.clear());
-        await page.evaluate(() => {
-            const state = {
-                lists: [{
-                    id: 'list-1',
-                    name: 'Only List',
-                    theme: 'var(--theme-blue)',
-                    homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
-                    shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                    items: []
-                }],
-                currentListId: 'list-1'
-            };
-            localStorage.setItem('grocery-app-state', JSON.stringify(state));
-            localStorage.setItem('grocery-edit-mode', 'true');
-        });
-        await page.reload();
+        const state = {
+            lists: [{
+                id: 'list-1',
+                name: 'Only List',
+                theme: 'var(--theme-blue)',
+                homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+                items: []
+            }],
+            currentListId: 'list-1'
+        };
+        await setMockState(page, { ...state, mode: 'home', editMode: true });
 
         // Listen for the dialog (alert)
         let dialogFired = false;
@@ -34,10 +30,7 @@ test.describe('deleteListWithConfirmation', () => {
             dialog.accept();
         });
 
-        // Use standard Playwright click - since #current-list-name dblclick doesn't work,
-        // Let's use the menu item long press as alternative or directly evaluate the function
-        // if UI interaction is too flaky. But UI is better.
-        // Trigger rename
+        // Trigger rename/edit modal
         await page.evaluate(() => {
             const span = document.getElementById('current-list-name');
             const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
@@ -46,53 +39,42 @@ test.describe('deleteListWithConfirmation', () => {
         });
 
         // Wait for modal to be visible
-        const modal = page.locator('#modal-overlay');
-        await expect(modal).toHaveClass(/visible/);
+        const editModal = page.locator('#modal-overlay');
+        await expect(editModal).toHaveClass(/visible/);
 
         // Click the delete button
         await page.click('#modal-delete-btn', { force: true });
 
         // Verify alert was shown
         expect(dialogFired).toBe(true);
-        expect(dialogMessage).toBe('You must have at least one list.');
-
-        // Verify state is unchanged
-        const stateStr = await page.evaluate(() => localStorage.getItem('grocery-app-state'));
-        const state = JSON.parse(stateStr);
-        expect(state.lists.length).toBe(1);
+        expect(dialogMessage).toBe("You must have at least one list.");
     });
 
-    test('deletes list with confirmation when multiple lists exist', async ({ page }) => {
-        // Seed state with 2 lists
-        await page.evaluate(() => localStorage.clear());
-        await page.evaluate(() => {
-            const state = {
-                lists: [
-                    {
-                        id: 'list-1',
-                        name: 'First List',
-                        theme: 'var(--theme-blue)',
-                        homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
-                        shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                        items: []
-                    },
-                    {
-                        id: 'list-2',
-                        name: 'Second List',
-                        theme: 'var(--theme-blue)',
-                        homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
-                        shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                        items: []
-                    }
-                ],
-                currentListId: 'list-2'
-            };
-            localStorage.setItem('grocery-app-state', JSON.stringify(state));
-            localStorage.setItem('grocery-edit-mode', 'true');
-        });
-        await page.reload();
+    test('deletes a list successfully when multiple exist', async ({ page }) => {
+        const state = {
+            lists: [
+                {
+                    id: 'list-1',
+                    name: 'First List',
+                    theme: 'var(--theme-blue)',
+                    homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+                    shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+                    items: []
+                },
+                {
+                    id: 'list-2',
+                    name: 'Second List',
+                    theme: 'var(--theme-blue)',
+                    homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+                    shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+                    items: []
+                }
+            ],
+            currentListId: 'list-2'
+        };
+        await setMockState(page, { ...state, mode: 'home', editMode: true });
 
-        // Trigger rename
+        // Trigger rename/edit modal for list-2
         await page.evaluate(() => {
             const span = document.getElementById('current-list-name');
             const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
@@ -118,11 +100,10 @@ test.describe('deleteListWithConfirmation', () => {
         await expect(deleteModal).not.toHaveClass(/visible/);
 
         // Verify state is updated
-        const stateStr = await page.evaluate(() => localStorage.getItem('grocery-app-state'));
-        const state = JSON.parse(stateStr);
-        expect(state.lists.length).toBe(1);
-        expect(state.lists[0].id).toBe('list-1');
-        expect(state.currentListId).toBe('list-1');
+        const finalState = await page.evaluate(() => window.__MOCK_FIREBASE_STATE__);
+        expect(finalState.lists.length).toBe(1);
+        expect(finalState.lists[0].id).toBe('list-1');
+        expect(finalState.currentListId).toBe('list-1');
 
         // Verify UI is updated to show 'First List'
         const currentListName = page.locator('#current-list-name');

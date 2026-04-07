@@ -1,38 +1,37 @@
 
 const { test, expect } = require('@playwright/test');
+const { mockFirebase, setMockState } = require('./mockFirebase');
 
 test('verify edit mode UI consistency', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
-    await page.goto('http://localhost:3000');
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
 
-    // Add one item
-    await page.evaluate(() => {
-        const state = {
-            lists: [{
-                id: 'list-1',
-                name: 'Test List',
-                theme: 'var(--theme-blue)',
-                homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
-                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                items: [{
-                    id: 'item-1',
-                    text: 'Item 1',
-                    homeSectionId: 'sec-h-def',
-                    shopSectionId: 'sec-s-def',
-                    homeIndex: 0,
-                    shopIndex: 0,
-                    haveCount: 0,
-                    wantCount: 1,
-                    shopCompleted: false
-                }]
-            }],
-            currentListId: 'list-1'
-        };
-        localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    });
-    await page.reload();
+    // Mock Firebase BEFORE goto
+
+    // Add one item via mock Firestore state
+    const state = {
+        lists: [{
+            id: 'list-1',
+            name: 'Test List',
+            theme: 'var(--theme-blue)',
+            homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
+            shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+            items: [{
+                id: 'item-1',
+                text: 'Item 1',
+                homeSectionId: 'sec-h-def',
+                shopSectionId: 'sec-s-def',
+                homeIndex: 0,
+                shopIndex: 0,
+                haveCount: 0,
+                wantCount: 1,
+                shopCompleted: false
+            }]
+        }],
+        currentListId: 'list-1',
+        mode: 'home',
+        editMode: false // Explicitly start in non-edit mode
+    };
+    await setMockState(page, state);
 
     const container = page.locator('.app-container');
 

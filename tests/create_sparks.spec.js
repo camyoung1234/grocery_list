@@ -1,14 +1,13 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test('createSparks function generates particles that animate and disappear', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
-    await page.goto('http://localhost:3000');
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
+  await mockFirebase(page);
+  await page.goto('http://localhost:3000');
 
     // Add one item
-    await page.evaluate(() => {
-        const state = {
+    const state = {
             lists: [{
                 id: 'list-1',
                 name: 'Test List',
@@ -29,11 +28,7 @@ test('createSparks function generates particles that animate and disappear', asy
             }],
             currentListId: 'list-1'
         };
-        localStorage.setItem('grocery-app-state', JSON.stringify(state));
-        localStorage.setItem('grocery-mode', 'shop');
-        localStorage.setItem('grocery-edit-mode', 'false');
-    });
-    await page.reload();
+await setMockState(page, { ...state, mode: 'shop', editMode: false });
 
     const item = page.locator('.grocery-item[data-id="item-1"]');
     await expect(item).toBeVisible();
