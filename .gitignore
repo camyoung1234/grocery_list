@@ -8,6 +8,7 @@ gha-creds-*.json
 # Test and development artifacts
 server.log
 wrangler.log
+wrangler_output.log
 test-results/
 .last-run.json
 edit-mode-large.png
