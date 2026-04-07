@@ -485,8 +485,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Initialization ---
+    let isAppRunning = false;
+
     async function init() {
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 syncLoggedOutDiv.classList.add('hidden');
                 syncLoggedInDiv.classList.remove('hidden');
@@ -494,6 +496,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (syncIcon) {
                     syncIcon.innerHTML = SYNC_ICON_SVG;
                 }
+
+                // Show app and hide login modal
+                appContainer.classList.remove('hidden');
+                syncModalOverlay.classList.remove('visible');
+
+                if (!isAppRunning) {
+                    isAppRunning = true;
+                    await startApp();
+                }
+
                 firstSync = true; // Reset for new user session
                 syncWithFirestore(user);
             } else {
@@ -502,13 +514,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (syncIcon) {
                     syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
                 }
+
+                // Hide app and show login modal
+                appContainer.classList.add('hidden');
+                syncModalOverlay.classList.add('visible');
+
+                // Clear local state on logout for privacy
+                localStorage.removeItem('grocery-app-state');
+                appState = {
+                    lists: [],
+                    currentListId: null,
+                    updatedAt: 0
+                };
+
+                isAppRunning = false;
+
                 if (unsubscribeFirestore) {
                     unsubscribeFirestore();
                     unsubscribeFirestore = null;
                 }
+                renderList();
+                renderListsMenu();
             }
         });
+    }
 
+    async function startApp() {
         await restoreFromHash();
         
         // Read localStorage after hash restore has had a chance to update it
@@ -708,7 +739,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const password = syncPasswordInput.value;
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                syncModalOverlay.classList.remove('visible');
+                // Visibility handled by onAuthStateChanged
             } catch (e) {
                 showSyncError(e.message);
             }
@@ -721,7 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const password = syncPasswordInput.value;
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
-                syncModalOverlay.classList.remove('visible');
+                // Visibility handled by onAuthStateChanged
             } catch (e) {
                 showSyncError(e.message);
             }
@@ -732,7 +763,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncLogoutBtn.addEventListener('click', async () => {
             try {
                 await signOut(auth);
-                syncModalOverlay.classList.remove('visible');
+                // Visibility handled by onAuthStateChanged
             } catch (e) {
                 showSyncError(e.message);
             }

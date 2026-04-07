@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test.describe('deleteListWithConfirmation', () => {
     test.beforeEach(async ({ page }) => {

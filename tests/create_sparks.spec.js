@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test('createSparks function generates particles that animate and disappear', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));

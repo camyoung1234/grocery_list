@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test('switching mode preserves edit mode', async ({ page }) => {
   await page.goto('http://localhost:3000#');

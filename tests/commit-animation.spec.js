@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test('Item checking behavior (no commit)', async ({ page }) => {
   page.on('console', msg => console.log('BROWSER LOG:', msg.text()));

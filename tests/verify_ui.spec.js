@@ -1,5 +1,5 @@
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test('verify edit mode UI consistency', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));

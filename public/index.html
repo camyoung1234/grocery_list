@@ -44,7 +44,7 @@
 
 <body>
 
-    <div class="app-container">
+    <div class="app-container hidden">
         <input type="file" id="import-input" accept=".json" class="hidden-input">
 
         <ul id="grocery-list" class="grocery-list">
@@ -160,14 +160,14 @@
     </div>
 
     <!-- Sync / Auth Modal -->
-    <div id="sync-modal-overlay" class="modal-overlay">
+    <div id="sync-modal-overlay" class="modal-overlay visible">
         <div class="modal">
-            <h3 id="sync-modal-title">Cloud Sync</h3>
+            <h3 id="sync-modal-title">Sign In to Continue</h3>
 
             <div id="sync-error" class="text-danger hidden" style="margin-bottom: 1rem; font-size: 0.9rem; text-align: center;"></div>
 
             <div id="sync-logged-out">
-                <p>Login to sync your lists across multiple devices.</p>
+                <p>Please log in or sign up to use the app.</p>
                 <div class="form-group">
                     <label for="sync-email" class="modal-label">Email</label>
                     <input type="email" id="sync-email" placeholder="email@example.com" autocomplete="off">
@@ -179,12 +179,11 @@
                 <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
                     <button id="sync-login-btn" class="modal-btn save" style="width: 100%;">Login</button>
                     <button id="sync-signup-btn" class="modal-btn cancel" style="width: 100%;">Sign Up</button>
-                    <button id="sync-cancel-btn" class="modal-btn cancel" style="width: 100%;">Cancel</button>
                 </div>
             </div>
 
             <div id="sync-logged-in" class="hidden">
-                <p>Logged in as: <strong id="sync-user-email"></strong></p>
+                <p style="text-align: center; margin-bottom: 1.5rem;">Logged in as:<br><strong id="sync-user-email"></strong></p>
                 <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
                     <button id="sync-logout-btn" class="modal-btn delete" style="width: 100%;">Logout</button>
                     <button id="sync-close-btn" class="modal-btn cancel" style="width: 100%;">Close</button>

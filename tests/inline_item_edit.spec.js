@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test.beforeEach(async ({ page }) => {
   await page.goto('http://localhost:3000');
@@ -60,7 +60,9 @@ test.describe('startInlineItemEdit in Home Mode', () => {
     await expect(item1Text).toHaveText('Apple');
 
     // Double click to edit
-    await item1Text.dblclick();
+    await item1Text.click();
+    await page.waitForTimeout(100);
+    await item1Text.click();
 
     const inlineInput = page.locator('.inline-edit-input');
     await expect(inlineInput).toBeVisible();
@@ -80,7 +82,9 @@ test.describe('startInlineItemEdit in Home Mode', () => {
     await expect(item1Text).toHaveText('Apple');
 
     // Double click to edit
-    await item1Text.dblclick();
+    await item1Text.click();
+    await page.waitForTimeout(100);
+    await item1Text.click();
 
     const inlineInput = page.locator('.inline-edit-input');
     await expect(inlineInput).toBeVisible();
@@ -104,7 +108,9 @@ test.describe('startInlineItemEdit in Home Mode', () => {
     expect(state.lists[0].items.find(i => i.id === 'item-2').wantCount).toBe(5);
 
     // Double click to edit Apple
-    await item1Text.dblclick();
+    await item1Text.click();
+    await page.waitForTimeout(100);
+    await item1Text.click();
 
     const inlineInput = page.locator('.inline-edit-input');
     await expect(inlineInput).toBeVisible();

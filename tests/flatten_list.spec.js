@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test('flattenList behavior during drag', async ({ page }) => {
   await page.goto('/');

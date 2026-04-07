@@ -1,5 +1,5 @@
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test('generate large list and measure edit mode toggle', async ({ page }) => {
     await page.goto('http://localhost:3000');

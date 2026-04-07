@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test-utils');
 
 test('Clicking on item name in Shop mode toggles completion', async ({ page }) => {
   await page.goto('http://localhost:3000#');
