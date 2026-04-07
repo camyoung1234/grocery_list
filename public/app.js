@@ -1497,10 +1497,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newState = !item.shopCompleted;
 
         try {
+            const itemElements = new Map();
+            sameNameItems.forEach(i => {
+                itemElements.set(i.id, document.querySelector(`.grocery-item[data-id="${i.id}"]`));
+            });
+
             sameNameItems.forEach(i => animatingItems.set(i.id, newState ? 'completing' : 'undoing'));
 
             sameNameItems.forEach(i => {
-                const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                const el = itemElements.get(i.id);
                 if (el) {
                     if (newState) {
                         el.classList.add('is-completing');
@@ -1521,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Trigger sparks after circle fill
                 sameNameItems.forEach(i => {
-                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    const el = itemElements.get(i.id);
                     if (el) {
                         const circle = el.querySelector('.shop-qty-circle');
                         if (circle) {
@@ -1539,7 +1544,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     i.shopCheckOrder = Date.now();
 
                     // Manually update classes to maintain state without renderList()
-                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    const el = itemElements.get(i.id);
                     if (el) {
                         el.classList.remove('is-completing');
                         el.classList.add('completed');
@@ -1555,7 +1560,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     i.shopCheckOrder = null;
 
                     // Manually update classes
-                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    const el = itemElements.get(i.id);
                     if (el) {
                         el.classList.remove('is-undoing', 'completed');
                     }
