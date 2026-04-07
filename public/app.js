@@ -541,37 +541,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Mode Switching ---
+    function autoSortShopItems(currentList) {
+        // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
+        const sectionsMap = new Map();
+        currentList.items.forEach(item => {
+            if (item.shopCompleted) {
+                if (!sectionsMap.has(item.shopSectionId)) {
+                    sectionsMap.set(item.shopSectionId, []);
+                }
+                sectionsMap.get(item.shopSectionId).push(item);
+            }
+        });
+
+        sectionsMap.forEach(checkedItems => {
+            // Sort by check order (ascending - older checks first)
+            checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
+
+            // Extract their current indices and sort numerically
+            const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
+
+            // Re-assign sorted indices back to the items based on their check order
+            checkedItems.forEach((item, i) => {
+                item.shopIndex = indices[i];
+            });
+        });
+    }
+
+    function animateModeSwitch(doSwitchCallback) {
+        // Mode fade transition: out → scroll & switch → in
+        const fadeOutClass = 'mode-fade-out';
+        const fadeInClass = 'mode-fade-in';
+
+        groceryList.classList.add(fadeOutClass);
+        groceryList.addEventListener('animationend', function onOut() {
+            groceryList.removeEventListener('animationend', onOut);
+            groceryList.classList.remove(fadeOutClass);
+
+            // Scroll to top when current content is faded out
+            window.scrollTo(0, 0);
+            if (appContainer) appContainer.scrollTop = 0;
+
+            doSwitchCallback();
+
+            groceryList.classList.add(fadeInClass);
+            groceryList.addEventListener('animationend', function onIn() {
+                groceryList.removeEventListener('animationend', onIn);
+                groceryList.classList.remove(fadeInClass);
+            }, { once: true });
+        }, { once: true });
+    }
+
     function switchMode(newMode, animate = false) {
         if (newMode === currentMode) return;
 
         const doSwitch = () => {
             // Auto-sort when switching FROM Shop TO Home
             if (currentMode === 'shop' && newMode === 'home') {
-                const currentList = getCurrentList();
-
-                // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
-                const sectionsMap = new Map();
-                currentList.items.forEach(item => {
-                    if (item.shopCompleted) {
-                        if (!sectionsMap.has(item.shopSectionId)) {
-                            sectionsMap.set(item.shopSectionId, []);
-                        }
-                        sectionsMap.get(item.shopSectionId).push(item);
-                    }
-                });
-
-                sectionsMap.forEach(checkedItems => {
-                    // Sort by check order (ascending - older checks first)
-                    checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
-
-                    // Extract their current indices and sort numerically
-                    const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
-
-                    // Re-assign sorted indices back to the items based on their check order
-                    checkedItems.forEach((item, i) => {
-                        item.shopIndex = indices[i];
-                    });
-                });
+                autoSortShopItems(getCurrentList());
                 saveAppState();
             }
 
@@ -590,27 +616,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Mode fade transition: out → scroll & switch → in
-        const fadeOutClass = 'mode-fade-out';
-        const fadeInClass = 'mode-fade-in';
-
-        groceryList.classList.add(fadeOutClass);
-        groceryList.addEventListener('animationend', function onOut() {
-            groceryList.removeEventListener('animationend', onOut);
-            groceryList.classList.remove(fadeOutClass);
-
-            // Scroll to top when current content is faded out
-            window.scrollTo(0, 0);
-            if (appContainer) appContainer.scrollTop = 0;
-
-            doSwitch();
-
-            groceryList.classList.add(fadeInClass);
-            groceryList.addEventListener('animationend', function onIn() {
-                groceryList.removeEventListener('animationend', onIn);
-                groceryList.classList.remove(fadeInClass);
-            }, { once: true });
-        }, { once: true });
+        animateModeSwitch(doSwitch);
     }
 
     // --- Toolbar Interactions ---
