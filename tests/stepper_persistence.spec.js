@@ -1,15 +1,14 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('http://localhost:3000');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await mockFirebase(page);
+await page.goto('http://localhost:3000');
 });
 
 test('Stepper remains expanded after incrementing wanted quantity', async ({ page }) => {
-  await page.evaluate(() => {
-    const listId = 'list-1';
-    const state = {
+  const listId = 'list-1';
+  const state = {
       lists: [{
         id: listId,
         name: 'Test List',
@@ -31,20 +30,18 @@ test('Stepper remains expanded after incrementing wanted quantity', async ({ pag
       currentListId: listId,
       sharedWantSynced: true
     };
-    localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-edit-mode', 'false'); // This makes .hide-drag-handles true, revealing controls
-    window.location.reload();
-  });
+  await setMockState(page, { ...state, mode: 'home', editMode: false });
 
-  // Verify Edit Mode is OFF (Home Mode uses Edit Mode OFF to show controls)
+  // Verify Edit Mode is OFF
   const appContainer = page.locator('.app-container');
   await expect(appContainer).toHaveClass(/hide-drag-handles/);
 
-  // Note: Expansion logic was removed in favor of simplified always-visible steppers.
-  // This test is updated to verify simple increment in Edit Mode.
+  // Enter Edit Mode
   await page.click('#toolbar-reorder');
-  // Switch to Shop Mode (want-stepper removed from Home Mode)
+  // Switch to Shop Mode (want-stepper is visible in Shop + Edit Mode)
   await page.click('#toolbar-mode');
+  await page.waitForTimeout(600);
+
   const milkRow = page.locator('.grocery-item:has-text("Milk")');
   const wantInput = milkRow.locator('.want-stepper .qty-input');
 

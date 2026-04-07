@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA8hTcqZ_I3zIsSC9Vq_XEg6T6KWaUav20",
@@ -14,7 +14,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 
 const SYNC_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>`;
 const SYNC_SLASH_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
@@ -24,6 +26,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let appState = {
         lists: [],
         currentListId: null,
+        mode: 'home',
+        editMode: true,
         updatedAt: 0
     };
 
@@ -48,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedShopItems = new Set(); // Tracks currently selected item IDs
     let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
     let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
+    let precomputedSameNameItems = new Map(); // id -> [items]
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
     let selectionRenderTimeout = null;
     let unsubscribeFirestore = null;
@@ -58,12 +63,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listsMenu = document.getElementById('lists-menu');
 
     // --- Intersection Observer for Performance ---
+    const inViewportSet = new Set();
     const viewportObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
+            const isRelevant = entry.target.classList.contains('grocery-item') || entry.target.classList.contains('section-header');
             if (entry.isIntersecting) {
                 entry.target.classList.add('in-view');
+                if (isRelevant) inViewportSet.add(entry.target);
             } else {
                 entry.target.classList.remove('in-view');
+                inViewportSet.delete(entry.target);
             }
         });
     }, {
@@ -334,11 +343,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentAccentSwatch = document.getElementById('current-accent-swatch');
     const currentAccentName = document.getElementById('current-accent-name');
 
-    const modalHomeSectionGroup = document.getElementById('modal-home-section-group');
-    const modalShopSectionGroup = document.getElementById('modal-shop-section-group');
-    const modalHomeSectionSelect = document.getElementById('modal-home-section');
-    const modalShopSectionSelect = document.getElementById('modal-shop-section');
-
     // Import / Export Elements
     const importBtn = document.getElementById('import-btn');
     const exportBtn = document.getElementById('export-btn');
@@ -421,8 +425,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function generateHash() {
         try {
             const payload = JSON.stringify({
-                appState: JSON.parse(localStorage.getItem('grocery-app-state') || 'null'),
-                mode: localStorage.getItem('grocery-mode') || 'home'
+                appState: appState,
+                mode: currentMode
             });
             const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'));
             const compressed = await new Response(stream).arrayBuffer();
@@ -442,7 +446,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Restore state from URL hash (if present) before reading localStorage
+    // Restore state from URL hash (if present)
     async function restoreFromHash() {
         try {
             const hash = window.location.hash.slice(1);
@@ -456,10 +460,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const decompressed = await new Response(stream).text();
             const data = JSON.parse(decompressed);
             if (data && data.appState && data.appState.lists) {
-                const currentStoredState = localStorage.getItem('grocery-app-state');
-                
                 // If hash state matches current state, skip prompt
-                if (currentStoredState && JSON.stringify(data.appState) === currentStoredState) {
+                if (JSON.stringify(data.appState) === JSON.stringify(appState)) {
                     return;
                 }
 
@@ -467,10 +469,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 return new Promise((resolve) => {
                     restoreConfirmBtn.onclick = () => {
-                        localStorage.setItem('grocery-app-state', JSON.stringify(data.appState));
+                        appState = data.appState;
                         if (data.mode) {
-                            localStorage.setItem('grocery-mode', data.mode);
+                            currentMode = data.mode;
                         }
+                        saveAppState(true);
                         restoreModalOverlay.classList.remove('visible');
                         resolve();
                     };
@@ -487,122 +490,50 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Initialization ---
     async function init() {
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 syncLoggedOutDiv.classList.add('hidden');
                 syncLoggedInDiv.classList.remove('hidden');
-                syncUserEmailSpan.textContent = user.email;
+                syncUserEmailSpan.textContent = user.email || 'Guest';
                 if (syncIcon) {
                     syncIcon.innerHTML = SYNC_ICON_SVG;
                 }
                 firstSync = true; // Reset for new user session
                 syncWithFirestore(user);
             } else {
-                syncLoggedOutDiv.classList.remove('hidden');
-                syncLoggedInDiv.classList.add('hidden');
-                if (syncIcon) {
-                    syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
-                }
-                if (unsubscribeFirestore) {
-                    unsubscribeFirestore();
-                    unsubscribeFirestore = null;
+                try {
+                    await signInAnonymously(auth);
+                } catch (e) {
+                    console.error("Error signing in anonymously:", e);
+                    syncLoggedOutDiv.classList.remove('hidden');
+                    syncLoggedInDiv.classList.add('hidden');
+                    if (syncIcon) {
+                        syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
+                    }
+                    if (unsubscribeFirestore) {
+                        unsubscribeFirestore();
+                        unsubscribeFirestore = null;
+                    }
                 }
             }
         });
 
+        // Fresh start default state (will be overwritten by Firestore if data exists)
+        const defaultListId = Date.now().toString();
+        appState.lists = [{
+            id: defaultListId,
+            name: 'Grocery List',
+            theme: 'var(--theme-blue)',
+            accent: 'var(--theme-amber)',
+            homeSections: [],
+            shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+            items: []
+        }];
+        appState.currentListId = defaultListId;
+        appState.mode = 'home';
+        appState.editMode = true;
+
         await restoreFromHash();
-        
-        // Read localStorage after hash restore has had a chance to update it
-        const legacyItems = JSON.parse(localStorage.getItem('grocery-items'));
-        const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
-        currentMode = localStorage.getItem('grocery-mode') || 'home';
-
-        const storedEditMode = localStorage.getItem('grocery-edit-mode');
-        editMode = storedEditMode !== null ? JSON.parse(storedEditMode) : true;
-
-        if (storedState && storedState.lists && storedState.lists.length > 0) {
-            appState = storedState;
-            if (appState.updatedAt === undefined) appState.updatedAt = 0;
-            // Migration for sections
-            appState.lists.forEach(list => {
-                if (!list.accent) {
-                    list.accent = 'var(--theme-amber)';
-                }
-                if (!list.homeSections) {
-                    list.homeSections = [{ id: 'sec-h-def', name: 'Uncategorized' }];
-                    list.shopSections = [{ id: 'sec-s-def', name: 'Uncategorized' }];
-                    if (list.items) {
-                        list.items.forEach(item => {
-                            item.homeSectionId = 'sec-h-def';
-                            item.shopSectionId = 'sec-s-def';
-                        });
-                    }
-                }
-            });
-        } else if (legacyItems && Array.isArray(legacyItems)) {
-            // Migration: Convert legacy items to new structure
-            const defaultListId = Date.now().toString();
-            appState.lists = [{
-                id: defaultListId,
-                name: 'Grocery List',
-                theme: 'var(--theme-blue)',
-                accent: 'var(--theme-amber)',
-                homeSections: [{ id: 'sec-h-def', name: 'Uncategorized' }],
-                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                items: legacyItems.map(item => ({
-                    ...item,
-                    homeSectionId: 'sec-h-def',
-                    shopSectionId: 'sec-s-def'
-                }))
-            }];
-            appState.currentListId = defaultListId;
-
-            // Clean up legacy item logic (optional, we might keep it to avoid data loss if revert?)
-            // For now, let's just save the new state and rely on it.
-            saveAppState();
-        } else {
-            // Fresh start
-            const defaultListId = Date.now().toString();
-            appState.lists = [{
-                id: defaultListId,
-                name: 'Grocery List',
-                theme: 'var(--theme-blue)', // Default Theme
-                accent: 'var(--theme-amber)', // Default Accent
-                homeSections: [], // Start with no sections
-                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                items: []
-            }];
-            appState.currentListId = defaultListId;
-            saveAppState();
-        }
-
-        // Ensure currentListId is valid
-        if (!appState.lists.find(l => l.id === appState.currentListId)) {
-            appState.currentListId = appState.lists[0]?.id;
-        }
-
-
-        // --- Shared Want Sync Migration ---
-        if (!appState.sharedWantSynced) {
-            appState.lists.forEach(list => {
-                const maxWants = new Map();
-                list.items.forEach(item => {
-                    const name = item.text.trim();
-                    const currentMax = maxWants.get(name) || 0;
-                    if (item.wantCount > currentMax) {
-                        maxWants.set(name, item.wantCount);
-                    }
-                });
-                list.items.forEach(item => {
-                    const name = item.text.trim();
-                    if (maxWants.has(name)) {
-                        item.wantCount = maxWants.get(name);
-                    }
-                });
-            });
-            appState.sharedWantSynced = true;
-            saveAppState();
-        }
 
         updateModeUI();
         renderListsMenu();
@@ -610,37 +541,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Mode Switching ---
+    function autoSortShopItems(currentList) {
+        // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
+        const sectionsMap = new Map();
+        currentList.items.forEach(item => {
+            if (item.shopCompleted) {
+                if (!sectionsMap.has(item.shopSectionId)) {
+                    sectionsMap.set(item.shopSectionId, []);
+                }
+                sectionsMap.get(item.shopSectionId).push(item);
+            }
+        });
+
+        sectionsMap.forEach(checkedItems => {
+            // Sort by check order (ascending - older checks first)
+            checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
+
+            // Extract their current indices and sort numerically
+            const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
+
+            // Re-assign sorted indices back to the items based on their check order
+            checkedItems.forEach((item, i) => {
+                item.shopIndex = indices[i];
+            });
+        });
+    }
+
+    function animateModeSwitch(doSwitchCallback) {
+        // Mode fade transition: out → scroll & switch → in
+        const fadeOutClass = 'mode-fade-out';
+        const fadeInClass = 'mode-fade-in';
+
+        groceryList.classList.add(fadeOutClass);
+        groceryList.addEventListener('animationend', function onOut() {
+            groceryList.removeEventListener('animationend', onOut);
+            groceryList.classList.remove(fadeOutClass);
+
+            // Scroll to top when current content is faded out
+            window.scrollTo(0, 0);
+            if (appContainer) appContainer.scrollTop = 0;
+
+            doSwitchCallback();
+
+            groceryList.classList.add(fadeInClass);
+            groceryList.addEventListener('animationend', function onIn() {
+                groceryList.removeEventListener('animationend', onIn);
+                groceryList.classList.remove(fadeInClass);
+            }, { once: true });
+        }, { once: true });
+    }
+
     function switchMode(newMode, animate = false) {
         if (newMode === currentMode) return;
 
         const doSwitch = () => {
             // Auto-sort when switching FROM Shop TO Home
             if (currentMode === 'shop' && newMode === 'home') {
-                const currentList = getCurrentList();
-
-                // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
-                const sectionsMap = new Map();
-                currentList.items.forEach(item => {
-                    if (item.shopCompleted) {
-                        if (!sectionsMap.has(item.shopSectionId)) {
-                            sectionsMap.set(item.shopSectionId, []);
-                        }
-                        sectionsMap.get(item.shopSectionId).push(item);
-                    }
-                });
-
-                sectionsMap.forEach(checkedItems => {
-                    // Sort by check order (ascending - older checks first)
-                    checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
-
-                    // Extract their current indices and sort numerically
-                    const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
-
-                    // Re-assign sorted indices back to the items based on their check order
-                    checkedItems.forEach((item, i) => {
-                        item.shopIndex = indices[i];
-                    });
-                });
+                autoSortShopItems(getCurrentList());
                 saveAppState();
             }
 
@@ -659,27 +616,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Mode fade transition: out → scroll & switch → in
-        const fadeOutClass = 'mode-fade-out';
-        const fadeInClass = 'mode-fade-in';
-
-        groceryList.classList.add(fadeOutClass);
-        groceryList.addEventListener('animationend', function onOut() {
-            groceryList.removeEventListener('animationend', onOut);
-            groceryList.classList.remove(fadeOutClass);
-
-            // Scroll to top when current content is faded out
-            window.scrollTo(0, 0);
-            if (appContainer) appContainer.scrollTop = 0;
-
-            doSwitch();
-
-            groceryList.classList.add(fadeInClass);
-            groceryList.addEventListener('animationend', function onIn() {
-                groceryList.removeEventListener('animationend', onIn);
-                groceryList.classList.remove(fadeInClass);
-            }, { once: true });
-        }, { once: true });
+        animateModeSwitch(doSwitch);
     }
 
     // --- Toolbar Interactions ---
@@ -804,18 +741,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         toolbarReorderBtn.addEventListener('click', () => {
             // Find the row currently at the top of the viewport
             let topRow = null;
-            let topOffset = 0;
+            let topOffset = Infinity;
 
-            // Optimization: Only scan visible rows to find topRow
-            const visibleRows = Array.from(document.querySelectorAll('.grocery-item.in-view, .section-header.in-view'));
-            for (const row of visibleRows) {
+            // Optimization: Only scan visible rows using the IntersectionObserver's tracked Set
+            for (const row of inViewportSet) {
                 const rect = row.getBoundingClientRect();
-                if (rect.bottom > 0) {
+                if (rect.bottom > 0 && rect.top < topOffset) {
                     topRow = row;
                     topOffset = rect.top;
-                    break;
                 }
             }
+
+            // In case no valid row was found (e.g. empty list or layout quirk), fallback gracefully
+            if (!topRow) topOffset = 0;
 
             editMode = !editMode;
             saveMode();
@@ -1035,9 +973,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             modalDeleteBtn.style.display = 'none';
             currentDeleteActionCallback = null;
         }
-
-        modalHomeSectionGroup.classList.add('hidden');
-        modalShopSectionGroup.classList.add('hidden');
 
         currentModalCallback = callback;
         modalOverlay.classList.add('visible');
@@ -1291,7 +1226,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (remoteState.updatedAt > appState.updatedAt) {
                     appState = remoteState;
-                    saveAppState(false); // Update local but don't bump timestamp
+                    currentMode = remoteState.mode || 'home';
+                    editMode = remoteState.editMode !== undefined ? remoteState.editMode : true;
                     renderListsMenu();
                     updateModeUI();
                     renderList();
@@ -1322,7 +1258,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         keepCloudBtn.onclick = () => {
             appState = cloudState;
-            saveAppState(false); // Update local but keep cloud's timestamp
+            currentMode = cloudState.mode || 'home';
+            editMode = cloudState.editMode !== undefined ? cloudState.editMode : true;
             conflictModalOverlay.classList.remove('visible');
             renderListsMenu();
             updateModeUI();
@@ -1428,48 +1365,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         container.appendChild(input);
         info.replaceChild(container, nameSpan);
         input.focus();
-    }
-
-    function renameItem(id) {
-        const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
-        if (!item) return;
-
-        modalHomeSectionSelect.innerHTML = '';
-        currentList.homeSections.forEach(sec => {
-            const opt = document.createElement('option');
-            opt.value = sec.id;
-            opt.textContent = sec.name;
-            modalHomeSectionSelect.appendChild(opt);
-        });
-        modalHomeSectionSelect.value = item.homeSectionId;
-
-        modalShopSectionSelect.innerHTML = '';
-        currentList.shopSections.forEach(sec => {
-            const opt = document.createElement('option');
-            opt.value = sec.id;
-            opt.textContent = sec.name;
-            modalShopSectionSelect.appendChild(opt);
-        });
-        modalShopSectionSelect.value = item.shopSectionId;
-
-        showModal('Edit Item', item.text, false, null, null, (newName) => {
-            if (newName && newName.trim() !== '') {
-                const trimmedNewName = newName.trim();
-                const existing = currentList.items.find(i => i.text.trim() === trimmedNewName && i.id !== item.id);
-                if (existing) {
-                    item.wantCount = existing.wantCount;
-                }
-                item.text = trimmedNewName;
-                item.homeSectionId = modalHomeSectionSelect.value;
-                item.shopSectionId = modalShopSectionSelect.value;
-                saveAppState();
-                renderList();
-            }
-        }, () => deleteItem(id));
-
-        modalHomeSectionGroup.classList.remove('hidden');
-        modalShopSectionGroup.classList.remove('hidden');
     }
 
     function addSection(name, isHome) {
@@ -1600,10 +1495,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let animatingItems = new Map(); // id -> 'completing' | 'undoing'
     async function toggleShopCompleted(id) {
         const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
+        const sameNameItems = precomputedSameNameItems.get(id) || [];
+        const item = sameNameItems.find(i => i.id === id);
         if (!item) return;
 
-        const sameNameItems = currentList.items.filter(i => i.text === item.text);
         if (sameNameItems.some(i => animatingItems.has(i.id))) return;
 
         const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
@@ -1615,10 +1510,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newState = !item.shopCompleted;
 
         try {
+            const itemElements = new Map();
+            sameNameItems.forEach(i => {
+                itemElements.set(i.id, document.querySelector(`.grocery-item[data-id="${i.id}"]`));
+            });
+
             sameNameItems.forEach(i => animatingItems.set(i.id, newState ? 'completing' : 'undoing'));
 
             sameNameItems.forEach(i => {
-                const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                const el = itemElements.get(i.id);
                 if (el) {
                     if (newState) {
                         el.classList.add('is-completing');
@@ -1639,7 +1539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Trigger sparks after circle fill
                 sameNameItems.forEach(i => {
-                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    const el = itemElements.get(i.id);
                     if (el) {
                         const circle = el.querySelector('.shop-qty-circle');
                         if (circle) {
@@ -1657,7 +1557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     i.shopCheckOrder = Date.now();
 
                     // Manually update classes to maintain state without renderList()
-                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    const el = itemElements.get(i.id);
                     if (el) {
                         el.classList.remove('is-completing');
                         el.classList.add('completed');
@@ -1673,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     i.shopCheckOrder = null;
 
                     // Manually update classes
-                    const el = document.querySelector(`.grocery-item[data-id="${i.id}"]`);
+                    const el = itemElements.get(i.id);
                     if (el) {
                         el.classList.remove('is-undoing', 'completed');
                     }
@@ -1775,10 +1675,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function setWant(id, value) {
         const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
+        const sameNameItems = precomputedSameNameItems.get(id) || [];
+        const item = sameNameItems.find(i => i.id === id);
         if (item) {
             const newWant = Math.max(0, parseInt(value) || 0);
-            const sameNameItems = currentList.items.filter(i => i.text.trim() === item.text.trim());
             sameNameItems.forEach(i => i.wantCount = newWant);
             saveAppState();
 
@@ -1850,15 +1750,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (updateTimestamp) {
             appState.updatedAt = Date.now();
         }
+        appState.mode = currentMode;
+        appState.editMode = editMode;
+
         // Clone appState for saving, filtering out items that are currently pending deletion
         const stateToSave = JSON.parse(JSON.stringify(appState));
         stateToSave.lists.forEach(list => {
             list.items = list.items.filter(item => !item.pendingDelete);
         });
-        localStorage.setItem('grocery-app-state', JSON.stringify(stateToSave));
 
         // Sync with Firestore if logged in
-        if (updateTimestamp && auth.currentUser) {
+        if (auth.currentUser) {
             try {
                 await setDoc(doc(db, "users", auth.currentUser.uid), stateToSave);
             } catch (e) {
@@ -1868,8 +1770,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function saveMode() {
-        localStorage.setItem('grocery-mode', currentMode);
-        localStorage.setItem('grocery-edit-mode', JSON.stringify(editMode));
+        saveAppState(false);
     }
 
     function renderListsMenu() {
@@ -1946,17 +1847,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return handle;
     }
 
-    function createLeftAction(children = []) {
-        const leftAction = document.createElement('div');
-        leftAction.className = 'left-action';
-        if (Array.isArray(children)) {
-            children.forEach(child => leftAction.appendChild(child));
-        } else if (children) {
-            leftAction.appendChild(children);
-        }
-        return leftAction;
-    }
-
     function renderList() {
         const fragment = document.createDocumentFragment();
         const currentList = getCurrentList();
@@ -1964,6 +1854,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             groceryList.innerHTML = '';
             return;
         }
+
+        // Precompute same name items for O(1) lookups
+        precomputedSameNameItems.clear();
+        const nameMap = new Map();
+        currentList.items.forEach(item => {
+            const name = item.text.trim();
+            let arr = nameMap.get(name);
+            if (!arr) {
+                arr = [];
+                nameMap.set(name, arr);
+            }
+            arr.push(item);
+        });
+        currentList.items.forEach(item => {
+            precomputedSameNameItems.set(item.id, nameMap.get(item.text.trim()));
+        });
 
         const isHome = currentMode === 'home';
         const sectionsKey = isHome ? 'homeSections' : 'shopSections';
@@ -2178,6 +2084,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Update intersection observer
         viewportObserver.disconnect();
+        inViewportSet.clear();
         const rows = groceryList.querySelectorAll('.grocery-item, .section-container, .section-header');
         rows.forEach(row => viewportObserver.observe(row));
 
@@ -2259,37 +2166,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             section.style.display = 'none';
         });
         groceryList.appendChild(document.querySelector('.add-section-row'));
-    }
-
-    function restoreList() {
-        const elements = Array.from(groceryList.children);
-        const sections = Array.from(groceryList.querySelectorAll('.section-container'));
-        const sectionMap = new Map();
-        
-        sections.forEach(s => {
-            sectionMap.set(s.dataset.id, s);
-            const list = s.querySelector('.section-items-list');
-            list.innerHTML = ''; // Clear for rebuild
-            s.style.display = '';
-        });
-
-        let currentSectionId = null;
-        elements.forEach(el => {
-            if (el.classList.contains('section-header')) {
-                currentSectionId = el.dataset.originalSectionId;
-            } else if (el.classList.contains('grocery-item') || el.classList.contains('add-item-row') || el === placeholder) {
-                const targetId = el.dataset.originalSectionId || currentSectionId;
-                const section = sectionMap.get(targetId);
-                if (section) {
-                    section.querySelector('.section-items-list').appendChild(el);
-                }
-            } else if (el.classList.contains('add-section-row')) {
-                groceryList.appendChild(el); // Stays at bottom
-            }
-        });
-        
-        // Re-append sections in their current order (if they moved)
-        sections.forEach(s => groceryList.appendChild(s));
     }
 
     function handleDragStart(e, element, type) {

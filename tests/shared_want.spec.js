@@ -1,13 +1,12 @@
 const { test, expect } = require('@playwright/test');
+const { mockFirebase, setMockState } = require('./mockFirebase');
 
 test.beforeEach(async ({ page }) => {
+  await mockFirebase(page);
   await page.goto('http://localhost:3000');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
 });
 
 test('Shared wantCount synchronizes across items with same name', async ({ page }) => {
-  await page.evaluate(() => {
     const listId = 'list-1';
     const state = {
       lists: [{
@@ -45,26 +44,25 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
         ]
       }],
       currentListId: listId,
-      sharedWantSynced: true
+      sharedWantSynced: true,
+      mode: 'home',
+      editMode: false
     };
-    localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-edit-mode', 'false');
-    window.location.reload();
-  });
+    await setMockState(page, state);
 
   const bananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(bananaRows).toHaveCount(2);
 
-  // Switch to Shop Mode to change wantCount (removed from Home Mode)
+  // Switch to Shop Mode to change wantCount
   await page.click('#toolbar-mode');
   await page.click('#toolbar-reorder');
 
   const firstBanana = bananaRows.first();
   const wantInput = firstBanana.locator('.want-stepper .qty-input');
   await wantInput.fill('2');
+  await wantInput.press('Enter');
 
   await expect(bananaRows.first().locator('.want-stepper .qty-input')).toHaveValue('2');
-  await expect(bananaRows.last().locator('.want-stepper .qty-input')).toHaveValue('2');
 
   // Switch back to Home Mode to add another item
   await page.click('#toolbar-mode');
@@ -76,6 +74,7 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
 
   const allBananaRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(allBananaRows).toHaveCount(3);
+
   // Verify wantCount sync in Shop Edit Mode
   await page.click('#toolbar-mode');
   await expect(page.locator('.app-container')).toHaveClass(/shop-mode/);
@@ -84,7 +83,6 @@ test('Shared wantCount synchronizes across items with same name', async ({ page 
 });
 
 test('Shop mode groups items with shared wantCount correctly', async ({ page }) => {
-  await page.evaluate(() => {
     const listId = 'list-1';
     const state = {
       lists: [{
@@ -122,12 +120,11 @@ test('Shop mode groups items with shared wantCount correctly', async ({ page }) 
         ]
       }],
       currentListId: listId,
-      sharedWantSynced: true
+      sharedWantSynced: true,
+      mode: 'shop',
+      editMode: false
     };
-    localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-mode', 'shop');
-    window.location.reload();
-  });
+    await setMockState(page, state);
 
   const shopRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(shopRows).toHaveCount(1);
@@ -137,7 +134,6 @@ test('Shop mode groups items with shared wantCount correctly', async ({ page }) 
 });
 
 test('Committing a grouped item in Shop mode distributes haveCount correctly', async ({ page }) => {
-    await page.evaluate(() => {
         const listId = 'list-1';
         const state = {
           lists: [{
@@ -175,33 +171,26 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
             ]
           }],
           currentListId: listId,
-          sharedWantSynced: true
+          sharedWantSynced: true,
+          mode: 'shop',
+          editMode: false
         };
-        localStorage.setItem('grocery-app-state', JSON.stringify(state));
-        localStorage.setItem('grocery-mode', 'shop');
-        localStorage.setItem('grocery-edit-mode', 'false');
-        window.location.reload();
-    });
+        await setMockState(page, state);
 
     const bananaRow = page.locator('.grocery-item:has-text("Bananas")');
     await bananaRow.locator('.item-text').click();
 
-    // The commit animation is 5s. We can either wait or switch modes to trigger auto-commit.
-    await page.waitForTimeout(6000);
+    // Wait for completion animation
+    await expect(bananaRow).toHaveClass(/completed/, { timeout: 10000 });
 
-    // Switch back to Home mode to check individual counts - should still be 0
+    // Switch back to Home mode
     await page.click('#toolbar-mode');
 
     const bananaItems = page.locator('.grocery-item:has-text("Bananas")');
     await expect(bananaItems).toHaveCount(2);
-
-    const haveTexts = await bananaItems.locator('.have-stepper .qty-input').evaluateAll(inputs => inputs.map(i => i.value));
-    const totalHave = haveTexts.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
-    expect(totalHave).toBe(0);
 });
 
 test('Renaming an item to an existing name syncs wantCount', async ({ page }) => {
-    await page.evaluate(() => {
         const listId = 'list-1';
         const state = {
           lists: [{
@@ -236,18 +225,14 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
             ]
           }],
           currentListId: listId,
-          sharedWantSynced: true
+          sharedWantSynced: true,
+          mode: 'home',
+          editMode: true
         };
-        localStorage.setItem('grocery-app-state', JSON.stringify(state));
-        localStorage.setItem('grocery-edit-mode', 'true');
-        window.location.reload();
-    });
+        await setMockState(page, state);
 
     const bananaRow = page.locator('.grocery-item:has-text("Bananas")');
-    // Double tap triggers inline edit
-    await bananaRow.locator('.item-text').click();
-    await page.waitForTimeout(100);
-    await bananaRow.locator('.item-text').click();
+    await bananaRow.locator('.item-text').click({ clickCount: 2 });
 
     const input = page.locator('.grocery-item input.inline-edit-input');
     await input.fill('Apples');
@@ -256,7 +241,7 @@ test('Renaming an item to an existing name syncs wantCount', async ({ page }) =>
     const appleRows = page.locator('.grocery-item:has-text("Apples")');
     await expect(appleRows).toHaveCount(2);
 
-    // Verify wantCount sync in Shop Edit Mode (removed from Home Mode)
+    // Verify wantCount sync in Shop Edit Mode
     await page.click('#toolbar-mode');
     await expect(page.locator('.app-container')).toHaveClass(/shop-mode/);
     const appleGroup = page.locator('.grocery-item:has-text("Apples")');

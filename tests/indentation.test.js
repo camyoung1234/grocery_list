@@ -1,15 +1,13 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test('verify indentation behavior', async ({ page }) => {
-  await page.goto('http://localhost:3000');
 
   await page.waitForSelector('.bottom-toolbar');
 
   // Setup state and reload
-  await page.evaluate(() => {
-    localStorage.clear();
-    const listId = 'L1';
-    const appState = {
+  const listId = 'list-1';
+  const state = {
       lists: [{
         id: listId,
         name: 'Test List',
@@ -30,12 +28,7 @@ test('verify indentation behavior', async ({ page }) => {
       }],
       currentListId: listId
     };
-    localStorage.setItem('grocery-app-state', JSON.stringify(appState));
-    localStorage.setItem('grocery-mode', 'home');
-    localStorage.setItem('grocery-edit-mode', 'true');
-  });
-
-  await page.reload();
+await setMockState(page, { ...state, mode: 'home', editMode: true });
 
   // Wait for app to render
   const sectionTitle = page.locator('.section-title');

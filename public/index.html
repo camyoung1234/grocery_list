@@ -19,27 +19,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Groceries">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-
-    <script>
-        (function() {
-            try {
-                const storedState = JSON.parse(localStorage.getItem('grocery-app-state'));
-                if (storedState && storedState.lists && storedState.currentListId) {
-                    const currentList = storedState.lists.find(l => l.id === storedState.currentListId);
-                    if (currentList) {
-                        if (currentList.theme) {
-                            document.documentElement.style.setProperty('--primary-color', currentList.theme);
-                        }
-                        if (currentList.accent) {
-                            document.documentElement.style.setProperty('--accent-color', currentList.accent);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn('Failed to early-initialize theme:', e);
-            }
-        })();
-    </script>
 </head>
 
 <body>
@@ -120,16 +99,6 @@
                         <!-- Options injected by JS -->
                     </div>
                 </div>
-            </div>
-
-            <div class="form-group hidden" id="modal-home-section-group">
-                <label for="modal-home-section" class="modal-label">Home Section</label>
-                <select id="modal-home-section" class="modal-select"></select>
-            </div>
-
-            <div class="form-group hidden" id="modal-shop-section-group">
-                <label for="modal-shop-section" class="modal-label">Shop Section</label>
-                <select id="modal-shop-section" class="modal-select"></select>
             </div>
 
             <div class="modal-actions">

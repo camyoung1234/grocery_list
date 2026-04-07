@@ -1,13 +1,14 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test('Item checking behavior (no commit)', async ({ page }) => {
   page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
+  await mockFirebase(page);
   await page.goto('http://localhost:3000#');
 
   // Seed state: One item, Shop mode, Edit mode OFF
-  await page.evaluate(() => {
-    const listId = 'list-1';
-    const state = {
+  const listId = 'list-1';
+  const state = {
       lists: [{
         id: listId,
         name: 'Test List',
@@ -28,11 +29,7 @@ test('Item checking behavior (no commit)', async ({ page }) => {
       }],
       currentListId: listId
     };
-    localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-mode', 'shop');
-    localStorage.setItem('grocery-edit-mode', 'false');
-    window.location.reload();
-  });
+await setMockState(page, { ...state, mode: 'shop', editMode: false });
 
   const item = page.locator('.grocery-item[data-id="item-1"]');
   await expect(item).toBeVisible();

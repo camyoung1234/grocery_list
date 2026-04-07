@@ -1,21 +1,11 @@
+const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test.beforeEach(async ({ page }) => {
+  await mockFirebase(page);
   await page.goto('http://localhost:3000');
   // Clear any existing state
-  await page.evaluate(() => {
-      localStorage.clear();
-      // Also ensure mode and edit-mode are cleared
-      localStorage.removeItem('grocery-mode');
-      localStorage.removeItem('grocery-edit-mode');
-  });
-  await page.reload();
-});
-
-test('X button should be hidden and move button shown when items are selected in shop mode', async ({ page }) => {
-  // Use evaluate to set state directly
-  await page.evaluate(() => {
-    const state = {
+  const state = {
         lists: [{
             id: 'list-1',
             name: 'Test List',
@@ -36,11 +26,7 @@ test('X button should be hidden and move button shown when items are selected in
         }],
         currentListId: 'list-1'
     };
-    localStorage.setItem('grocery-app-state', JSON.stringify(state));
-    localStorage.setItem('grocery-mode', 'shop');
-    localStorage.setItem('grocery-edit-mode', 'true');
-  });
-  await page.reload();
+await setMockState(page, { ...state, mode: 'shop', editMode: true });
 
   // 1. Verify we are in Shop Mode and Edit Mode
   await expect(page.locator('.app-container')).toHaveClass(/shop-mode/);
