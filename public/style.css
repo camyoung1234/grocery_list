@@ -96,7 +96,7 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 1rem 0 1rem;
+    padding: 1rem 0 0 0;
     /* 1rem gutter for symmetry and to avoid mobile back gestures, bottom removed */
     box-shadow: var(--shadow);
     display: flex;
@@ -122,7 +122,7 @@ header {
     justify-content: center;
     align-items: center;
     margin-bottom: 2rem;
-    padding: 0;
+    padding: 0 1rem;
     /* Restore horizontal padding */
 }
 
@@ -429,7 +429,8 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 1rem 0 0.5rem;
+    padding: 0 2rem 0 1.5rem;
+    border-bottom: 1px solid var(--border-color);
     height: 50px;
     box-sizing: border-box;
     background: transparent;
@@ -513,7 +514,7 @@ h1 {
 
 
 .section-container .grocery-item.shop-chip {
-    padding: 0 1rem 0 0.5rem;
+    padding: 0 2rem 0 1.5rem;
     height: 50px;
     background: transparent;
     border-radius: 0;
@@ -1364,8 +1365,8 @@ h1 {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    border-bottom: none;
-    padding: 0 1rem 0 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 2rem 0 1.5rem;
     margin-bottom: 0;
     height: 50px;
     user-select: none;
@@ -1505,14 +1506,14 @@ h1 {
 }
 
 .section-container .grocery-item {
-    padding: 0 1rem 0 0.5rem;
+    padding: 0 2rem 0 1.5rem;
     height: 50px;
     box-sizing: border-box;
     border-radius: 0;
 }
 
 .section-container .add-item-row {
-    padding: 0 1rem 0 0.5rem;
+    padding: 0 2rem 0 1.5rem;
     height: 50px;
     box-sizing: border-box;
     display: flex;
@@ -1525,7 +1526,7 @@ h1 {
 /* Add a Section Row */
 .add-section-row {
     list-style: none;
-    padding: 0 1rem 0 0.5rem;
+    padding: 0 2rem 0 1.5rem;
     margin-top: 0;
     margin-bottom: 0;
     display: flex;
@@ -1538,7 +1539,7 @@ h1 {
 .grocery-item.undo-row {
     background: color-mix(in srgb, var(--primary-color) 15%, transparent) !important;
     border-radius: 12px;
-    padding: 0 1rem 0 0.5rem;
+    padding: 0 2rem 0 1.5rem;
     height: 50px !important;
     box-sizing: border-box;
     margin-bottom: 0;
