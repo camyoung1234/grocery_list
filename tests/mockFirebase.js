@@ -49,17 +49,48 @@ async function mockFirebase(page, initialState = null) {
         await route.fulfill({
             contentType: 'application/javascript',
             body: `
-                export const getAuth = () => ({});
+                export const getAuth = () => ({
+                    get currentUser() { return window.__MOCK_USER__; }
+                });
+                window.__AUTH_CALLBACKS__ = window.__AUTH_CALLBACKS__ || [];
                 export const onAuthStateChanged = (auth, callback) => {
+                    window.__AUTH_CALLBACKS__.push(callback);
+                    // Trigger initial call
                     callback(window.__MOCK_USER__);
-                    return () => {};
+                    return () => {
+                        window.__AUTH_CALLBACKS__ = window.__AUTH_CALLBACKS__.filter(cb => cb !== callback);
+                    };
                 };
-                export const signInWithEmailAndPassword = async () => ({ user: window.__MOCK_USER__ });
-                export const createUserWithEmailAndPassword = async () => ({ user: window.__MOCK_USER__ });
-                export const signOut = async () => { window.__MOCK_USER__ = null; };
-                export const signInAnonymously = async () => {
-                    window.__MOCK_USER__ = { uid: 'anon-user-id', isAnonymous: true };
-                    return { user: window.__MOCK_USER__ };
+                const notifyAuthChange = () => {
+                    if (window.__AUTH_CALLBACKS__) {
+                        window.__AUTH_CALLBACKS__.forEach(cb => cb(window.__MOCK_USER__));
+                    }
+                };
+                export const sendSignInLinkToEmail = async (auth, email, settings) => {
+                    window.__LAST_EMAIL_SENT__ = email;
+                    return Promise.resolve();
+                };
+                export const isSignInWithEmailLink = (auth, url) => {
+                    return url.includes('apiKey=');
+                };
+                export const signInWithEmailLink = async (auth, email, url) => {
+                    window.__MOCK_USER__ = { uid: 'test-user-id', email: email, isAnonymous: false };
+                    notifyAuthChange();
+                    return Promise.resolve({ user: window.__MOCK_USER__ });
+                };
+                export const signOut = async () => {
+                    window.__MOCK_USER__ = null;
+                    notifyAuthChange();
+                };
+                export const signInWithEmailAndPassword = async (auth, email, password) => {
+                    window.__MOCK_USER__ = { uid: 'test-user-id', email: email, isAnonymous: false };
+                    notifyAuthChange();
+                    return Promise.resolve({ user: window.__MOCK_USER__ });
+                };
+                export const createUserWithEmailAndPassword = async (auth, email, password) => {
+                    window.__MOCK_USER__ = { uid: 'test-user-id', email: email, isAnonymous: false };
+                    notifyAuthChange();
+                    return Promise.resolve({ user: window.__MOCK_USER__ });
                 };
                 export const getAuthResponse = () => ({});
             `

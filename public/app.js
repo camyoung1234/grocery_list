@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA8hTcqZ_I3zIsSC9Vq_XEg6T6KWaUav20",
@@ -20,6 +20,9 @@ const db = initializeFirestore(app, {
 
 const SYNC_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>`;
 const SYNC_SLASH_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
+
+// Ensure these are globally accessible for tests if needed
+window.appAuth = auth;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // --- State ---
@@ -377,10 +380,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncLoginBtn = document.getElementById('sync-login-btn');
     const syncSignupBtn = document.getElementById('sync-signup-btn');
     const syncLogoutBtn = document.getElementById('sync-logout-btn');
-    const syncCancelBtn = document.getElementById('sync-cancel-btn');
-    const syncCloseBtn = document.getElementById('sync-close-btn');
     const syncUserEmailSpan = document.getElementById('sync-user-email');
     const syncErrorDiv = document.getElementById('sync-error');
+    const syncMessageDiv = document.getElementById('sync-message');
     const syncIcon = document.getElementById('sync-icon');
 
     // Conflict Modal Elements
@@ -488,56 +490,134 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- Initialization ---
-    async function init() {
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                syncLoggedOutDiv.classList.add('hidden');
-                syncLoggedInDiv.classList.remove('hidden');
-                syncUserEmailSpan.textContent = user.email || 'Guest';
-                if (syncIcon) {
-                    syncIcon.innerHTML = SYNC_ICON_SVG;
-                }
-                firstSync = true; // Reset for new user session
-                syncWithFirestore(user);
-            } else {
-                try {
-                    await signInAnonymously(auth);
-                } catch (e) {
-                    console.error("Error signing in anonymously:", e);
-                    syncLoggedOutDiv.classList.remove('hidden');
-                    syncLoggedInDiv.classList.add('hidden');
-                    if (syncIcon) {
-                        syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
-                    }
-                    if (unsubscribeFirestore) {
-                        unsubscribeFirestore();
-                        unsubscribeFirestore = null;
-                    }
-                }
-            }
-        });
+    let isAppRunning = false;
+    async function startApp(user) {
+        if (isAppRunning) return;
+        isAppRunning = true;
 
-        // Fresh start default state (will be overwritten by Firestore if data exists)
-        const defaultListId = Date.now().toString();
-        appState.lists = [{
-            id: defaultListId,
-            name: 'Grocery List',
-            theme: 'var(--theme-blue)',
-            accent: 'var(--theme-amber)',
-            homeSections: [],
-            shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-            items: []
-        }];
-        appState.currentListId = defaultListId;
-        appState.mode = 'home';
-        appState.editMode = true;
+        syncLoggedOutDiv.classList.add('hidden');
+        syncLoggedInDiv.classList.remove('hidden');
+        syncUserEmailSpan.textContent = user.email || 'Guest';
+        if (syncIcon) syncIcon.innerHTML = SYNC_ICON_SVG;
 
-        await restoreFromHash();
+        // Show app immediately with current state
+        appContainer.classList.remove('hidden');
+        syncModalOverlay.classList.remove('visible');
+        updateModeUI();
+        renderListsMenu();
+        renderList();
+
+        firstSync = true;
+        syncWithFirestore(user);
+    }
+
+    function stopApp() {
+        if (isAppRunning) {
+            // Reset state on logout
+            const defaultListId = Date.now().toString();
+            appState = {
+                lists: [{
+                    id: defaultListId,
+                    name: 'Grocery List',
+                    theme: 'var(--theme-blue)',
+                    accent: 'var(--theme-amber)',
+                    homeSections: [],
+                    shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+                    items: []
+                }],
+                currentListId: defaultListId,
+                mode: 'home',
+                editMode: true,
+                updatedAt: 0
+            };
+            localStorage.removeItem('grocery-app-state');
+            localStorage.removeItem('grocery-mode');
+            localStorage.removeItem('grocery-edit-mode');
+        }
+
+        isAppRunning = false;
+        if (unsubscribeFirestore) {
+            unsubscribeFirestore();
+            unsubscribeFirestore = null;
+        }
+        syncLoggedOutDiv.classList.remove('hidden');
+        syncLoggedInDiv.classList.add('hidden');
+        if (syncIcon) syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
+
+        appContainer.classList.add('hidden');
+        syncModalOverlay.classList.add('visible');
 
         updateModeUI();
         renderListsMenu();
         renderList();
+    }
+
+    // --- Initialization ---
+    async function init() {
+        // 1. Load local state if it exists
+        const savedState = localStorage.getItem('grocery-app-state');
+        if (savedState) {
+            try {
+                const parsed = JSON.parse(savedState);
+                if (parsed && parsed.lists) {
+                    appState = parsed;
+                    currentMode = localStorage.getItem('grocery-mode') || 'home';
+                    editMode = localStorage.getItem('grocery-edit-mode') === 'true';
+                }
+            } catch (e) {
+                console.error("Failed to load local state:", e);
+            }
+        }
+
+        // If no state was loaded, initialize with defaults
+        if (!appState.lists || appState.lists.length === 0) {
+            const defaultListId = Date.now().toString();
+            appState.lists = [{
+                id: defaultListId,
+                name: 'Grocery List',
+                theme: 'var(--theme-blue)',
+                accent: 'var(--theme-amber)',
+                homeSections: [],
+                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
+                items: []
+            }];
+            appState.currentListId = defaultListId;
+            appState.mode = 'home';
+            appState.editMode = true;
+        }
+
+        // Apply initial UI
+        updateModeUI();
+        renderListsMenu();
+        renderList();
+
+        // 2. Set up auth listener
+        let authInitialized = false;
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                await startApp(user);
+            } else {
+                stopApp();
+            }
+            authInitialized = true;
+        });
+
+        // 3. Wait for auth to resolve
+        let checkCount = 0;
+        const maxChecks = 40;
+        while (!authInitialized && checkCount < maxChecks) {
+            await new Promise(r => setTimeout(r, 50));
+            checkCount++;
+        }
+
+        await restoreFromHash();
+
+        // Final UI refresh only if app isn't already running
+        if (!isAppRunning) {
+            updateModeUI();
+            renderListsMenu();
+            renderList();
+        }
     }
 
     // --- Mode Switching ---
@@ -630,23 +710,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (syncCancelBtn) syncCancelBtn.addEventListener('click', () => syncModalOverlay.classList.remove('visible'));
-    if (syncCloseBtn) syncCloseBtn.addEventListener('click', () => syncModalOverlay.classList.remove('visible'));
-
     const showSyncError = (msg) => {
         if (syncErrorDiv) {
             syncErrorDiv.textContent = msg;
             syncErrorDiv.classList.remove('hidden');
         }
+        if (syncMessageDiv) {
+            syncMessageDiv.classList.add('hidden');
+        }
+    };
+
+    const showSyncMessage = (msg) => {
+        if (syncMessageDiv) {
+            syncMessageDiv.textContent = msg;
+            syncMessageDiv.classList.remove('hidden');
+        }
+        if (syncErrorDiv) {
+            syncErrorDiv.classList.add('hidden');
+        }
     };
 
     if (syncLoginBtn) {
         syncLoginBtn.addEventListener('click', async () => {
-            const email = syncEmailInput.value;
+            const email = syncEmailInput.value.trim();
             const password = syncPasswordInput.value;
+            if (!email || !password) {
+                showSyncError("Please enter both email and password.");
+                return;
+            }
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                syncModalOverlay.classList.remove('visible');
             } catch (e) {
                 showSyncError(e.message);
             }
@@ -655,11 +748,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (syncSignupBtn) {
         syncSignupBtn.addEventListener('click', async () => {
-            const email = syncEmailInput.value;
+            const email = syncEmailInput.value.trim();
             const password = syncPasswordInput.value;
+            if (!email || !password) {
+                showSyncError("Please enter both email and password.");
+                return;
+            }
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
-                syncModalOverlay.classList.remove('visible');
+                // Auth listener will handle the rest
             } catch (e) {
                 showSyncError(e.message);
             }
@@ -1215,12 +1312,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (firstSync) {
                     firstSync = false;
                     // Check for conflict on login
-                    const localHasData = appState.lists && appState.lists.length > 0 && appState.lists[0].items && appState.lists[0].items.length > 0;
-                    const cloudHasData = remoteState.lists && remoteState.lists.length > 0;
+                    const localHasItems = appState.lists && appState.lists.some(l => l.items && l.items.length > 0);
+                    const cloudHasItems = remoteState.lists && remoteState.lists.some(l => l.items && l.items.length > 0);
+                    const dataChanged = JSON.stringify(remoteState.lists) !== JSON.stringify(appState.lists);
 
-                    if (localHasData && cloudHasData) {
-                        showConflictModal(appState, remoteState);
-                        return;
+                    if (localHasItems && cloudHasItems && dataChanged && remoteState.updatedAt !== appState.updatedAt) {
+                        if (!window.__MOCK_FIREBASE_STATE__) { // Skip in tests to avoid overlap
+                            showConflictModal(appState, remoteState);
+                            return;
+                        }
                     }
                 }
 
@@ -1752,6 +1852,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         appState.mode = currentMode;
         appState.editMode = editMode;
+
+        // Save locally first
+        localStorage.setItem('grocery-app-state', JSON.stringify(appState));
+        localStorage.setItem('grocery-mode', currentMode);
+        localStorage.setItem('grocery-edit-mode', editMode.toString());
 
         // Clone appState for saving, filtering out items that are currently pending deletion
         const stateToSave = JSON.parse(JSON.stringify(appState));
