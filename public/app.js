@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -376,7 +376,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncLoggedOutDiv = document.getElementById('sync-logged-out');
     const syncLoggedInDiv = document.getElementById('sync-logged-in');
     const syncEmailInput = document.getElementById('sync-email');
-    const syncSendLinkBtn = document.getElementById('sync-send-link-btn');
+    const syncPasswordInput = document.getElementById('sync-password');
+    const syncLoginBtn = document.getElementById('sync-login-btn');
+    const syncSignupBtn = document.getElementById('sync-signup-btn');
     const syncLogoutBtn = document.getElementById('sync-logout-btn');
     const syncUserEmailSpan = document.getElementById('sync-user-email');
     const syncErrorDiv = document.getElementById('sync-error');
@@ -600,15 +602,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             authInitialized = true;
         });
 
-        // 3. Handle email link if present
-        const isEmailLink = isSignInWithEmailLink(auth, window.location.href);
-        if (isEmailLink) {
-            await handleEmailLinkSignIn();
-        }
-
-        // 4. Wait for auth to resolve
+        // 3. Wait for auth to resolve
         let checkCount = 0;
-        const maxChecks = isEmailLink ? 100 : 40;
+        const maxChecks = 40;
         while (!authInitialized && checkCount < maxChecks) {
             await new Promise(r => setTimeout(r, 50));
             checkCount++;
@@ -714,24 +710,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    async function handleEmailLinkSignIn() {
-        if (isSignInWithEmailLink(auth, window.location.href)) {
-            let email = window.localStorage.getItem('emailForSignIn');
-            if (!email) {
-                email = window.prompt('Please provide your email for confirmation');
-            }
-            if (email) {
-                try {
-                    await signInWithEmailLink(auth, email, window.location.href);
-                    window.localStorage.removeItem('emailForSignIn');
-                } catch (error) {
-                    console.error("Error signing in with email link:", error);
-                    showSyncError("Failed to sign in. The link may be expired or invalid.");
-                }
-            }
-        }
-    }
-
     const showSyncError = (msg) => {
         if (syncErrorDiv) {
             syncErrorDiv.textContent = msg;
@@ -752,23 +730,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    if (syncSendLinkBtn) {
-        syncSendLinkBtn.addEventListener('click', async () => {
+    if (syncLoginBtn) {
+        syncLoginBtn.addEventListener('click', async () => {
             const email = syncEmailInput.value.trim();
-            if (!email) {
-                showSyncError("Please enter a valid email address.");
+            const password = syncPasswordInput.value;
+            if (!email || !password) {
+                showSyncError("Please enter both email and password.");
                 return;
             }
-
-            const actionCodeSettings = {
-                url: window.location.href,
-                handleCodeInApp: true,
-            };
-
             try {
-                await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-                window.localStorage.setItem('emailForSignIn', email);
-                showSyncMessage("Sign-in link sent! Please check your email.");
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (e) {
+                showSyncError(e.message);
+            }
+        });
+    }
+
+    if (syncSignupBtn) {
+        syncSignupBtn.addEventListener('click', async () => {
+            const email = syncEmailInput.value.trim();
+            const password = syncPasswordInput.value;
+            if (!email || !password) {
+                showSyncError("Please enter both email and password.");
+                return;
+            }
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                // Auth listener will handle the rest
             } catch (e) {
                 showSyncError(e.message);
             }

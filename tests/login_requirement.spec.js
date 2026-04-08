@@ -3,7 +3,7 @@ const { mockFirebase } = require('./mockFirebase');
 
 test.describe('Login Requirement', () => {
     test.beforeEach(async ({ page }) => {
-        // Start without an authenticated user by passing it in the state object
+        // Start without an authenticated user
         await mockFirebase(page, { user: null });
         await page.goto('http://localhost:3000');
     });
@@ -16,27 +16,11 @@ test.describe('Login Requirement', () => {
         await expect(appContainer).toBeHidden();
     });
 
-    test('should show success message when sign-in link is sent', async ({ page }) => {
+    test('should allow login with email and password', async ({ page }) => {
+        page.on('console', msg => console.log('BROWSER:', msg.text()));
         await page.fill('#sync-email', 'test@example.com');
-        await page.click('#sync-send-link-btn');
-
-        const successMessage = page.locator('#sync-message');
-        await expect(successMessage).toBeVisible();
-        await expect(successMessage).toHaveText(/Sign-in link sent/);
-
-        // Verify email was stored in localStorage
-        const storedEmail = await page.evaluate(() => localStorage.getItem('emailForSignIn'));
-        expect(storedEmail).toBe('test@example.com');
-    });
-
-    test('should become accessible after successful email link sign-in', async ({ page }) => {
-        // Set email in localStorage as if a link was just sent
-        await page.evaluate(() => {
-            localStorage.setItem('emailForSignIn', 'test@example.com');
-        });
-
-        // Navigate to the app with the mock "apiKey" to trigger isSignInWithEmailLink
-        await page.goto('http://localhost:3000/#apiKey=test');
+        await page.fill('#sync-password', 'password123');
+        await page.click('#sync-login-btn');
 
         const appContainer = page.locator('.app-container');
         const loginOverlay = page.locator('#sync-modal-overlay');
@@ -44,26 +28,29 @@ test.describe('Login Requirement', () => {
         await expect(appContainer).toBeVisible();
         await expect(loginOverlay).toBeHidden();
 
-        const userEmail = page.locator('#sync-user-email');
-        // We need to open the sync modal to see the user email
+        // Check if user email is displayed in sync modal
         await page.click('#toolbar-sync');
-        await expect(userEmail).toHaveText('test@example.com');
+        await expect(page.locator('#sync-user-email')).toHaveText('test@example.com');
     });
 
-    test('should prompt for email if localStorage is missing during link sign-in', async ({ page }) => {
-        // Set up prompt mock
-        await page.evaluate(() => {
-            window.prompt = () => 'manual@example.com';
-        });
-
-        // Navigate to the app with the mock "apiKey"
-        await page.goto('http://localhost:3000/#apiKey=test');
+    test('should allow signup with email and password', async ({ page }) => {
+        await page.fill('#sync-email', 'newuser@example.com');
+        await page.fill('#sync-password', 'newpassword123');
+        await page.click('#sync-signup-btn');
 
         const appContainer = page.locator('.app-container');
         await expect(appContainer).toBeVisible();
 
         await page.click('#toolbar-sync');
-        const userEmail = page.locator('#sync-user-email');
-        await expect(userEmail).toHaveText('manual@example.com');
+        await expect(page.locator('#sync-user-email')).toHaveText('newuser@example.com');
+    });
+
+    test('should require both email and password', async ({ page }) => {
+        await page.fill('#sync-email', 'test@example.com');
+        await page.click('#sync-login-btn');
+
+        const errorDiv = page.locator('#sync-error');
+        await expect(errorDiv).toBeVisible();
+        await expect(errorDiv).toHaveText(/Please enter both email and password/);
     });
 });

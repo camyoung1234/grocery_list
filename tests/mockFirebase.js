@@ -82,6 +82,16 @@ async function mockFirebase(page, initialState = null) {
                     window.__MOCK_USER__ = null;
                     notifyAuthChange();
                 };
+                export const signInWithEmailAndPassword = async (auth, email, password) => {
+                    window.__MOCK_USER__ = { uid: 'test-user-id', email: email, isAnonymous: false };
+                    notifyAuthChange();
+                    return Promise.resolve({ user: window.__MOCK_USER__ });
+                };
+                export const createUserWithEmailAndPassword = async (auth, email, password) => {
+                    window.__MOCK_USER__ = { uid: 'test-user-id', email: email, isAnonymous: false };
+                    notifyAuthChange();
+                    return Promise.resolve({ user: window.__MOCK_USER__ });
+                };
                 export const getAuthResponse = () => ({});
             `
         });

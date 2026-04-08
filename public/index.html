@@ -147,13 +147,18 @@
             <div id="sync-message" class="hidden" style="margin-bottom: 1rem; font-size: 0.9rem; text-align: center; color: var(--success-color);"></div>
 
             <div id="sync-logged-out">
-                <p>Enter your email to receive a sign-in link. No password required.</p>
+                <p>Login or Sign Up to sync your lists across devices.</p>
                 <div class="form-group">
                     <label for="sync-email" class="modal-label">Email</label>
                     <input type="email" id="sync-email" placeholder="email@example.com" autocomplete="off">
                 </div>
+                <div class="form-group">
+                    <label for="sync-password" class="modal-label">Password</label>
+                    <input type="password" id="sync-password" placeholder="••••••••" autocomplete="off">
+                </div>
                 <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
-                    <button id="sync-send-link-btn" class="modal-btn save" style="width: 100%;">Send Sign-In Link</button>
+                    <button id="sync-login-btn" class="modal-btn save" style="width: 100%;">Login</button>
+                    <button id="sync-signup-btn" class="modal-btn cancel" style="width: 100%;">Sign Up</button>
                 </div>
             </div>
 
