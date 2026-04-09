@@ -392,12 +392,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncMessageDiv = document.getElementById('sync-message');
     const syncIcon = document.getElementById('sync-icon');
 
-    // Conflict Modal Elements
-    const conflictModalOverlay = document.getElementById('conflict-modal-overlay');
-    const localSummaryDiv = document.getElementById('local-summary');
-    const cloudSummaryDiv = document.getElementById('cloud-summary');
-    const keepLocalBtn = document.getElementById('keep-local-btn');
-    const keepCloudBtn = document.getElementById('keep-cloud-btn');
 
     // --- Helpers ---
     const applyManualSelection = (input) => {
@@ -1387,16 +1381,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const remoteState = docSnap.data();
                 if (firstSync) {
                     firstSync = false;
-                    // Check for conflict on login
-                    const localHasItems = appState.lists && appState.lists.some(l => l.items && l.items.length > 0);
                     const cloudHasItems = remoteState.lists && remoteState.lists.some(l => l.items && l.items.length > 0);
-                    const dataChanged = JSON.stringify(remoteState.lists) !== JSON.stringify(appState.lists);
+                    const localHasItems = appState.lists && appState.lists.some(l => l.items && l.items.length > 0);
 
-                    if (localHasItems && cloudHasItems && dataChanged && remoteState.updatedAt !== appState.updatedAt) {
-                        if (!window.__MOCK_FIREBASE_STATE__) { // Skip in tests to avoid overlap
-                            showConflictModal(appState, remoteState);
-                            return;
-                        }
+                    if (cloudHasItems) {
+                        // Cloud version of data should be used
+                        appState = remoteState;
+                        currentMode = remoteState.mode || 'home';
+                        editMode = remoteState.editMode !== undefined ? remoteState.editMode : true;
+                        renderListsMenu();
+                        updateModeUI();
+                        renderList();
+                        return;
+                    } else if (localHasItems) {
+                        // Cloud exists but is empty, push local data
+                        saveAppState(true);
+                        return;
                     }
                 }
 
@@ -1410,37 +1410,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } else if (firstSync) {
                 firstSync = false;
-                // Cloud is empty, push local data if any
+                // Cloud document doesn't exist, push local data if any
                 saveAppState(true);
             }
         });
-    }
-
-    function showConflictModal(localState, cloudState) {
-        const getSummary = (state) => {
-            if (!state || !state.lists) return 'No data';
-            return state.lists.map(l => `${l.name} (${l.items ? l.items.length : 0} items)`).join('<br>');
-        };
-
-        localSummaryDiv.innerHTML = getSummary(localState);
-        cloudSummaryDiv.innerHTML = getSummary(cloudState);
-
-        conflictModalOverlay.classList.add('visible');
-
-        keepLocalBtn.onclick = () => {
-            saveAppState(true); // Forces local timestamp bump and upload
-            conflictModalOverlay.classList.remove('visible');
-        };
-
-        keepCloudBtn.onclick = () => {
-            appState = cloudState;
-            currentMode = cloudState.mode || 'home';
-            editMode = cloudState.editMode !== undefined ? cloudState.editMode : true;
-            conflictModalOverlay.classList.remove('visible');
-            renderListsMenu();
-            updateModeUI();
-            renderList();
-        };
     }
 
     // --- List Management ---
