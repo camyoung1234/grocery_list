@@ -43,8 +43,40 @@
     --border-color: #eee;
 }
 
+:root.dark-mode {
+    /* Theme Colors (Dark Mode) - Material 300 for better contrast on dark bg */
+    --theme-red: #e57373;
+    --theme-pink: #f06292;
+    --theme-purple: #ba68c8;
+    --theme-deep-purple: #9575cd;
+    --theme-indigo: #7986cb;
+    --theme-blue: #64b5f6;
+    --theme-light-blue: #4fc3f7;
+    --theme-cyan: #4dd0e1;
+    --theme-teal: #4db6ac;
+    --theme-green: #81c784;
+    --theme-light-green: #aed581;
+    --theme-lime: #dce775;
+    --theme-yellow: #fff176;
+    --theme-amber: #ffd54f;
+    --theme-orange: #ffb74d;
+    --theme-deep-orange: #ff8a65;
+    --theme-brown: #a1887f;
+    --theme-grey: #e0e0e0;
+    --theme-blue-grey: #90a4ae;
+
+    --primary-color: var(--theme-blue);
+    --secondary-color: #121212;
+    --text-color: #e0e0e0;
+    --text-muted: #888;
+    --card-bg: #1e1e1e;
+    --hover-bg: #2a2a2a;
+    --border-color: #333;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not(.light-mode) {
         /* Theme Colors (Dark Mode) - Material 300 for better contrast on dark bg */
         --theme-red: #e57373;
         --theme-pink: #f06292;
