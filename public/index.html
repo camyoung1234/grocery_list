@@ -69,6 +69,24 @@
                 <input type="text" id="modal-input" placeholder="Type here..." autocomplete="off">
             </div>
 
+            <div class="form-group" id="modal-display-group">
+                <label class="modal-label">Display Mode</label>
+                <div class="custom-theme-dropdown" id="display-dropdown">
+                    <div class="theme-trigger" id="display-trigger">
+                        <div class="theme-swatch" id="current-display-swatch" style="display: flex; align-items: center; justify-content: center; background: transparent;">
+                            <i class="fas fa-circle-half-stroke" style="font-size: 0.9rem;"></i>
+                        </div>
+                        <span id="current-display-name">Auto</span>
+                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 10L12 16L18 10"></path>
+                        </svg>
+                    </div>
+                    <div class="theme-options" id="display-options">
+                        <!-- Options injected by JS -->
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group" id="modal-theme-group">
                 <label class="modal-label">Theme</label>
                 <div class="custom-theme-dropdown" id="theme-dropdown">
