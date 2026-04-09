@@ -4,7 +4,8 @@ const { test, expect } = require('@playwright/test');
 test('Item checking behavior (no commit)', async ({ page }) => {
   page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
   await mockFirebase(page);
-  await page.goto('http://localhost:3000#');
+  await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000#');
 
   // Seed state: One item, Shop mode, Edit mode OFF
   const listId = 'list-1';

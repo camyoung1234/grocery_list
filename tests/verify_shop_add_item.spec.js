@@ -3,7 +3,8 @@ const { test, expect } = require('@playwright/test');
 
 test('Add item rows are NOT visible in shop mode when editing', async ({ page }) => {
     await mockFirebase(page);
-await page.goto('http://localhost:3000#');
+await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000#');
 
     // Seed state: Add a section so we have a place for "Add item"
     const listId = 'list-1';
@@ -44,7 +45,8 @@ await page.goto('http://localhost:3000#');
 
 test('Add item rows ARE visible in home mode when editing', async ({ page }) => {
     await mockFirebase(page);
-await page.goto('http://localhost:3000#');
+await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000#');
 
     // Seed state: Add a section, Home mode, Edit mode ON
     const listId = 'list-1';

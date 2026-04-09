@@ -4,7 +4,8 @@ const { mockFirebase } = require('./mockFirebase');
 test.describe('Display Mode Toggle', () => {
     test.beforeEach(async ({ page }) => {
         await mockFirebase(page);
-        await page.goto('http://localhost:3000');
+        await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000');
 
         // Manual login steps to ensure app is visible
         await page.fill('#sync-email', 'test@example.com');

@@ -3,7 +3,8 @@ const { test, expect } = require('@playwright/test');
 
 test('verify shop mode quantity stepper', async ({ page }) => {
     await mockFirebase(page);
-await page.goto('http://localhost:3000');
+await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000');
     await setMockState(page, { mode: 'home', editMode: true });
 
     // Create a section first to ensure an item can be added

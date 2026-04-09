@@ -4,7 +4,8 @@ const { test, expect } = require('@playwright/test');
 test('createSparks function generates particles that animate and disappear', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
   await mockFirebase(page);
-  await page.goto('http://localhost:3000');
+  await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000');
 
     // Add one item
     const state = {

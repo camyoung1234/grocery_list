@@ -5,7 +5,8 @@ test.describe('Login Requirement', () => {
     test.beforeEach(async ({ page }) => {
         // Start without an authenticated user
         await mockFirebase(page, { user: null });
-        await page.goto('http://localhost:3000');
+        await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000');
     });
 
     test('should show login overlay and hide app container initially', async ({ page }) => {

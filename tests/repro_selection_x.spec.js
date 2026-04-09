@@ -3,7 +3,8 @@ const { test, expect } = require('@playwright/test');
 
 test.beforeEach(async ({ page }) => {
   await mockFirebase(page);
-  await page.goto('http://localhost:3000');
+  await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000');
   // Clear any existing state
   const state = {
         lists: [{

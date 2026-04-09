@@ -24,15 +24,25 @@ async function mockFirebase(page, initialState = null) {
         };
 
         if (state) {
-            window.__MOCK_FIREBASE_STATE__ = { ...state };
-            if (window.__MOCK_FIREBASE_STATE__.updatedAt === undefined) {
+            window.__MOCK_FIREBASE_STATE__ = { ...defaultState, ...state };
+            if (window.__MOCK_FIREBASE_STATE__.updatedAt === undefined || state.updatedAt === undefined) {
                 window.__MOCK_FIREBASE_STATE__.updatedAt = Date.now() + 10000;
             }
         } else {
             window.__MOCK_FIREBASE_STATE__ = defaultState;
         }
 
-        window.__MOCK_USER__ = { uid: 'test-user-id', email: 'test@example.com', isAnonymous: false };
+        if (state && state.user !== undefined) {
+            window.__MOCK_USER__ = state.user;
+        } else {
+            window.__MOCK_USER__ = { uid: 'test-user-id', email: 'test@example.com', isAnonymous: false };
+        }
+
+        // Auto-login to bypass the wall for all existing tests
+        if (window.__MOCK_USER__) {
+            localStorage.setItem('grocery-logged-in', 'true');
+        }
+
         window.__FIREBASE_SNAPSHOT_CALLBACKS__ = [];
     }, initialState);
 
@@ -125,6 +135,10 @@ async function mockFirebase(page, initialState = null) {
                     window.__MOCK_FIREBASE_STATE__ = data;
                     window.__FIREBASE_SNAPSHOT_CALLBACKS__.forEach(cb => cb());
                 };
+                export const getDoc = async (docRef) => ({
+                    exists: () => !!window.__MOCK_FIREBASE_STATE__,
+                    data: () => window.__MOCK_FIREBASE_STATE__
+                });
             `
         });
     });

@@ -58,6 +58,7 @@ test('verify edit mode UI consistency', async ({ page }) => {
 
     await expect(deleteBtn).toBeVisible();
     await page.evaluate(() => {
+      localStorage.setItem('grocery-logged-in', 'true');
         const el = document.querySelector('.item-delete-btn');
         console.log('--- DEBUG DELETE BTN ---');
         console.log('ID:', el.id);

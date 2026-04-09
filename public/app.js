@@ -493,8 +493,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let isAppRunning = false;
     async function startApp(user) {
-        if (isAppRunning) return;
+        console.log('JULES: startApp called', !!user);
+        if (isAppRunning) {
+            console.log('JULES: startApp already running, returning');
+            return;
+        }
         isAppRunning = true;
+        localStorage.setItem('grocery-logged-in', 'true');
 
         syncLoggedOutDiv.classList.add('hidden');
         syncLoggedInDiv.classList.remove('hidden');
@@ -513,7 +518,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function stopApp() {
+        console.log('JULES: stopApp called');
         if (isAppRunning) {
+            console.log('JULES: stopApp resetting isAppRunning');
             // Reset state on logout
             const defaultListId = Date.now().toString();
             appState = {
@@ -534,6 +541,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage.removeItem('grocery-app-state');
             localStorage.removeItem('grocery-mode');
             localStorage.removeItem('grocery-edit-mode');
+            localStorage.setItem('grocery-logged-in', 'false');
         }
 
         isAppRunning = false;
@@ -555,6 +563,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Initialization ---
     async function init() {
+        console.log('JULES: init started');
+        // 0. Assume logged in if they were last time
+        if (localStorage.getItem('grocery-logged-in') === 'true') {
+            appContainer.classList.remove('hidden');
+            syncModalOverlay.classList.remove('visible');
+        }
+
         // 1. Load local state if it exists
         const savedState = localStorage.getItem('grocery-app-state');
         if (savedState) {
@@ -598,28 +613,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderList();
 
         // 2. Set up auth listener
-        let authInitialized = false;
+        console.log('JULES: setting up auth listener');
         onAuthStateChanged(auth, async (user) => {
+            console.log('JULES: auth state change', !!user);
             if (user) {
                 await startApp(user);
             } else {
                 stopApp();
             }
-            authInitialized = true;
         });
-
-        // 3. Wait for auth to resolve
-        let checkCount = 0;
-        const maxChecks = 40;
-        while (!authInitialized && checkCount < maxChecks) {
-            await new Promise(r => setTimeout(r, 50));
-            checkCount++;
-        }
 
         await restoreFromHash();
 
         // Final UI refresh only if app isn't already running
+        console.log('JULES: init final check, isAppRunning:', isAppRunning);
         if (!isAppRunning) {
+            console.log('JULES: init doing final refresh');
             updateModeUI();
             renderListsMenu();
             renderList();
