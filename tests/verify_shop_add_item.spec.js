@@ -1,9 +1,10 @@
 const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
-test('Add item rows are NOT visible in shop mode when editing', async ({ page }) => {
+test('Add item rows ARE visible in shop mode when editing', async ({ page }) => {
     await mockFirebase(page);
-await page.goto('http://localhost:3000#');
+    await page.goto('http://localhost:3000#');
+    await page.waitForSelector('.app-container:not(.hidden)');
 
     // Seed state: Add a section so we have a place for "Add item"
     const listId = 'list-1';
@@ -33,9 +34,9 @@ await page.goto('http://localhost:3000#');
     const reorderBtn = page.locator('#toolbar-reorder');
     await expect(reorderBtn).toHaveClass(/active/);
 
-    // Check if .add-item-row is hidden
+    // Check if .add-item-row is visible
     const addItemRow = page.locator('.add-item-row');
-    await expect(addItemRow).not.toBeVisible();
+    await expect(addItemRow.first()).toBeVisible();
 
     // Check if .add-section-row IS still visible
     const addSectionRow = page.locator('.add-section-row');
@@ -44,7 +45,8 @@ await page.goto('http://localhost:3000#');
 
 test('Add item rows ARE visible in home mode when editing', async ({ page }) => {
     await mockFirebase(page);
-await page.goto('http://localhost:3000#');
+    await page.goto('http://localhost:3000#');
+    await page.waitForSelector('.app-container:not(.hidden)');
 
     // Seed state: Add a section, Home mode, Edit mode ON
     const listId = 'list-1';
