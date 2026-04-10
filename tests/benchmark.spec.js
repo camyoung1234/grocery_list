@@ -7,6 +7,7 @@ test('benchmark reorder', async ({ page }) => {
 
   // Create 5000 items to make the DOM large
   await page.evaluate(() => {
+      localStorage.setItem('grocery-logged-in', 'true');
     const list = document.getElementById('grocery-list');
     list.innerHTML = '';
     for (let i = 0; i < 5000; i++) {
@@ -19,6 +20,7 @@ test('benchmark reorder', async ({ page }) => {
   });
 
   const timeQuerySelectorAll = await page.evaluate(() => {
+      localStorage.setItem('grocery-logged-in', 'true');
     const start = performance.now();
     for (let i = 0; i < 100; i++) {
         const visibleRows = Array.from(document.querySelectorAll('.grocery-item.in-view, .section-header.in-view'));
@@ -40,10 +42,12 @@ test('benchmark reorder', async ({ page }) => {
 
   // Simulate Set tracking
   await page.evaluate(() => {
+      localStorage.setItem('grocery-logged-in', 'true');
     window.inViewportSet = new Set(Array.from(document.querySelectorAll('.grocery-item.in-view, .section-header.in-view')));
   });
 
   const timeSet = await page.evaluate(() => {
+      localStorage.setItem('grocery-logged-in', 'true');
     const start = performance.now();
     for (let i = 0; i < 100; i++) {
         const visibleRows = window.inViewportSet;

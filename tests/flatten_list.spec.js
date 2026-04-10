@@ -51,6 +51,7 @@ await setMockState(page, { ...state, mode: 'home', editMode: true });
 
   // We'll dispatch a touchstart event to the drag handle
   await page.evaluate(() => {
+      localStorage.setItem('grocery-logged-in', 'true');
     const el = document.querySelector('.grocery-item[data-id="item-1"] .drag-handle');
     const rect = el.getBoundingClientRect();
     const touch = new Touch({

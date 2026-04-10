@@ -42,6 +42,7 @@ test.describe('startInlineItemEdit in Home Mode', () => {
         editMode: true
       };
     await mockFirebase(page, state);
+    await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
     await page.goto('http://localhost:3000');
 
     const cancelBtn = page.locator('#restore-cancel-btn');

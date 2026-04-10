@@ -32,6 +32,7 @@ test.describe('deleteListWithConfirmation', () => {
 
         // Trigger rename/edit modal
         await page.evaluate(() => {
+      localStorage.setItem('grocery-logged-in', 'true');
             const span = document.getElementById('current-list-name');
             const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
             span.dispatchEvent(clickEvent);
@@ -76,6 +77,7 @@ test.describe('deleteListWithConfirmation', () => {
 
         // Trigger rename/edit modal for list-2
         await page.evaluate(() => {
+      localStorage.setItem('grocery-logged-in', 'true');
             const span = document.getElementById('current-list-name');
             const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
             span.dispatchEvent(clickEvent);
