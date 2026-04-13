@@ -831,19 +831,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             const currentList = getCurrentList();
 
             const totalHaveMap = new Map();
-            currentList.items.forEach(item => {
-                const name = item.text.trim();
-                totalHaveMap.set(name, (totalHaveMap.get(name) || 0) + item.haveCount);
-            });
+            const itemsLen = currentList.items.length;
+            const trimmedNames = new Array(itemsLen);
 
-            currentList.items.forEach(item => {
-                const totalHave = totalHaveMap.get(item.text.trim());
+            for (let i = 0; i < itemsLen; i++) {
+                const item = currentList.items[i];
+                const name = item.text.trim();
+                trimmedNames[i] = name;
+                totalHaveMap.set(name, (totalHaveMap.get(name) || 0) + item.haveCount);
+            }
+
+            for (let i = 0; i < itemsLen; i++) {
+                const item = currentList.items[i];
+                const totalHave = totalHaveMap.get(trimmedNames[i]);
                 const toBuy = Math.max(0, item.wantCount - totalHave);
                 if (toBuy > 0) {
                     item.shopCompleted = false;
                     item.shopCheckOrder = null;
                 }
-            });
+            }
             saveAppState();
             renderList();
         });
