@@ -1003,6 +1003,10 @@ h1 {
     -moz-appearance: textfield;
 }
 
+.have-stepper .qty-input {
+    border-color: var(--text-color);
+}
+
 .qty-input::-webkit-outer-spin-button,
 .qty-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -1987,6 +1991,30 @@ h1 {
     width: 40px !important;
 }
 
+.home-mode.hide-drag-handles .grocery-item .left-action {
+    width: 60px !important;
+}
+
+.left-action .qty-stepper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+}
+
+.home-mode:not(.hide-drag-handles) .left-action .qty-stepper {
+    left: calc(50% + 15px);
+}
+
+.home-mode:not(.hide-drag-handles) .left-action .drag-handle {
+    transform: translateX(-15px);
+}
+
+.home-mode.hide-drag-handles .left-action .drag-handle {
+    transform: translate(-50%, -50%) scale(0.5) translateX(-15px) !important;
+}
+
 
 .section-header.in-view .left-action,
 .section-header.in-view .section-actions {
@@ -2002,6 +2030,10 @@ h1 {
     transform: scale(1);
     pointer-events: auto;
     margin-left: 0.5rem;
+}
+
+.home-mode:not(.hide-drag-handles) .grocery-item .left-action {
+    width: 80px !important;
 }
 
 /* Drag and Drop Styles */
@@ -2194,8 +2226,8 @@ h1 {
 }
 
 
-.home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
-.touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
+.home-mode .grocery-item .quantity-controls,
+.touch-ghost.home-mode .quantity-controls,
 .shop-mode.hide-drag-handles .grocery-item .quantity-controls,
 .touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
     width: 0 !important;
