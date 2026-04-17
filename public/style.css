@@ -2269,3 +2269,53 @@ h1 {
     background-clip: padding-box, border-box;
     animation: rotate-glow 3s linear infinite, pulse-glow 2s ease-in-out infinite;
 }
+
+/* Dragging state overrides to ensure smooth reordering and visibility */
+.is-dragging,
+.is-dragging body {
+    scroll-snap-type: none !important;
+}
+
+.is-dragging .app-container {
+    cursor: grabbing !important;
+}
+
+.is-dragging .drag-handle {
+    opacity: 0.5 !important;
+    pointer-events: auto !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+    width: 40px !important;
+}
+
+.is-dragging .item-delete-btn,
+.is-dragging .section-delete-btn,
+.is-dragging .move-here-btn {
+    width: 48px !important;
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+}
+
+.is-dragging .quantity-controls {
+    display: none !important;
+}
+
+.is-dragging .add-item-row,
+.is-dragging .add-section-row {
+    height: 50px !important;
+    max-height: 50px !important;
+    opacity: 0.3 !important;
+    pointer-events: auto !important;
+}
+
+.is-dragging .section-actions {
+    width: 48px !important;
+    min-width: 48px !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    margin-left: 0.5rem !important;
+}
+
+.is-dragging .grocery-item.dragging .drag-handle {
+    opacity: 1 !important;
+}

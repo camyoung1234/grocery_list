@@ -2167,7 +2167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : '';
 
             const moveHereHTML = !isHome
-                ? `<button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button>`
+                ? `<button class="move-here-btn" aria-label="Move selected items here"><i class="fas fa-level-down-alt"></i></button>`
                 : '';
 
             header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sectionDeleteHTML}${moveHereHTML}</div>`;
@@ -2233,7 +2233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.dataset.type = 'item';
                     li.dataset.sectionId = section.id;
 
-                    li.innerHTML = `<div class="left-action"></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><button class="undo-btn-inline">Undo</button>`;
+                    li.innerHTML = `<div class="left-action"></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><button class="undo-btn-inline" aria-label="Undo deletion">Undo</button>`;
 
                     itemsUl.appendChild(li);
                     return;
@@ -2419,6 +2419,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (draggedElement !== element) return;
             
             isDragStarted = true;
+            document.documentElement.classList.add('is-dragging');
             groceryList.classList.add('no-transition');
             document.body.style.overflow = 'hidden';
 
@@ -2445,6 +2446,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             relevantSiblings = Array.from(groceryList.children).filter(el => 
                 el.nodeType === 1 && 
                 !el.classList.contains('collapsed') && 
+                el.offsetHeight > 0 && // Only animate visible siblings
                 el !== draggedElement && 
                 el !== placeholder
             );
@@ -2806,6 +2808,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ghost = touchGhost;
 
         if (!el) return;
+
+        document.documentElement.classList.remove('is-dragging');
 
         // Null out globals immediately to prevent re-entry
         draggedElement = null;

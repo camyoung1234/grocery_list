@@ -32,28 +32,28 @@
 
         <nav class="bottom-toolbar">
             <div class="list-picker-container">
-                <div id="lists-menu" class="lists-menu"></div>
-                <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists">
-                    <div class="list-swatch" id="current-list-swatch"></div>
+                <div id="lists-menu" class="lists-menu" role="menu"></div>
+                <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists" aria-label="Manage Lists" aria-haspopup="true">
+                    <div class="list-swatch" id="current-list-swatch" aria-hidden="true"></div>
                     <span id="current-list-name">Loading...</span>
-                    <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M6 10L12 16L18 10"></path>
                     </svg>
                 </button>
             </div>
 
             <div class="toolbar-actions">
-                <button class="toolbar-btn" id="toolbar-clear-shop" title="Clear Shopping Progress">
-                    <i class="fas fa-eraser"></i>
+                <button class="toolbar-btn" id="toolbar-clear-shop" title="Clear Shopping Progress" aria-label="Clear Shopping Progress">
+                    <i class="fas fa-eraser" aria-hidden="true"></i>
                 </button>
-                <button class="toolbar-btn" id="toolbar-mode" title="Toggle Mode">
-                    <i class="fas fa-list-check"></i>
+                <button class="toolbar-btn" id="toolbar-mode" title="Toggle Mode" aria-label="Toggle Mode">
+                    <i class="fas fa-list-check" aria-hidden="true"></i>
                 </button>
-                <button class="toolbar-btn" id="toolbar-reorder" title="Exit Edit Mode">
-                    <i class="fas fa-pen"></i>
+                <button class="toolbar-btn" id="toolbar-reorder" title="Toggle Edit Mode" aria-label="Toggle Edit Mode">
+                    <i class="fas fa-pen" aria-hidden="true"></i>
                 </button>
-                <button class="toolbar-btn" id="toolbar-sync" title="Cloud Sync">
-                    <span id="sync-icon" class="sync-icon"></span>
+                <button class="toolbar-btn" id="toolbar-sync" title="Cloud Sync" aria-label="Cloud Sync">
+                    <span id="sync-icon" class="sync-icon" aria-hidden="true"></span>
                 </button>
             </div>
         </nav>
