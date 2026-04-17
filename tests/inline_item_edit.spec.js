@@ -57,7 +57,7 @@ test.describe('startInlineItemEdit in Home Mode', () => {
     await expect(item1Text).toHaveText('Apple');
 
     // Double click to edit
-    await item1Text.click({ clickCount: 2 });
+    await item1Text.click(); await item1Text.click();
 
     const inlineInput = page.locator('.inline-edit-input');
     await expect(inlineInput).toBeVisible();
@@ -78,7 +78,7 @@ test.describe('startInlineItemEdit in Home Mode', () => {
     await expect(item1Text).toHaveText('Apple');
 
     // Double click to edit
-    await item1Text.click({ clickCount: 2 });
+    await item1Text.click(); await item1Text.click();
 
     const inlineInput = page.locator('.inline-edit-input');
     await expect(inlineInput).toBeVisible();
@@ -102,7 +102,7 @@ test.describe('startInlineItemEdit in Home Mode', () => {
     expect(state.lists[0].items.find(i => i.id === 'item-2').wantCount).toBe(5);
 
     // Double click to edit Apple
-    await item1Text.click({ clickCount: 2 });
+    await item1Text.click(); await item1Text.click();
 
     const inlineInput = page.locator('.inline-edit-input');
     await expect(inlineInput).toBeVisible();

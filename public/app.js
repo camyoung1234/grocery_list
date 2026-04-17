@@ -205,6 +205,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             return;
         }
+
+        // Single tap to show controls in Home mode when NOT in global editMode
+        const groceryItem = target.closest('.grocery-item');
+        if (groceryItem && !editMode && currentMode === 'home' && !groceryItem.classList.contains('add-item-row')) {
+            const id = groceryItem.dataset.id;
+            const item = getCurrentList().items.find(i => i.id === id);
+            if (!item) return;
+
+            // If item text clicked while controls are already shown, start inline edit
+            const isTextClick = target.classList.contains('item-text');
+            if (isTextClick && groceryItem.classList.contains('show-controls')) {
+                e.stopPropagation();
+                startInlineItemEdit(item, groceryItem.querySelector('.item-info'), target);
+                return;
+            }
+
+            // Otherwise, just toggle controls
+            if (!groceryItem.classList.contains('show-controls')) {
+                e.stopPropagation();
+                // Deactivate others
+                groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
+                groceryItem.classList.add('show-controls');
+            }
+        }
     });
 
     groceryList.addEventListener('submit', (e) => {
@@ -493,9 +517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let isAppRunning = false;
     async function startApp(user) {
-        console.log('JULES: startApp called', !!user);
         if (isAppRunning) {
-            console.log('JULES: startApp already running, returning');
             return;
         }
         isAppRunning = true;
@@ -518,9 +540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function stopApp() {
-        console.log('JULES: stopApp called');
         if (isAppRunning) {
-            console.log('JULES: stopApp resetting isAppRunning');
             // Reset state on logout
             const defaultListId = Date.now().toString();
             appState = {
@@ -563,7 +583,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Initialization ---
     async function init() {
-        console.log('JULES: init started');
         // 0. Assume logged in if they were last time
         if (localStorage.getItem('grocery-logged-in') === 'true') {
             appContainer.classList.remove('hidden');
@@ -613,9 +632,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderList();
 
         // 2. Set up auth listener
-        console.log('JULES: setting up auth listener');
         onAuthStateChanged(auth, async (user) => {
-            console.log('JULES: auth state change', !!user);
             if (user) {
                 await startApp(user);
             } else {
@@ -626,9 +643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await restoreFromHash();
 
         // Final UI refresh only if app isn't already running
-        console.log('JULES: init final check, isAppRunning:', isAppRunning);
         if (!isAppRunning) {
-            console.log('JULES: init doing final refresh');
             updateModeUI();
             renderListsMenu();
             renderList();
@@ -2331,6 +2346,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('click', (e) => {
         if (listsMenuOpen && !listsMenu.contains(e.target) && !toolbarListsBtn.contains(e.target)) {
             toggleListsMenu(false);
+        }
+
+        // Deactivate item controls when clicking outside the row
+        const groceryItem = e.target.closest('.grocery-item');
+        if (!groceryItem || !groceryItem.classList.contains('show-controls')) {
+            groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
         }
     });
 
