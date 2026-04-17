@@ -2163,7 +2163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
 
             const sectionDeleteHTML = canRename
-                ? `<button class="section-delete-btn"><i class="fas fa-times"></i></button>`
+                ? `<button class="section-delete-btn" aria-label="Delete section"><i class="fas fa-times"></i></button>`
                 : '';
 
             const moveHereHTML = !isHome
@@ -2246,7 +2246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.sectionId = section.id;
 
                 if (isHome) {
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn"><i class="fas fa-times"></i></button>`;
+                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn" aria-label="Delete item"><i class="fas fa-times"></i></button>`;
                     const controls = li.querySelector('.quantity-controls');
                     controls.appendChild(createQtyStepper(item, 'have'));
                 } else {
@@ -2379,7 +2379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleDragStart(e, element, type) {
-        if (!editMode) {
+        if (!editMode && !element.classList.contains("show-controls")) {
             e.preventDefault();
             return;
         }
