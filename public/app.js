@@ -2432,6 +2432,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             element.classList.add('collapsed');
             element.style.pointerEvents = 'none'; // Prevent interfering with target detection
 
+            if (touchGhost) {
+                const rect = placeholder.getBoundingClientRect();
+                createSurfaceTension(rect.left + rect.width / 2, rect.top + rect.height / 2, touchGhost);
+                touchGhost.classList.add('popping');
+            }
+
             if (type === 'section') {
                 // Align the placeholder with the finger
                 groceryList.style.paddingTop = '60vh';
@@ -2662,6 +2668,64 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         handleDragEnd(true);
     });
+
+    function createSurfaceTension(startX, startY, ghost) {
+        const container = document.createElement("div");
+        container.className = "surface-tension-container";
+        document.body.appendChild(container);
+
+        const blobCount = 5;
+        const blobs = [];
+        for (let i = 0; i < blobCount; i++) {
+            const blob = document.createElement("div");
+            blob.className = "tension-blob";
+            const size = 30 + Math.random() * 20;
+            blob.style.width = size + "px";
+            blob.style.height = size + "px";
+            container.appendChild(blob);
+            blobs.push({
+                el: blob,
+                offset: (i / (blobCount - 1)),
+                size: size
+            });
+        }
+
+        const duration = 400;
+        const startTime = performance.now();
+        let snapped = false;
+
+        function update(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            const ghostRect = ghost.getBoundingClientRect();
+            const ghostX = ghostRect.left + ghostRect.width / 2;
+            const ghostY = ghostRect.top + ghostRect.height / 2;
+
+            blobs.forEach(blob => {
+                const targetX = startX + (ghostX - startX) * blob.offset * (1 - progress);
+                const targetY = startY + (ghostY - startY) * blob.offset * (1 - progress);
+                blob.el.style.left = targetX + "px";
+                blob.el.style.top = targetY + "px";
+                blob.el.style.opacity = 1 - progress;
+                blob.el.style.transform = `translate(-50%, -50%) scale(${1 - progress})`;
+            });
+
+            if (progress > 0.5 && !snapped) {
+                snapped = true;
+                if (typeof createSparks === "function") {
+                    createSparks(ghostX, ghostY);
+                }
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            } else {
+                container.remove();
+            }
+        }
+        requestAnimationFrame(update);
+    }
 
     function createDragVisual(point, element, type, initialRect) {
         if (touchGhost) touchGhost.remove();
