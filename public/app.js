@@ -2486,8 +2486,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             target.after(placeholder);
         }
 
+        // Batch reads before writes to avoid layout thrashing
+        const newPositions = new Map();
         relevantSiblings.forEach(el => {
-            const newTop = el.getBoundingClientRect().top;
+            newPositions.set(el, el.getBoundingClientRect().top);
+        });
+
+        relevantSiblings.forEach(el => {
+            const newTop = newPositions.get(el);
             const oldTop = initialPositions.get(el);
             const delta = oldTop - newTop;
 
