@@ -59,6 +59,5 @@ await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true
 
     // Wait for transition
     await page.waitForTimeout(600);
-    const width = await qtyControls.evaluate(el => getComputedStyle(el).width);
-    expect(width).toBe('0px');
+    await expect(qtyControls).not.toBeVisible();
 });
