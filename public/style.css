@@ -2074,11 +2074,7 @@ h1 {
     pointer-events: auto;
 }
 
-.drag-placeholder {
-    height: 50px;
-    box-sizing: border-box;
-    transition: transform 0.2s ease;
-}
+
 
 .collapsed {
     max-height: 0 !important;
@@ -2268,11 +2264,9 @@ h1 {
     background-origin: border-box;
     background-clip: padding-box, border-box;
     animation: rotate-glow 3s linear infinite, pulse-glow 2s ease-in-out infinite;
-}
-
-/* Dragging state overrides to ensure smooth reordering and visibility */
-.is-dragging,
-.is-dragging body {
+}\n
+/* Dragging & Reordering UX */
+.is-dragging, .is-dragging body {
     scroll-snap-type: none !important;
 }
 
@@ -2316,11 +2310,6 @@ h1 {
     margin-left: 0.5rem !important;
 }
 
-.is-dragging .grocery-item.dragging .drag-handle {
-    opacity: 1 !important;
-}
-
-/* Disable all transitions during drag to allow FLIP animations to work correctly */
 .is-dragging .grocery-item,
 .is-dragging .section-header,
 .is-dragging .section-container,
@@ -2330,4 +2319,53 @@ h1 {
 .is-dragging .section-actions,
 .is-dragging .item-info {
     transition: none !important;
+}
+
+.is-dragging .grocery-item:not(.dragging),
+.is-dragging .section-header,
+.is-dragging .section-container {
+    transition: transform 0.15s cubic-bezier(0.2, 1, 0.3, 1) !important;
+}
+
+.grocery-item.dragging,
+.section-container.dragging {
+    opacity: 0 !important;
+}
+
+.drag-placeholder {
+    display: none;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.drag-placeholder.active-ph {
+    display: block !important;
+    height: 52px !important;
+    margin: 8px 0 !important;
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--hover-bg)) !important;
+    border: 2px dashed var(--primary-color) !important;
+    border-radius: 12px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative;
+    z-index: 5;
+    box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.drag-placeholder.active-ph::after {
+    content: 'Drop Here';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--primary-color);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.5;
 }
