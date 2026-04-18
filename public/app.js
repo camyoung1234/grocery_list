@@ -2398,6 +2398,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (draggedElement !== element) return;
             
             isDragStarted = true;
+            document.documentElement.classList.add('is-dragging');
             groceryList.classList.add('no-transition');
             document.body.style.overflow = 'hidden';
 
@@ -2795,6 +2796,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 saveAppState();
             }
 
+            document.documentElement.classList.remove('is-dragging');
+
             // Capture headers one last time before clearing padding/DRAG state
             let headerFinalDragTops = new Map();
             if (type === 'section') {
@@ -2965,6 +2968,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             newSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
         }
+    }
+
+    // --- Keyboard Jump Prevention ---
+    // Smoothly scroll to inputs when they are focused to prevent the native "jump"
+    document.addEventListener('focusin', (e) => {
+        const t = e.target;
+        if (t.tagName === 'INPUT' && (t.classList.contains('inline-item-input') || t.classList.contains('qty-input') || t.classList.contains('inline-edit-input') || t.classList.contains('inline-section-input'))) {
+            // Use a small timeout to let the virtual keyboard start appearing
+            // and the browser's native scroll-into-view to trigger first
+            setTimeout(() => {
+                t.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 150);
+        }
+    });
+
+    // When the keyboard closes, maintain the scroll position if an input is still focused
+    if (window.visualViewport) {
+        let lastViewportHeight = window.visualViewport.height;
+        window.visualViewport.addEventListener('resize', () => {
+            const currentViewportHeight = window.visualViewport.height;
+            const isClosing = currentViewportHeight > lastViewportHeight;
+
+            if (isClosing && document.activeElement && document.activeElement.tagName === 'INPUT') {
+                const currentScroll = window.scrollY;
+                // Use requestAnimationFrame to ensure we run after the browser's attempt to "jump back"
+                requestAnimationFrame(() => {
+                    window.scrollTo({ top: currentScroll, behavior: 'auto' });
+                });
+            }
+            lastViewportHeight = currentViewportHeight;
+        });
     }
 
     init();
