@@ -468,6 +468,7 @@ h1 {
     transition: var(--transition);
     flex-wrap: wrap;
     touch-action: pan-y;
+    border-bottom: 1px solid var(--border-color);
 }
 
 
@@ -1396,7 +1397,7 @@ h1 {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    border-bottom: none;
+    border-bottom: 1px solid var(--border-color);
     padding: 0 1rem 0 0.5rem;
     margin-bottom: 0;
     height: 50px;
@@ -1549,7 +1550,6 @@ h1 {
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    border-bottom: none;
     cursor: default;
     /* not draggable */
 }
@@ -1563,6 +1563,7 @@ h1 {
     display: flex;
     align-items: center;
     box-sizing: border-box;
+    border-bottom: 1px solid var(--border-color);
 }
 
 
@@ -2344,11 +2345,12 @@ h1 {
 
 .drag-placeholder.active-ph {
     display: block !important;
-    height: 52px !important;
-    margin: 8px 0 !important;
+    height: 50px !important;
+    margin: 0 !important;
     background: color-mix(in srgb, var(--primary-color) 10%, var(--hover-bg)) !important;
-    border: 2px dashed var(--primary-color) !important;
-    border-radius: 12px !important;
+    border: none !important;
+    border-bottom: 1px solid var(--primary-color) !important;
+    border-radius: 0 !important;
     visibility: visible !important;
     opacity: 1 !important;
     position: relative;

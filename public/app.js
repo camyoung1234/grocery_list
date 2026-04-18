@@ -2442,8 +2442,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             groceryList.classList.add('no-transition');
             document.body.style.overflow = 'hidden';
 
-            // Initialize placeholder at starting position with a fallback height
-            const phHeight = Math.max(50, element.offsetHeight);
+            // Initialize placeholder at starting position with a fixed height
+            const phHeight = 50;
             placeholder.style.height = phHeight + 'px';
             element.before(placeholder);
 
