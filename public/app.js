@@ -2420,13 +2420,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             isDragStarted = true;
             document.documentElement.classList.add('is-dragging');
-            groceryList.classList.add('no-transition');
-            document.body.style.overflow = 'hidden';
-
-            // Initialize placeholder at starting position to prevent layout shift
-            const phHeight = type === 'section' ? 50 : element.offsetHeight;
-            placeholder.style.height = phHeight + 'px';
-            element.before(placeholder);
 
             if (type === 'item') {
                 flattenList();
@@ -2442,14 +2435,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
+            // Force reflow after DOM changes
+            void document.documentElement.offsetHeight;
+            void groceryList.offsetHeight;
+
+            groceryList.classList.add('no-transition');
+            document.body.style.overflow = 'hidden';
+
+            // Initialize placeholder at starting position with a fallback height
+            const phHeight = Math.max(50, element.offsetHeight);
+            placeholder.style.height = phHeight + 'px';
+            element.before(placeholder);
+
+            // Force another reflow to ensure placeholder and siblings are correctly positioned in the parent
+            void groceryList.offsetHeight;
+
             // Performance: cache relevant siblings once at drag start
-            relevantSiblings = Array.from(groceryList.children).filter(el => 
-                el.nodeType === 1 && 
-                !el.classList.contains('collapsed') && 
-                el.offsetHeight > 0 && // Only animate visible siblings
-                el !== draggedElement && 
-                el !== placeholder
-            );
+            // Use a more robust filter that doesn't rely solely on offsetHeight which can be buggy during DOM moves
+            relevantSiblings = Array.from(groceryList.children).filter(el => {
+                if (el.nodeType !== 1 || el === draggedElement || el === placeholder) return false;
+                if (el.classList.contains('collapsed') || el.classList.contains('section-container')) return false;
+                // Elements with display: none should be excluded, but others (even if transitioning) should stay
+                return getComputedStyle(el).display !== 'none';
+            });
 
             element.classList.add('dragging');
             element.classList.add('collapsed');
@@ -2489,7 +2497,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             startDragging();
         } else {
             // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
-            setTimeout(startDragging, 50);
+            setTimeout(startDragging, 10);
         }
     }
 

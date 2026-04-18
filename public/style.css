@@ -2319,3 +2319,15 @@ h1 {
 .is-dragging .grocery-item.dragging .drag-handle {
     opacity: 1 !important;
 }
+
+/* Disable all transitions during drag to allow FLIP animations to work correctly */
+.is-dragging .grocery-item,
+.is-dragging .section-header,
+.is-dragging .section-container,
+.is-dragging .quantity-controls,
+.is-dragging .drag-handle,
+.is-dragging .item-delete-btn,
+.is-dragging .section-actions,
+.is-dragging .item-info {
+    transition: none !important;
+}
