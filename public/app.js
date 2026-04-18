@@ -41,10 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let dragType = null;
     let touchGhost = null;
     let placeholder = document.createElement('li');
-    placeholder.className = 'drag-placeholder';
+    placeholder.className = 'drag-placeholder active-ph';
     let dragOffset = { x: 0, y: 0 };
     let isDragStarted = false;
-    let dragUpdateFrame = null;
+    let reorderUpdateFrame = null;
     let lastDragPos = { x: 0, y: 0 };
     let scrollAnimationFrame = null;
     let scrollSpeed = 0;
@@ -204,6 +204,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 toggleShopCompleted(id);
             }
             return;
+        }
+
+        // Single tap to show controls in Home mode when NOT in global editMode
+        const groceryItem = target.closest('.grocery-item');
+        if (groceryItem && !editMode && currentMode === 'home' && !groceryItem.classList.contains('add-item-row')) {
+            const id = groceryItem.dataset.id;
+            const item = getCurrentList().items.find(i => i.id === id);
+            if (!item) return;
+
+            // If item text clicked while controls are already shown, start inline edit
+            const isTextClick = target.classList.contains('item-text');
+            if (isTextClick && groceryItem.classList.contains('show-controls')) {
+                e.stopPropagation();
+                startInlineItemEdit(item, groceryItem.querySelector('.item-info'), target);
+                return;
+            }
+
+            // Otherwise, just toggle controls
+            if (!groceryItem.classList.contains('show-controls')) {
+                e.stopPropagation();
+                // Deactivate others
+                groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
+                groceryItem.classList.add('show-controls');
+            }
         }
     });
 
@@ -493,9 +517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let isAppRunning = false;
     async function startApp(user) {
-        console.log('JULES: startApp called', !!user);
         if (isAppRunning) {
-            console.log('JULES: startApp already running, returning');
             return;
         }
         isAppRunning = true;
@@ -518,9 +540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function stopApp() {
-        console.log('JULES: stopApp called');
         if (isAppRunning) {
-            console.log('JULES: stopApp resetting isAppRunning');
             // Reset state on logout
             const defaultListId = Date.now().toString();
             appState = {
@@ -563,7 +583,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Initialization ---
     async function init() {
-        console.log('JULES: init started');
         // 0. Assume logged in if they were last time
         if (localStorage.getItem('grocery-logged-in') === 'true') {
             appContainer.classList.remove('hidden');
@@ -613,9 +632,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderList();
 
         // 2. Set up auth listener
-        console.log('JULES: setting up auth listener');
         onAuthStateChanged(auth, async (user) => {
-            console.log('JULES: auth state change', !!user);
             if (user) {
                 await startApp(user);
             } else {
@@ -626,9 +643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await restoreFromHash();
 
         // Final UI refresh only if app isn't already running
-        console.log('JULES: init final check, isAppRunning:', isAppRunning);
         if (!isAppRunning) {
-            console.log('JULES: init doing final refresh');
             updateModeUI();
             renderListsMenu();
             renderList();
@@ -2148,11 +2163,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
 
             const sectionDeleteHTML = canRename
-                ? `<button class="section-delete-btn"><i class="fas fa-times"></i></button>`
+                ? `<button class="section-delete-btn" aria-label="Delete section"><i class="fas fa-times"></i></button>`
                 : '';
 
             const moveHereHTML = !isHome
-                ? `<button class="move-here-btn"><i class="fas fa-level-down-alt"></i></button>`
+                ? `<button class="move-here-btn" aria-label="Move selected items here"><i class="fas fa-level-down-alt"></i></button>`
                 : '';
 
             header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sectionDeleteHTML}${moveHereHTML}</div>`;
@@ -2218,7 +2233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.dataset.type = 'item';
                     li.dataset.sectionId = section.id;
 
-                    li.innerHTML = `<div class="left-action"></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><button class="undo-btn-inline">Undo</button>`;
+                    li.innerHTML = `<div class="left-action"></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><button class="undo-btn-inline" aria-label="Undo deletion">Undo</button>`;
 
                     itemsUl.appendChild(li);
                     return;
@@ -2231,7 +2246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.sectionId = section.id;
 
                 if (isHome) {
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn"><i class="fas fa-times"></i></button>`;
+                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn" aria-label="Delete item"><i class="fas fa-times"></i></button>`;
                     const controls = li.querySelector('.quantity-controls');
                     controls.appendChild(createQtyStepper(item, 'have'));
                 } else {
@@ -2251,7 +2266,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (isSectionRestoration) addRow.classList.add('restoring-item');
                 addRow.dataset.type = 'item-placeholder';
                 addRow.dataset.sectionId = section.id;
-                addRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item" autocomplete="off"></form></div>`;
+                addRow.innerHTML = `<div class="left-action"><button class="drag-handle add-row-plus" type="button" aria-label="Add item to ${escapeHTML(section.name)}"><i class="fas fa-plus" aria-hidden="true"></i></button></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item" aria-label="New item name for ${escapeHTML(section.name)}" autocomplete="off"></form></div>`;
                 itemsUl.appendChild(addRow);
             }
             sectionLi.appendChild(itemsUl);
@@ -2264,7 +2279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addSecRow = document.createElement('li');
         addSecRow.className = 'grocery-item add-section-row';
         addSecRow.dataset.type = 'section-placeholder';
-        addSecRow.innerHTML = `<div class="left-action"><div class="drag-handle add-row-plus"><i class="fas fa-plus"></i></div></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" placeholder="Add section" class="inline-item-input add-section-input" autocomplete="off"></form></div>`;
+        addSecRow.innerHTML = `<div class="left-action"><button class="drag-handle add-row-plus" type="button" aria-label="Add new section"><i class="fas fa-plus" aria-hidden="true"></i></button></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" placeholder="Add section" aria-label="New section name" class="inline-item-input add-section-input" autocomplete="off"></form></div>`;
 
         fragment.appendChild(addSecRow);
 
@@ -2332,6 +2347,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (listsMenuOpen && !listsMenu.contains(e.target) && !toolbarListsBtn.contains(e.target)) {
             toggleListsMenu(false);
         }
+
+        // Deactivate item controls when clicking outside the row
+        const groceryItem = e.target.closest('.grocery-item');
+        if (!groceryItem || !groceryItem.classList.contains('show-controls')) {
+            groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
+        }
     });
 
     function flattenList() {
@@ -2358,7 +2379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleDragStart(e, element, type) {
-        if (!editMode) {
+        if (!editMode && !element.classList.contains("show-controls")) {
             e.preventDefault();
             return;
         }
@@ -2398,13 +2419,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (draggedElement !== element) return;
             
             isDragStarted = true;
-            groceryList.classList.add('no-transition');
-            document.body.style.overflow = 'hidden';
-
-            // Initialize placeholder at starting position to prevent layout shift
-            const phHeight = type === 'section' ? 50 : element.offsetHeight;
-            placeholder.style.height = phHeight + 'px';
-            element.before(placeholder);
+            document.documentElement.classList.add('is-dragging');
 
             if (type === 'item') {
                 flattenList();
@@ -2420,13 +2435,39 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
+            // Force reflow after DOM changes
+            void document.documentElement.offsetHeight;
+            void groceryList.offsetHeight;
+
+            groceryList.classList.add('no-transition');
+            document.body.style.overflow = 'hidden';
+
+            // Initialize placeholder at starting position with a fallback height
+            const phHeight = Math.max(50, element.offsetHeight);
+            placeholder.style.height = phHeight + 'px';
+            element.before(placeholder);
+
+            // Force another reflow to ensure placeholder and siblings are correctly positioned in the parent
+            void groceryList.offsetHeight;
+
             // Performance: cache relevant siblings once at drag start
-            relevantSiblings = Array.from(groceryList.children).filter(el => 
-                el.nodeType === 1 && 
-                !el.classList.contains('collapsed') && 
-                el !== draggedElement && 
-                el !== placeholder
-            );
+            // Use a more robust filter that doesn't rely solely on offsetHeight which can be buggy during DOM moves
+            relevantSiblings = Array.from(groceryList.children).filter(el => {
+                if (el.nodeType !== 1 || el === draggedElement || el === placeholder) return false;
+                if (el.classList.contains('collapsed')) return false;
+
+                // For items, siblings are headers and other items (section containers are hidden)
+                if (dragType === 'item') {
+                    if (el.classList.contains('section-container')) return false;
+                }
+
+                // For sections, siblings are other section containers and the add-section row
+                if (dragType === 'section') {
+                    if (!el.classList.contains('section-container') && !el.classList.contains('add-section-row')) return false;
+                }
+
+                return getComputedStyle(el).display !== 'none';
+            });
 
             element.classList.add('dragging');
             element.classList.add('collapsed');
@@ -2466,7 +2507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             startDragging();
         } else {
             // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
-            setTimeout(startDragging, 50);
+            setTimeout(startDragging, 0);
         }
     }
 
@@ -2553,9 +2594,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         updateAutoScroll(e.clientY);
 
-        if (dragUpdateFrame) return;
-        dragUpdateFrame = requestAnimationFrame(() => {
-            dragUpdateFrame = null;
+        if (reorderUpdateFrame) return;
+        reorderUpdateFrame = requestAnimationFrame(() => {
+            reorderUpdateFrame = null;
             if (!draggedElement) return;
 
             let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
@@ -2564,9 +2605,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
             if (dragType === 'item') {
-                const rect = target.getBoundingClientRect();
-                const midpoint = rect.top + rect.height / 2;
-                let isBefore = e.clientY < midpoint;
+                // Use offsetTop to get the stable layout position, avoiding jitter from active animations
+                const listRect = groceryList.getBoundingClientRect();
+                const relativeY = e.clientY - listRect.top + window.scrollY;
+                const midpoint = target.offsetTop + target.offsetHeight / 2;
+                let isBefore = relativeY < midpoint;
                 
                 if (target.classList.contains('add-item-row')) isBefore = true;
                 if (target.classList.contains('section-header')) isBefore = false;
@@ -2715,9 +2758,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Prevent scrolling during drag
         if (e.cancelable) e.preventDefault();
 
-        if (dragUpdateFrame) return;
-        dragUpdateFrame = requestAnimationFrame(() => {
-            dragUpdateFrame = null;
+
+        requestAnimationFrame(() => {
             if (!draggedElement) return;
 
             // Disable pointer events so we can detect target behind it
@@ -2786,6 +2828,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!el) return;
 
+        document.documentElement.classList.remove('is-dragging');
+
         // Null out globals immediately to prevent re-entry
         draggedElement = null;
         dragType = null;
@@ -2832,12 +2876,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (dragUpdateFrame) {
                     cancelAnimationFrame(dragUpdateFrame);
-                    dragUpdateFrame = null;
+                    reorderUpdateFrame = null;
                 }
 
                 lastDragPos = { x: 0, y: 0 };
                 stopAutoScroll();
-                placeholder.remove();
+                placeholder.classList.remove('active'); placeholder.remove();
             });
 
             if (type === 'section' && headerFinalDragTops.size > 0) {
