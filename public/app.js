@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
     let selectionRenderTimeout = null;
     let unsubscribeFirestore = null;
+    let floatingAddItemRow = null;
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -341,6 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Toolbar Elements
     const toolbarSyncBtn = document.getElementById('toolbar-sync');
+    const toolbarAddItemBtn = document.getElementById('toolbar-add-item');
     const toolbarListsBtn = document.getElementById('toolbar-lists');
     const currentListSwatch = document.getElementById('current-list-swatch');
     const toolbarModeBtn = document.getElementById('toolbar-mode');
@@ -730,6 +732,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Toolbar Interactions ---
+    if (toolbarAddItemBtn) {
+        toolbarAddItemBtn.addEventListener('click', () => {
+            showFloatingAddItem();
+        });
+    }
+
     if (toolbarSyncBtn) {
         toolbarSyncBtn.addEventListener('click', () => {
             if (syncErrorDiv) {
@@ -1641,6 +1649,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const newInlineInput = document.querySelector(`.section-items-list[data-section-id="${sectionId}"] .inline-item-input`);
         if (newInlineInput) newInlineInput.focus();
+        return newItem;
     }
 
     function createSparks(x, y) {
@@ -2051,6 +2060,70 @@ document.addEventListener('DOMContentLoaded', async () => {
         return handle;
     }
 
+    function showFloatingAddItem() {
+        if (floatingAddItemRow) {
+            floatingAddItemRow.querySelector('.add-item-input').focus();
+            return;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'grocery-item floating-item-row show-controls';
+        row.innerHTML = `
+            <div class="left-action">
+                <div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div>
+            </div>
+            <div class="item-info">
+                <form class="input-group inline-input-group" style="width: 100%;">
+                    <input type="text" class="inline-item-input add-item-input" placeholder="Add item" aria-label="New item name" autocomplete="off">
+                </form>
+            </div>
+        `;
+
+        floatingAddItemRow = row;
+
+        const handle = row.querySelector('.drag-handle');
+        handle.addEventListener('dragstart', (e) => handleDragStart(e, row, 'item'));
+        handle.addEventListener('touchstart', (e) => handleTouchStart(e, row, 'item'), { passive: false });
+
+        const input = row.querySelector('.add-item-input');
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const text = input.value.trim();
+                if (text) {
+                    const currentList = getCurrentList();
+                    const firstSectionId = currentList.homeSections[0]?.id || getOrCreateUncategorizedSection(true).id;
+                    addItemToSection(firstSectionId, text, true);
+                }
+                removeFloatingAddItem();
+            } else if (e.key === 'Escape') {
+                removeFloatingAddItem();
+            }
+        });
+
+        // Use a small timeout to avoid immediate removal when clicking the toolbar button
+        setTimeout(() => {
+            const clickOutside = (e) => {
+                if (floatingAddItemRow && !floatingAddItemRow.contains(e.target)) {
+                    removeFloatingAddItem();
+                    document.removeEventListener('click', clickOutside);
+                }
+            };
+            document.addEventListener('click', clickOutside);
+        }, 10);
+
+        appContainer.appendChild(row);
+        applyManualSelection(input);
+        input.focus();
+    }
+
+    function removeFloatingAddItem() {
+        if (floatingAddItemRow) {
+            floatingAddItemRow.remove();
+            floatingAddItemRow = null;
+        }
+    }
+
     function renderList() {
         const fragment = document.createDocumentFragment();
         const currentList = getCurrentList();
@@ -2259,16 +2332,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
 
-            // Add "Add item" row for this section
-            if (isHome) {
-                const addRow = document.createElement('li');
-                addRow.className = 'grocery-item add-item-row';
-                if (isSectionRestoration) addRow.classList.add('restoring-item');
-                addRow.dataset.type = 'item-placeholder';
-                addRow.dataset.sectionId = section.id;
-                addRow.innerHTML = `<div class="left-action"><button class="drag-handle add-row-plus" type="button" aria-label="Add item to ${escapeHTML(section.name)}"><i class="fas fa-plus" aria-hidden="true"></i></button></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item" aria-label="New item name for ${escapeHTML(section.name)}" autocomplete="off"></form></div>`;
-                itemsUl.appendChild(addRow);
-            }
             sectionLi.appendChild(itemsUl);
 
             fragment.appendChild(sectionLi);
@@ -2379,7 +2442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function handleDragStart(e, element, type) {
-        if (!editMode && !element.classList.contains("show-controls")) {
+        if (!editMode && !element.classList.contains("show-controls") && !element.classList.contains("floating-item-row")) {
             e.preventDefault();
             return;
         }
@@ -2443,7 +2506,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.body.style.overflow = 'hidden';
 
             // Initialize placeholder at starting position
-            element.before(placeholder);
+            if (element.classList.contains('floating-item-row')) {
+                groceryList.appendChild(placeholder);
+            } else {
+                element.before(placeholder);
+            }
 
             // Force another reflow to ensure placeholder and siblings are correctly positioned in the parent
             void groceryList.offsetHeight;
@@ -2643,6 +2710,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     groceryList.addEventListener('drop', (e) => {
         e.preventDefault();
         if (!draggedElement) return;
+
+        if (draggedElement.classList.contains('floating-item-row')) {
+            const input = draggedElement.querySelector('.add-item-input');
+            const text = input.value.trim();
+            if (!text) {
+                removeFloatingAddItem();
+                handleDragEnd(false);
+                return;
+            }
+
+            const elements = Array.from(groceryList.children).filter(el =>
+                el === placeholder ||
+                el.classList.contains('section-header') ||
+                (el.classList.contains('grocery-item') && !el.classList.contains('add-item-row'))
+            );
+            const placeholderIdx = elements.indexOf(placeholder);
+
+            let targetSectionId = null;
+            for (let i = placeholderIdx; i >= 0; i--) {
+                if (elements[i].classList.contains('section-header')) {
+                    targetSectionId = elements[i].dataset.originalSectionId;
+                    break;
+                }
+            }
+
+            if (!targetSectionId) {
+                const currentList = getCurrentList();
+                targetSectionId = currentList.homeSections[0]?.id || getOrCreateUncategorizedSection(true).id;
+            }
+
+            let anchorId = null;
+            let isAtEnd = true;
+            for (let i = placeholderIdx + 1; i < elements.length; i++) {
+                const el = elements[i];
+                if (el.classList.contains('section-header')) break;
+                if (el.classList.contains('grocery-item') && !el.classList.contains('add-item-row') && !el.classList.contains('add-section-row')) {
+                    anchorId = el.dataset.id;
+                    isAtEnd = false;
+                    break;
+                }
+            }
+
+            const newItem = addItemToSection(targetSectionId, text, true);
+            if (newItem) {
+                updateOrderInState(newItem.id, anchorId, targetSectionId, isAtEnd);
+            }
+
+            removeFloatingAddItem();
+            handleDragEnd(true);
+            return;
+        }
 
         const isHome = currentMode === 'home';
         const currentList = getCurrentList();

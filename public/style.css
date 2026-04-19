@@ -2396,3 +2396,37 @@ h1 {
     letter-spacing: 1px;
     opacity: 0.5;
 }
+
+/* New Floating Add Item Flow */
+.add-item-row {
+    display: none !important;
+}
+
+.floating-item-row {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3000;
+    width: calc(100% - 2rem);
+    max-width: 480px;
+    height: 50px;
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    padding: 0 1rem 0 0.5rem;
+    box-sizing: border-box;
+}
+
+.floating-item-row .item-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.floating-item-row .inline-item-input {
+    width: 100%;
+}
