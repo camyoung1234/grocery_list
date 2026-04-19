@@ -2148,7 +2148,7 @@ h1 {
     pointer-events: none;
     z-index: 10000;
     opacity: 1;
-    background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+    background: color-mix(in srgb, var(--card-bg) 40%, transparent) !important;
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -2165,7 +2165,12 @@ h1 {
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
 }
 
-.touch-ghost * {
+.touch-ghost *,
+.touch-ghost .grocery-item,
+.touch-ghost .section-header,
+.touch-ghost .item-info,
+.touch-ghost .quantity-controls {
+    background: transparent !important;
     transition: none !important;
 }
 
