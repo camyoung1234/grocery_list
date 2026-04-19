@@ -990,7 +990,7 @@ h1 {
 .qty-input {
     width: 48px;
     height: 32px;
-    border: 2px solid var(--border-color);
+    border: 2px solid transparent;
     border-radius: 8px;
     background: var(--input-bg);
     color: var(--text-color);
@@ -1020,7 +1020,7 @@ h1 {
 }
 
 .shop-chip.selected .qty-input {
-    border-color: var(--primary-color);
+    border-color: transparent;
 }
 
 /* Buy Badge (Shop Mode) */
