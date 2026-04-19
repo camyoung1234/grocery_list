@@ -2728,7 +2728,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Lock width and height
         touchGhost.style.width = element.offsetWidth + 'px';
-        touchGhost.style.height = (type === 'section' ? 50 : element.offsetHeight) + 'px';
+        touchGhost.style.height = (type === 'section' ? 40 : element.offsetHeight) + 'px';
 
         // Lock horizontal position based on the original element's rect
         touchGhost.style.left = rect.left + 'px';
