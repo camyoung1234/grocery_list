@@ -983,7 +983,7 @@ h1 {
     display: flex;
 }
 
-.shop-mode:not(.hide-drag-handles) .want-stepper {
+.shop-mode .want-stepper {
     display: flex;
 }
 
@@ -2236,9 +2236,7 @@ h1 {
 
 
 .home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
-.touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
-.shop-mode.hide-drag-handles .grocery-item .quantity-controls,
-.touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
+.touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
