@@ -51,7 +51,6 @@ test('UI behavior of other items during drag', async ({ page }) => {
 
   // Trigger drag on item 1
   await page.evaluate(() => {
-    localStorage.setItem('grocery-logged-in', 'true');
     const el = document.querySelector('.grocery-item[data-id="item-1"] .drag-handle');
     const rect = el.getBoundingClientRect();
     const touch = new Touch({
