@@ -2721,6 +2721,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         touchGhost = element.cloneNode(true);
         touchGhost.classList.add('touch-ghost');
+        touchGhost.classList.add('popping');
         touchGhost.classList.remove('dragging', 'collapsed');
 
         // Add current mode class to the ghost so mode-specific styles apply
