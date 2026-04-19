@@ -2226,7 +2226,10 @@ h1 {
 }
 
 .is-dragging .section-delete-btn,
-.is-dragging .move-here-btn,
+.is-dragging .move-here-btn {
+    transform: translate(-50%, -50%) scale(0.5) !important;
+}
+
 .touch-ghost .section-delete-btn {
     transform: translate(-50%, -50%) scale(1) !important;
 }
@@ -2294,30 +2297,30 @@ h1 {
 }
 
 .is-dragging .drag-handle {
-    opacity: 0.5 !important;
-    pointer-events: auto !important;
-    transform: translate(-50%, -50%) scale(1) !important;
-    width: 40px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translate(-50%, -50%) scale(0.5) !important;
+    width: 0 !important;
 }
 
 .is-dragging .item-delete-btn,
 .is-dragging .section-delete-btn,
 .is-dragging .move-here-btn {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    visibility: visible !important;
-}
-
-.is-dragging .item-delete-btn,
-.is-dragging .section-delete-btn,
-.is-dragging .move-here-btn {
-    width: 48px !important;
-}
-
-.is-dragging .quantity-controls {
     opacity: 0 !important;
     pointer-events: none !important;
     visibility: hidden !important;
+}
+
+.is-dragging .item-delete-btn,
+.is-dragging .section-delete-btn,
+.is-dragging .move-here-btn {
+    width: 0 !important;
+}
+
+.is-dragging .quantity-controls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
 }
 
 .is-dragging .add-item-row,
@@ -2329,11 +2332,11 @@ h1 {
 }
 
 .is-dragging .section-actions {
-    width: 48px !important;
-    min-width: 48px !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    margin-left: 0.5rem !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    margin-left: 0 !important;
 }
 
 .is-dragging .grocery-item,
