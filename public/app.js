@@ -200,15 +200,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     selectionRenderTimeout = null;
                 }, 300);
             } else {
-                // Regular Shop Mode: toggle completion
-                toggleShopCompleted(id);
+                // Regular Shop Mode: toggle completion ONLY on circle click
+                if (target.closest('.shop-qty-circle')) {
+                    toggleShopCompleted(id);
+                    return;
+                }
+                // Otherwise fall through to show-controls logic
             }
-            return;
         }
 
-        // Single tap to show controls in Home mode when NOT in global editMode
+        // Single tap to show controls in Home or Shop mode when NOT in global editMode
         const groceryItem = target.closest('.grocery-item');
-        if (groceryItem && !editMode && currentMode === 'home' && !groceryItem.classList.contains('add-item-row')) {
+        if (groceryItem && !editMode && (currentMode === 'home' || currentMode === 'shop') && !groceryItem.classList.contains('add-item-row')) {
             const id = groceryItem.dataset.id;
             const item = getCurrentList().items.find(i => i.id === id);
             if (!item) return;

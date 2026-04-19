@@ -1949,7 +1949,21 @@ h1 {
     visibility: visible !important;
 }
 
-.grocery-item.show-controls .quantity-controls {
+.home-mode .grocery-item.show-controls .quantity-controls {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+}
+
+.shop-mode .grocery-item.show-controls .quantity-controls,
+.shop-mode .grocery-item.show-controls .want-stepper {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    display: flex !important;
+}
+
+.shop-mode .grocery-item.show-controls .shop-qty-circle {
     opacity: 0 !important;
     pointer-events: none !important;
     visibility: hidden !important;

@@ -179,7 +179,7 @@ test('Committing a grouped item in Shop mode distributes haveCount correctly', a
         await setMockState(page, state);
 
     const bananaRow = page.locator('.grocery-item:has-text("Bananas")');
-    await bananaRow.locator('.item-text').click();
+    await bananaRow.locator('.shop-qty-circle').click();
 
     // Wait for completion animation
     await expect(bananaRow).toHaveClass(/completed/, { timeout: 10000 });
