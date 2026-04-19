@@ -2399,3 +2399,30 @@ h1 {
     letter-spacing: 1px;
     opacity: 0.5;
 }
+
+/* Surface Tension Drag Effect */
+.surface-tension-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 9999;
+    filter: blur(12px) contrast(25);
+    background: transparent;
+}
+
+.tension-blob {
+    position: absolute;
+    background: var(--card-bg);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: none;
+}
+
+.touch-ghost.popping {
+    /* We use a separate property for the pop effect to avoid overriding transform: translate */
+    /* Box-shadow and scale are applied. Note: transform: translate is usually inline. */
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
+}
