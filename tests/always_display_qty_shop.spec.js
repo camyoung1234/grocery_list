@@ -34,7 +34,6 @@ test('verify quantity field is always displayed in shop mode', async ({ page }) 
 
     // Switch to Shop Mode
     await page.click('#toolbar-mode');
-    await page.waitForTimeout(600); // Wait for transition
     await expect(page.locator('.app-container')).toHaveClass(/shop-mode/);
 
     // Disable editMode
