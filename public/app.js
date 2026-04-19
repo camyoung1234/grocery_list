@@ -24,15 +24,18 @@ const SYNC_SLASH_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" 
 // Ensure these are globally accessible for tests if needed
 window.appAuth = auth;
 
+let appState = {
+    lists: [],
+    currentListId: null,
+    mode: 'home',
+    editMode: true,
+    updatedAt: 0
+};
+window.getAppState = () => appState;
+window.setAppState = (s) => { appState = s; };
+
 document.addEventListener('DOMContentLoaded', async () => {
     // --- State ---
-    let appState = {
-        lists: [],
-        currentListId: null,
-        mode: 'home',
-        editMode: true,
-        updatedAt: 0
-    };
 
     let currentMode = 'home'; // 'home' or 'shop'
     let editMode = true;
@@ -60,6 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectionRenderTimeout = null;
     let unsubscribeFirestore = null;
     let floatingAddItemRow = null;
+    let lastDroppedItemId = null;
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -2104,11 +2108,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Use a small timeout to avoid immediate removal when clicking the toolbar button
         setTimeout(() => {
             const clickOutside = (e) => {
-                if (floatingAddItemRow && !floatingAddItemRow.contains(e.target)) {
+                if (floatingAddItemRow && !floatingAddItemRow.contains(e.target) && !toolbarAddItemBtn.contains(e.target)) {
                     removeFloatingAddItem();
                     document.removeEventListener('click', clickOutside);
                 }
             };
+            // Also remove the listener if the row is removed by other means
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.removedNodes.forEach((node) => {
+                        if (node === row) {
+                            document.removeEventListener('click', clickOutside);
+                            observer.disconnect();
+                        }
+                    });
+                });
+            });
+            observer.observe(appContainer, { childList: true });
             document.addEventListener('click', clickOutside);
         }, 10);
 
@@ -2359,6 +2375,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         groceryList.querySelectorAll('.add-item-input, .add-section-input').forEach(applyManualSelection);
 
         newlyDeletedIds.clear();
+
+        if (lastDroppedItemId) {
+            const row = groceryList.querySelector(`.grocery-item[data-id="${lastDroppedItemId}"]`);
+            if (row) {
+                const item = currentList.items.find(i => i.id === lastDroppedItemId);
+                const textSpan = row.querySelector('.item-text');
+                const info = row.querySelector('.item-info');
+                if (item && textSpan && info) {
+                    startInlineItemEdit(item, info, textSpan);
+                }
+            }
+            lastDroppedItemId = null;
+        }
     }
 
     function createQtyStepper(item, type) {
@@ -2713,11 +2742,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (draggedElement.classList.contains('floating-item-row')) {
             const input = draggedElement.querySelector('.add-item-input');
-            const text = input.value.trim();
+            let text = input.value.trim();
             if (!text) {
-                removeFloatingAddItem();
-                handleDragEnd(false);
-                return;
+                text = "New Item";
             }
 
             const elements = Array.from(groceryList.children).filter(el =>
@@ -2755,6 +2782,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const newItem = addItemToSection(targetSectionId, text, true);
             if (newItem) {
                 updateOrderInState(newItem.id, anchorId, targetSectionId, isAtEnd);
+                lastDroppedItemId = newItem.id;
             }
 
             removeFloatingAddItem();
