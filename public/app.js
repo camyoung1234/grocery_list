@@ -2598,7 +2598,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!draggedElement) return;
 
             let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
-            let target = e.target.closest(targetSelector);
+
+            // For desktop dragover, ALWAYS use center point for target detection to match touch behavior
+            // and solve edge/gutter glitches.
+            const listRect = groceryList.getBoundingClientRect();
+            const centerX = listRect.left + listRect.width / 2;
+            const viewportY = Math.max(0, Math.min(window.innerHeight - 1, e.clientY));
+            const elAtCenter = document.elementFromPoint(centerX, viewportY);
+            let target = elAtCenter ? elAtCenter.closest(targetSelector) : null;
 
             if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
 
@@ -2765,7 +2772,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             draggedElement.style.pointerEvents = 'none';
             if (touchGhost) touchGhost.style.pointerEvents = 'none';
 
-            let target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const listRect = groceryList.getBoundingClientRect();
+            const centerX = listRect.left + listRect.width / 2;
+            let target = document.elementFromPoint(centerX, touch.clientY);
 
             draggedElement.style.pointerEvents = originalPointerEvents;
             if (touchGhost) touchGhost.style.pointerEvents = '';

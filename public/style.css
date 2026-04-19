@@ -128,7 +128,7 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 1rem 0 1rem;
+    padding: 1rem 0 0 0;
     /* 1rem gutter for symmetry and to avoid mobile back gestures, bottom removed */
     box-shadow: var(--shadow);
     display: flex;
@@ -154,7 +154,7 @@ header {
     justify-content: center;
     align-items: center;
     margin-bottom: 2rem;
-    padding: 0;
+    padding: 0 1rem;
     /* Restore horizontal padding */
 }
 
