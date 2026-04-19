@@ -468,6 +468,7 @@ h1 {
     transition: var(--transition);
     flex-wrap: wrap;
     touch-action: pan-y;
+    position: relative;
 }
 
 
@@ -481,7 +482,7 @@ h1 {
     min-width: 0;
     overflow: visible;
     position: relative;
-    transition: margin 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: none;
 }
 
 .quantity-controls {
@@ -495,11 +496,11 @@ h1 {
     overflow: visible;
     position: relative;
     z-index: 200;
-    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear, margin-left 0.3s linear;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 .grocery-item.in-view .quantity-controls {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 
@@ -1943,15 +1944,15 @@ h1 {
 }
 
 .grocery-item.show-controls .item-delete-btn {
-    width: 48px !important;
     opacity: 1 !important;
-    transform: scale(1) !important;
     pointer-events: auto !important;
-    margin-left: 0.5rem !important;
+    visibility: visible !important;
 }
 
 .grocery-item.show-controls .quantity-controls {
-    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
 }
 
 .grocery-item.in-view .drag-handle {
@@ -2015,12 +2016,9 @@ h1 {
 
 
 .app-container:not(.hide-drag-handles) .grocery-item .item-delete-btn {
-    width: 48px;
-    min-width: 48px;
     opacity: 1;
-    transform: scale(1);
     pointer-events: auto;
-    margin-left: 0.5rem;
+    visibility: visible;
 }
 
 /* Drag and Drop Styles */
@@ -2174,22 +2172,38 @@ h1 {
     color: var(--text-muted);
     font-size: 1.2rem;
     cursor: pointer;
-    width: 0;
     height: 50px;
     align-items: center;
     justify-content: center;
-    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear, margin-left 0.3s linear;
     opacity: 0;
-    transform: scale(0.5);
     pointer-events: none;
     overflow: hidden;
-    margin-left: 0;
+    visibility: hidden;
 }
 
-.grocery-item.in-view .item-delete-btn,
+.item-delete-btn {
+    position: absolute;
+    right: 0.5rem;
+    width: 48px;
+    min-width: 48px;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 210;
+}
+
+.section-delete-btn {
+    width: 0;
+    margin-left: 0;
+    transform: scale(0.5);
+    transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear, margin-left 0.3s linear, visibility 0.3s ease;
+}
+
+.grocery-item.in-view .item-delete-btn {
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
 .section-container.in-view .section-delete-btn,
 .section-header.in-view .section-delete-btn {
-    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), margin-left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), visibility 0.3s ease;
 }
 
 @media (hover: hover) {
@@ -2201,11 +2215,20 @@ h1 {
 
 .touch-ghost .item-delete-btn,
 .touch-ghost .section-delete-btn {
-    width: 48px;
     opacity: 1;
-    transform: scale(1);
     pointer-events: auto;
-    margin-left: 0.5rem;
+    visibility: visible;
+}
+
+.touch-ghost .item-delete-btn,
+.touch-ghost .section-delete-btn {
+    width: 48px;
+}
+
+.is-dragging .section-delete-btn,
+.is-dragging .move-here-btn,
+.touch-ghost .section-delete-btn {
+    transform: translate(-50%, -50%) scale(1) !important;
 }
 
 
@@ -2213,13 +2236,9 @@ h1 {
 .touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
 .shop-mode.hide-drag-handles .grocery-item .quantity-controls,
 .touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
-    width: 0 !important;
-    min-width: 0 !important;
     opacity: 0;
-    transform: scale(0.5);
     pointer-events: none;
-    overflow: hidden;
-    margin-left: 0;
+    visibility: hidden;
 }
 
 
@@ -2284,14 +2303,21 @@ h1 {
 .is-dragging .item-delete-btn,
 .is-dragging .section-delete-btn,
 .is-dragging .move-here-btn {
-    width: 48px !important;
     opacity: 1 !important;
-    transform: scale(1) !important;
     pointer-events: auto !important;
+    visibility: visible !important;
+}
+
+.is-dragging .item-delete-btn,
+.is-dragging .section-delete-btn,
+.is-dragging .move-here-btn {
+    width: 48px !important;
 }
 
 .is-dragging .quantity-controls {
-    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
 }
 
 .is-dragging .add-item-row,
