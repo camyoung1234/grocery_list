@@ -226,7 +226,43 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.stopPropagation();
                 // Deactivate others
                 groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
+                groceryList.querySelectorAll('.section-header.show-controls').forEach(el => el.classList.remove('show-controls'));
                 groceryItem.classList.add('show-controls');
+            }
+        }
+
+        // Single tap to show controls on sections
+        const sectionHeader = target.closest('.section-header');
+        if (sectionHeader && !target.closest('.drag-handle') && !target.closest('.section-delete-btn') && !target.closest('.move-here-btn')) {
+            const container = sectionHeader.closest('.section-container');
+            const section = getCurrentList().homeSections.find(s => s.id === container.dataset.id) ||
+                            getCurrentList().shopSections.find(s => s.id === container.dataset.id);
+            if (!section) return;
+
+            const isTitleClick = target.classList.contains('section-title');
+            const canRename = currentMode === 'home' || section.id !== shopDefId;
+
+            if (editMode) {
+                if (isTitleClick && canRename) {
+                    e.stopPropagation();
+                    startInlineSectionEdit(section, sectionHeader, target);
+                }
+            } else {
+                // If title clicked while controls are already shown, start inline edit
+                if (isTitleClick && sectionHeader.classList.contains('show-controls') && canRename) {
+                    e.stopPropagation();
+                    startInlineSectionEdit(section, sectionHeader, target);
+                    return;
+                }
+
+                // Otherwise, just toggle controls
+                if (!sectionHeader.classList.contains('show-controls')) {
+                    e.stopPropagation();
+                    // Deactivate others
+                    groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
+                    groceryList.querySelectorAll('.section-header.show-controls').forEach(el => el.classList.remove('show-controls'));
+                    sectionHeader.classList.add('show-controls');
+                }
             }
         }
     });
@@ -297,45 +333,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Section Title Double Tap
-        if (target.classList.contains('section-title')) {
-            e.stopPropagation();
-            const container = target.closest('.section-container');
-            const section = getCurrentList().homeSections.find(s => s.id === container.dataset.id) ||
-                            getCurrentList().shopSections.find(s => s.id === container.dataset.id);
-
-            if (section && (currentMode === 'home' || section.id !== shopDefId)) {
-                const header = target.closest('.section-header');
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.autocomplete = 'off';
-                input.value = section.name;
-                input.className = 'inline-section-input';
-                applyManualSelection(input);
-
-                const saveSectionName = () => {
-                    const newName = input.value.trim();
-                    if (newName && newName !== section.name) {
-                        section.name = newName;
-                        saveAppState();
-                    }
-                    renderList();
-                };
-
-                input.addEventListener('blur', saveSectionName);
-                input.addEventListener('keydown', (ke) => {
-                    if (ke.key === 'Enter') {
-                        input.blur();
-                    } else if (ke.key === 'Escape') {
-                        renderList();
-                    }
-                });
-
-                header.replaceChild(input, target);
-                input.focus();
-            }
-            return;
-        }
     });
 
     // Drag start delegation
@@ -1572,6 +1569,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.focus();
     }
 
+    function startInlineSectionEdit(section, header, titleSpan) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.autocomplete = 'off';
+        input.value = section.name;
+        input.className = 'inline-section-input';
+        applyManualSelection(input);
+
+        const saveSectionName = () => {
+            const newName = input.value.trim();
+            if (newName && newName !== section.name) {
+                section.name = newName;
+                saveAppState();
+            }
+            renderList();
+        };
+
+        input.addEventListener('blur', saveSectionName);
+        input.addEventListener('keydown', (ke) => {
+            if (ke.key === 'Enter') {
+                input.blur();
+            } else if (ke.key === 'Escape') {
+                renderList();
+            }
+        });
+
+        header.replaceChild(input, titleSpan);
+        input.focus();
+    }
+
     function addSection(name, isHome) {
         const currentList = getCurrentList();
         const trimmedName = name.trim();
@@ -2376,6 +2403,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const groceryItem = e.target.closest('.grocery-item');
         if (!groceryItem || !groceryItem.classList.contains('show-controls')) {
             groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
+        }
+
+        // Deactivate section controls when clicking outside the header
+        const sectionHeader = e.target.closest('.section-header');
+        if (!sectionHeader || !sectionHeader.classList.contains('show-controls')) {
+            groceryList.querySelectorAll('.section-header.show-controls').forEach(el => el.classList.remove('show-controls'));
         }
     });
 
