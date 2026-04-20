@@ -231,6 +231,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    groceryList.addEventListener('focusin', (e) => {
+        if (e.target.classList.contains('qty-input')) {
+            // Deactivate any item controls
+            groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
+
+            // Blur any active inline name editing field
+            const activeInlineInput = document.querySelector('.inline-edit-input');
+            if (activeInlineInput && activeInlineInput !== e.target) {
+                // Capture state to restore focus if renderList is called
+                const itemRow = e.target.closest('.grocery-item');
+                const focusedId = itemRow?.dataset.id;
+                const wasType = e.target.closest('.have-stepper') ? 'have' : 'want';
+
+                activeInlineInput.blur();
+
+                // If blur caused a re-render (which it does via saveName), restore focus
+                if (focusedId && (!e.target.isConnected || document.activeElement !== e.target)) {
+                    const newInput = document.querySelector(`.grocery-item[data-id="${focusedId}"] .${wasType}-stepper .qty-input`);
+                    if (newInput) newInput.focus();
+                }
+            }
+        }
+    });
+
     groceryList.addEventListener('submit', (e) => {
         const target = e.target;
 
