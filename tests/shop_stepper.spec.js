@@ -53,11 +53,11 @@ await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true
     await expect(wantInput).toHaveValue('1');
     await expect(circleNum).toHaveText('1');
 
-    // Exit Edit Mode and verify controls are hidden
+    // Exit Edit Mode and verify controls are STILL visible in shop mode
     await page.click('#toolbar-reorder');
     await expect(page.locator('.app-container')).toHaveClass(/hide-drag-handles/);
 
     // Wait for transition
     await page.waitForTimeout(600);
-    await expect(qtyControls).not.toBeVisible();
+    await expect(qtyControls).toBeVisible();
 });
