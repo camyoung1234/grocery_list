@@ -386,6 +386,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const displayOptions = document.getElementById('display-options');
     const currentDisplaySwatch = document.getElementById('current-display-swatch');
     const currentDisplayName = document.getElementById('current-display-name');
+    const trueBlackGroup = document.getElementById('modal-true-black-group');
+    const trueBlackToggle = document.getElementById('true-black-toggle');
 
     const modalThemeGroup = document.getElementById('modal-theme-group');
     const themeDropdown = document.getElementById('theme-dropdown');
@@ -1063,6 +1065,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             opt.classList.toggle('selected', opt.dataset.value === value);
         });
 
+        // Show/hide true black toggle based on display mode
+        if (value === 'light') {
+            trueBlackGroup.classList.add('hidden');
+        } else {
+            trueBlackGroup.classList.remove('hidden');
+        }
+
         // Trigger live preview
         document.documentElement.classList.remove('dark-mode', 'light-mode');
         if (value === 'dark') document.documentElement.classList.add('dark-mode');
@@ -1166,7 +1175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentModalCallback = null;
     let currentDeleteActionCallback = null;
 
-    function showModal(title, initialValue, showTheme, initialTheme, initialAccent, initialDisplayMode, callback, deleteCallback) {
+    function showModal(title, initialValue, showTheme, initialTheme, initialAccent, initialDisplayMode, initialTrueBlack, callback, deleteCallback) {
         modalTitle.textContent = title;
         modalInput.value = initialValue || '';
 
@@ -1177,10 +1186,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectDisplayMode(initialDisplayMode || 'auto');
             selectTheme(initialTheme || 'var(--theme-blue)');
             selectAccent(initialAccent || 'var(--theme-amber)');
+            trueBlackToggle.checked = !!initialTrueBlack;
         } else {
             modalDisplayGroup.classList.add('hidden');
             modalThemeGroup.classList.add('hidden');
             modalAccentGroup.classList.add('hidden');
+            trueBlackGroup.classList.add('hidden');
         }
 
         if (deleteCallback) {
@@ -1201,6 +1212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         displayDropdown.classList.remove('open');
         themeDropdown.classList.remove('open');
         accentDropdown.classList.remove('open');
+        trueBlackToggle.checked = false;
         currentModalCallback = null;
         currentDeleteActionCallback = null;
         updateModeUI(); // Restore original theme
@@ -1220,8 +1232,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
         const accent = !modalAccentGroup.classList.contains('hidden') ? selectedAccentValue : null;
         const displayMode = !modalDisplayGroup.classList.contains('hidden') ? selectedDisplayModeValue : null;
+        const trueBlack = !trueBlackGroup.classList.contains('hidden') ? trueBlackToggle.checked : false;
         if (currentModalCallback) {
-            currentModalCallback(val, theme, accent, displayMode);
+            currentModalCallback(val, theme, accent, displayMode, trueBlack);
         }
         hideModal();
     });
@@ -1234,8 +1247,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
             const accent = !modalAccentGroup.classList.contains('hidden') ? selectedAccentValue : null;
             const displayMode = !modalDisplayGroup.classList.contains('hidden') ? selectedDisplayModeValue : null;
+            const trueBlack = !trueBlackGroup.classList.contains('hidden') ? trueBlackToggle.checked : false;
             if (currentModalCallback) {
-                currentModalCallback(val, theme, accent, displayMode);
+                currentModalCallback(val, theme, accent, displayMode, trueBlack);
             }
             hideModal();
         }
@@ -1471,13 +1485,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- List Management ---
-    function addNewList(name, theme, accent, displayMode) {
+    function addNewList(name, theme, accent, displayMode, trueBlack) {
         const newList = {
             id: Date.now().toString(),
             name: name,
             theme: theme || 'var(--theme-blue)',
             accent: accent || 'var(--theme-amber)',
             displayMode: displayMode || 'auto',
+            trueBlack: !!trueBlack,
             homeSections: [], // Start with no sections in Home Mode
             shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
             items: []
@@ -1504,12 +1519,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const list = appState.lists.find(l => l.id === id);
         if (!list) return;
 
-        showModal('Edit List', list.name, true, list.theme, list.accent, list.displayMode, (newName, newTheme, newAccent, newDisplayMode) => {
+        showModal('Edit List', list.name, true, list.theme, list.accent, list.displayMode, list.trueBlack, (newName, newTheme, newAccent, newDisplayMode, newTrueBlack) => {
             if (newName) {
                 list.name = newName;
                 if (newTheme) list.theme = newTheme;
                 if (newAccent) list.accent = newAccent;
                 if (newDisplayMode) list.displayMode = newDisplayMode;
+                list.trueBlack = !!newTrueBlack;
                 saveAppState();
                 renderListsMenu();
                 updateModeUI(); // Re-apply theme if current list changed
@@ -1920,11 +1936,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.documentElement.style.setProperty('--accent-color', accentColor);
 
         // Apply display mode
-        document.documentElement.classList.remove('dark-mode', 'light-mode');
+        document.documentElement.classList.remove('dark-mode', 'light-mode', 'true-black');
         if (currentList) {
             const displayMode = currentList.displayMode || 'auto';
             if (displayMode === 'dark') document.documentElement.classList.add('dark-mode');
             if (displayMode === 'light') document.documentElement.classList.add('light-mode');
+            if (currentList.trueBlack) document.documentElement.classList.add('true-black');
         }
 
         // Update theme-color meta tag
@@ -2009,8 +2026,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         addBtn.className = 'menu-item';
         addBtn.innerHTML = '<i class="fas fa-plus" style="width: 12px; text-align: center;"></i> <span class="create-list-text">Create New List</span>';
         addBtn.addEventListener('click', () => {
-            showModal('Create New List', 'New List', true, 'var(--theme-blue)', 'var(--theme-amber)', 'auto', (name, theme, accent, displayMode) => {
-                if (name) addNewList(name, theme, accent, displayMode);
+            showModal('Create New List', 'New List', true, 'var(--theme-blue)', 'var(--theme-amber)', 'auto', false, (name, theme, accent, displayMode, trueBlack) => {
+                if (name) addNewList(name, theme, accent, displayMode, trueBlack);
             });
             toggleListsMenu(false);
         });

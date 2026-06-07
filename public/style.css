@@ -75,6 +75,13 @@
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
+:root.dark-mode.true-black {
+    --secondary-color: #000000;
+    --card-bg: #000000;
+    --hover-bg: #121212;
+    --border-color: #222;
+}
+
 @media (prefers-color-scheme: dark) {
     :root:not(.light-mode) {
         /* Theme Colors (Dark Mode) - Material 300 for better contrast on dark bg */
@@ -106,6 +113,13 @@
         --hover-bg: #2a2a2a;
         --border-color: #333;
         --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    :root:not(.light-mode).true-black {
+        --secondary-color: #000000;
+        --card-bg: #000000;
+        --hover-bg: #121212;
+        --border-color: #222;
     }
 }
 
@@ -1110,6 +1124,62 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+.form-group-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Switch styling */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    transition: .3s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: var(--primary-color);
+}
+
+input:focus+.slider {
+    box-shadow: 0 0 1px var(--primary-color);
+}
+
+input:checked+.slider:before {
+    transform: translateX(20px);
 }
 
 .form-group.hidden {
