@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    groceryList.addEventListener('focusin', (e) => {
+    groceryList.addEventListener('focus', (e) => {
         if (e.target.classList.contains('qty-input')) {
             // Deactivate any item controls
             groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
@@ -252,11 +252,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // If blur caused a re-render (which it does via saveName), restore focus
                 if (focusedId && (!e.target.isConnected || document.activeElement !== e.target)) {
                     const newInput = document.querySelector(`.grocery-item[data-id="${focusedId}"] .${wasType}-stepper .qty-input`);
-                    if (newInput) newInput.focus();
+                    if (newInput) {
+                        newInput.focus();
+                        newInput.dataset.isFresh = 'true';
+                    }
                 }
             }
         }
-    });
+    }, true);
 
     groceryList.addEventListener('submit', (e) => {
         const target = e.target;
@@ -456,7 +459,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
         input.addEventListener('focus', () => {
-            input.setSelectionRange(0, input.value.length);
+            if (input.tagName === 'INPUT' || input.tagName === 'TEXTAREA') {
+                input.setSelectionRange(0, input.value.length);
+            } else {
+                const range = document.createRange();
+                range.selectNodeContents(input);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
         });
     };
 
@@ -1908,7 +1919,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (stepper) {
                 const input = stepper.querySelector('.qty-input');
                 if (input) {
-                    input.value = item.haveCount;
+                    if (input.tagName === 'INPUT') input.value = item.haveCount;
+                    else input.textContent = item.haveCount;
                     input.classList.remove('pop-animate');
                     void input.offsetWidth;
                     input.classList.add('pop-animate');
@@ -1933,7 +1945,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (stepper) {
                     const input = stepper.querySelector('.qty-input');
                     if (input) {
-                        input.value = i.wantCount;
+                        if (input.tagName === 'INPUT') input.value = i.wantCount;
+                        else input.textContent = i.wantCount;
                         input.classList.remove('pop-animate');
                         void input.offsetWidth;
                         input.classList.add('pop-animate');
@@ -2369,8 +2382,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     function focusNextQtyInput(currentInput) {
         const allInputs = Array.from(document.querySelectorAll('.qty-input'));
         const visibleInputs = allInputs.filter(inp => {
-            const style = window.getComputedStyle(inp.parentElement);
-            return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+            const parent = inp.parentElement;
+            // Check if element or its parent is hidden
+            return parent && parent.offsetParent !== null && window.getComputedStyle(parent).visibility !== 'hidden';
         });
         const idx = visibleInputs.indexOf(currentInput);
         if (idx !== -1 && idx < visibleInputs.length - 1) {
@@ -2383,19 +2397,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     function handleNumpadClick(key) {
         if (!activeQtyInput) return;
 
-        let val = activeQtyInput.value;
+        let val = activeQtyInput.tagName === 'INPUT' ? activeQtyInput.value : activeQtyInput.textContent;
+        const isFresh = activeQtyInput.dataset.isFresh === 'true';
+
         if (key === 'backspace') {
-            val = val.slice(0, -1);
+            if (isFresh) {
+                val = '';
+            } else {
+                val = val.slice(0, -1);
+            }
         } else if (key === 'enter') {
             focusNextQtyInput(activeQtyInput);
             return;
         } else {
-            // If value is currently "0", replace it unless we're adding more digits
-            if (val === '0') val = key;
+            // If value is currently "0" or it's fresh, replace it unless we're adding more digits
+            if (val === '0' || isFresh) val = key;
             else val += key;
         }
 
-        activeQtyInput.value = val;
+        activeQtyInput.dataset.isFresh = 'false';
+        if (activeQtyInput.tagName === 'INPUT') activeQtyInput.value = val;
+        else activeQtyInput.textContent = val;
+
         // Trigger input event to sync state
         activeQtyInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -2414,18 +2437,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const group = document.createElement('div');
         group.className = `qty-stepper ${type}-stepper`;
 
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.autocomplete = 'off';
-        input.inputMode = 'none'; // Suppress native keyboard
+        const input = document.createElement('div');
         input.className = 'qty-input';
-        input.value = type === 'have' ? item.haveCount : item.wantCount;
+        input.tabIndex = 0;
+        input.role = 'textbox';
+        input.textContent = type === 'have' ? item.haveCount : item.wantCount;
 
         group.appendChild(input);
         applyManualSelection(input);
         input.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        input.addEventListener('focus', () => {
+        const handleFocus = () => {
+            input.dataset.isFresh = 'true';
             activeQtyInput = input;
             bottomToolbar.classList.add('numpad-active');
             document.body.classList.add('numpad-open');
@@ -2434,12 +2457,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => {
                 input.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 150);
+        };
+
+        input.addEventListener('focus', handleFocus);
+        input.addEventListener('click', () => {
+            input.dataset.isFresh = 'true';
         });
 
         input.addEventListener('blur', () => {
             // Small delay to check if focus moved to another qty-input
             setTimeout(() => {
-                if (!document.activeElement.classList.contains('qty-input')) {
+                if (!document.activeElement || !document.activeElement.classList.contains('qty-input')) {
                     activeQtyInput = null;
                     bottomToolbar.classList.remove('numpad-active');
                     document.body.classList.remove('numpad-open');
@@ -2448,10 +2476,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         input.addEventListener('input', () => {
+            const val = input.textContent;
             if (type === 'have') {
-                setHave(item.id, input.value);
+                setHave(item.id, val);
             } else {
-                setWant(item.id, input.value);
+                setWant(item.id, val);
             }
         });
 
@@ -2459,6 +2488,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 focusNextQtyInput(input);
+            } else if (e.key === 'Backspace') {
+                e.preventDefault();
+                handleNumpadClick('backspace');
+            } else if (/^[0-9]$/.test(e.key)) {
+                e.preventDefault();
+                handleNumpadClick(e.key);
             }
         });
 
