@@ -1907,7 +1907,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (stepper) {
                 const input = stepper.querySelector('.qty-input');
                 if (input) {
-                    input.value = item.haveCount;
+                    input.textContent = item.haveCount;
                     input.classList.remove('pop-animate');
                     void input.offsetWidth;
                     input.classList.add('pop-animate');
@@ -1932,7 +1932,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (stepper) {
                     const input = stepper.querySelector('.qty-input');
                     if (input) {
-                        input.value = i.wantCount;
+                        input.textContent = i.wantCount;
                         input.classList.remove('pop-animate');
                         void input.offsetWidth;
                         input.classList.add('pop-animate');
@@ -2364,12 +2364,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let activeQtyInput = null;
+    let isNumpadFirstKey = false;
 
     function focusNextQtyInput(currentInput) {
         const allInputs = Array.from(document.querySelectorAll('.qty-input'));
         const visibleInputs = allInputs.filter(inp => {
-            const style = window.getComputedStyle(inp.parentElement);
-            return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+            return inp.offsetParent !== null;
         });
         const idx = visibleInputs.indexOf(currentInput);
         if (idx !== -1 && idx < visibleInputs.length - 1) {
@@ -2382,21 +2382,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     function handleNumpadClick(key) {
         if (!activeQtyInput) return;
 
-        let val = activeQtyInput.value;
+        const id = activeQtyInput.closest('.grocery-item').dataset.id;
+        const type = activeQtyInput.parentElement.classList.contains('have-stepper') ? 'have' : 'want';
+        let val = activeQtyInput.textContent;
+
         if (key === 'backspace') {
             val = val.slice(0, -1);
+            if (val === '') val = '0';
         } else if (key === 'enter') {
             focusNextQtyInput(activeQtyInput);
             return;
         } else {
-            // If value is currently "0", replace it unless we're adding more digits
-            if (val === '0') val = key;
-            else val += key;
+            if (isNumpadFirstKey) {
+                val = key;
+            } else {
+                if (val === '0') val = key;
+                else val += key;
+            }
         }
 
-        activeQtyInput.value = val;
-        // Trigger input event to sync state
-        activeQtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+        isNumpadFirstKey = false;
+
+        if (type === 'have') {
+            setHave(id, val);
+        } else {
+            setWant(id, val);
+        }
     }
 
     // Set up numpad listeners once
@@ -2413,29 +2424,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         const group = document.createElement('div');
         group.className = `qty-stepper ${type}-stepper`;
 
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.autocomplete = 'off';
-        input.inputMode = 'none'; // Suppress native keyboard
-        input.className = 'qty-input';
-        input.value = type === 'have' ? item.haveCount : item.wantCount;
+        const display = document.createElement('div');
+        display.className = 'qty-input';
+        display.textContent = type === 'have' ? item.haveCount : item.wantCount;
+        display.tabIndex = 0; // Make focusable
 
-        group.appendChild(input);
-        applyManualSelection(input);
-        input.addEventListener('contextmenu', (e) => e.preventDefault());
+        group.appendChild(display);
 
-        input.addEventListener('focus', () => {
-            activeQtyInput = input;
+        display.addEventListener('focus', () => {
+            activeQtyInput = display;
+            isNumpadFirstKey = true;
             toolbarMain.classList.add('hidden');
             toolbarNumpad.classList.remove('hidden');
             document.body.classList.add('numpad-open');
         });
 
-        input.addEventListener('blur', () => {
+        display.addEventListener('blur', () => {
             // Small delay to check if focus moved to another qty-input
             setTimeout(() => {
-                if (!document.activeElement.classList.contains('qty-input')) {
+                if (!document.activeElement || !document.activeElement.classList.contains('qty-input')) {
                     activeQtyInput = null;
+                    isNumpadFirstKey = false;
                     toolbarMain.classList.remove('hidden');
                     toolbarNumpad.classList.add('hidden');
                     document.body.classList.remove('numpad-open');
@@ -2443,18 +2452,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 50);
         });
 
-        input.addEventListener('input', () => {
-            if (type === 'have') {
-                setHave(item.id, input.value);
-            } else {
-                setWant(item.id, input.value);
-            }
-        });
-
-        input.addEventListener('keydown', (e) => {
+        display.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                focusNextQtyInput(input);
+                focusNextQtyInput(display);
+            } else if (e.key >= '0' && e.key <= '9') {
+                e.preventDefault();
+                handleNumpadClick(e.key);
+            } else if (e.key === 'Backspace') {
+                e.preventDefault();
+                handleNumpadClick('backspace');
             }
         });
 
