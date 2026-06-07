@@ -22,7 +22,8 @@
     "wrangler": "^4.71.0"
   },
   "dependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/browser-chromium": "^1.60.0",
+    "@playwright/test": "^1.60.0",
     "playwright": "^1.58.2"
   }
 }

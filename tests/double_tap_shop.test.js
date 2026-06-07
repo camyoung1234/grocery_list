@@ -36,7 +36,7 @@ await setMockState(page, { ...state, mode: 'shop', editMode: true });
       await cancelBtn.click();
   }
 
-  const itemText = page.locator('.grocery-item.shop-chip .item-text');
+  const itemText = page.locator('.grocery-item.shop-chip .item-text').first();
   await expect(itemText).toBeVisible();
 
   await expect(page.locator('#toolbar-reorder')).toHaveClass(/active/);

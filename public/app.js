@@ -1763,7 +1763,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 sameNameItems.forEach(i => {
                     const el = itemElements.get(i.id);
                     if (el) {
-                        const circle = el.querySelector('.shop-qty-circle');
+                        const circle = el.querySelector('.shop-check-area');
                         if (circle) {
                             const rect = circle.getBoundingClientRect();
                             createSparks(rect.left + rect.width / 2, rect.top + rect.height / 2);
@@ -1915,7 +1915,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         input.classList.add('pop-animate');
                     }
                 }
-                const circle = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-qty-circle`);
+                const circle = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-check-area`);
                 if (circle) {
                     const qtyNum = circle.querySelector('.qty-number');
                     if (qtyNum) {
@@ -2292,7 +2292,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     controls.appendChild(createQtyStepper(item, 'have'));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-qty-circle"><span class="qty-number">${toBuy}</span><i class="fas fa-check check-icon"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
+                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-check-area"><span class="qty-number">${toBuy}</span><svg class="check-svg" viewBox="0 0 24 24"><path class="check-path" d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
                     li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
                 }
 

@@ -130,7 +130,7 @@ test('Shop mode groups items with shared wantCount correctly', async ({ page }) 
   const shopRows = page.locator('.grocery-item:has-text("Bananas")');
   await expect(shopRows).toHaveCount(1);
 
-  const buyCircle = shopRows.locator('.shop-qty-circle');
+  const buyCircle = shopRows.locator('.shop-check-area');
   await expect(buyCircle).toHaveText('2');
 });
 
