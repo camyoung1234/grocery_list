@@ -1766,6 +1766,8 @@ input:checked+.slider:before {
     box-sizing: border-box;
     transition: padding 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+    display: grid;
+    align-items: center;
 }
 
 @media (min-width: 600px) {
@@ -1779,20 +1781,23 @@ input:checked+.slider:before {
 }
 
 #toolbar-main {
+    grid-area: 1 / 1;
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
     width: 100%;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s;
     max-height: 100px;
     opacity: 1;
+    overflow: hidden;
+    visibility: visible;
 }
 
 .bottom-toolbar.numpad-active #toolbar-main {
     max-height: 0;
     opacity: 0;
-    transform: translateY(-20px);
     pointer-events: none;
+    visibility: hidden;
 }
 
 .list-picker-container {
@@ -2074,19 +2079,21 @@ input:checked+.slider:before {
 
 /* Numpad Styles */
 #toolbar-numpad {
+    grid-area: 1 / 1;
     width: 100%;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s;
     max-height: 0;
     opacity: 0;
-    transform: translateY(20px);
     pointer-events: none;
+    overflow: hidden;
+    visibility: hidden;
 }
 
 .bottom-toolbar.numpad-active #toolbar-numpad {
     max-height: 300px;
     opacity: 1;
-    transform: translateY(0);
     pointer-events: auto;
+    visibility: visible;
 }
 
 .numpad-grid {
