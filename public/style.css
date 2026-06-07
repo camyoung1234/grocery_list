@@ -981,16 +981,16 @@ h1 {
 .qty-input {
     width: 48px;
     height: 32px;
-    border: 2px solid transparent;
+    border: none;
     border-radius: 8px;
     background: var(--input-bg);
     color: var(--text-color);
     text-align: center;
-    font-size: 1rem;
+    font-size: 1.2rem;
     font-weight: 700;
     font-family: inherit;
     outline: none;
-    transition: border-color var(--transition);
+    transition: color var(--transition);
     box-sizing: border-box;
     -moz-appearance: textfield;
 }
@@ -1002,16 +1002,17 @@ h1 {
 }
 
 .qty-input:focus {
-    border-color: var(--primary-color);
+    color: var(--primary-color);
+    outline: none;
+    border: none !important;
+    background: var(--input-bg) !important;
+    animation: none !important;
+    box-shadow: none !important;
 }
 
 .qty-input::selection {
     background: transparent;
     color: inherit;
-}
-
-.shop-chip.selected .qty-input {
-    border-color: transparent;
 }
 
 /* Buy Badge (Shop Mode) */
@@ -2373,7 +2374,6 @@ input:checked+.slider:before {
     }
 }
 
-.qty-input:focus,
 .inline-item-input:focus,
 .inline-edit-input:focus,
 .inline-section-input:focus,
