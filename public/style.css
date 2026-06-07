@@ -1758,14 +1758,12 @@ input:checked+.slider:before {
     max-width: 460px;
     background: var(--card-bg);
     padding: 0.75rem 1rem;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
     border: 1px solid var(--border-color);
     border-radius: 24px;
     z-index: 1000;
     box-sizing: border-box;
+    transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (min-width: 600px) {
@@ -1773,13 +1771,20 @@ input:checked+.slider:before {
         position: sticky;
         bottom: 1rem;
         margin: 0 auto 1rem auto;
+        transform: none;
+        left: auto;
     }
+}
+
+#toolbar-main {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    width: 100%;
 }
 
 .list-picker-container {
     position: relative;
-    justify-self: start;
-    height: 100%;
     display: flex;
     align-items: center;
 }
@@ -2053,6 +2058,57 @@ input:checked+.slider:before {
 
 .hide-drag-handles .grocery-item .left-action {
     width: 40px !important;
+}
+
+/* Numpad Styles */
+#toolbar-numpad {
+    width: 100%;
+}
+
+.numpad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.numpad-btn {
+    height: 44px;
+    border: none;
+    background: color-mix(in srgb, var(--primary-color) 5%, var(--hover-bg));
+    color: var(--text-color);
+    border-radius: 12px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.numpad-btn:active {
+    background: color-mix(in srgb, var(--primary-color) 20%, var(--hover-bg));
+    transform: scale(0.92);
+}
+
+.numpad-btn[data-key="backspace"] {
+    color: var(--danger-color);
+}
+
+.numpad-btn[data-key="enter"] {
+    background: var(--primary-color);
+    color: white;
+}
+
+.numpad-btn i {
+    pointer-events: none;
+}
+
+.numpad-open .grocery-list {
+    padding-bottom: 280px;
 }
 
 
