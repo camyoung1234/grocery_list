@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const groceryList = document.getElementById('grocery-list');
     const appContainer = document.querySelector('.app-container');
     const listsMenu = document.getElementById('lists-menu');
+    const bottomToolbar = document.querySelector('.bottom-toolbar');
     const toolbarMain = document.getElementById('toolbar-main');
     const toolbarNumpad = document.getElementById('toolbar-numpad');
 
@@ -2426,8 +2427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         input.addEventListener('focus', () => {
             activeQtyInput = input;
-            toolbarMain.classList.add('hidden');
-            toolbarNumpad.classList.remove('hidden');
+            bottomToolbar.classList.add('numpad-active');
             document.body.classList.add('numpad-open');
         });
 
@@ -2436,8 +2436,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => {
                 if (!document.activeElement.classList.contains('qty-input')) {
                     activeQtyInput = null;
-                    toolbarMain.classList.remove('hidden');
-                    toolbarNumpad.classList.add('hidden');
+                    bottomToolbar.classList.remove('numpad-active');
                     document.body.classList.remove('numpad-open');
                 }
             }, 50);

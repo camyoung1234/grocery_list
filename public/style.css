@@ -357,6 +357,7 @@ h1 {
     margin: 0;
     flex: 1;
     padding-bottom: 120px;
+    transition: padding-bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Swipe slide transition (Retained for potential legacy use) */
@@ -1763,7 +1764,8 @@ input:checked+.slider:before {
     border-radius: 24px;
     z-index: 1000;
     box-sizing: border-box;
-    transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: padding 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
 }
 
 @media (min-width: 600px) {
@@ -1781,6 +1783,16 @@ input:checked+.slider:before {
     grid-template-columns: 1fr auto;
     align-items: center;
     width: 100%;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 100px;
+    opacity: 1;
+}
+
+.bottom-toolbar.numpad-active #toolbar-main {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-20px);
+    pointer-events: none;
 }
 
 .list-picker-container {
@@ -2063,6 +2075,18 @@ input:checked+.slider:before {
 /* Numpad Styles */
 #toolbar-numpad {
     width: 100%;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+}
+
+.bottom-toolbar.numpad-active #toolbar-numpad {
+    max-height: 300px;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 .numpad-grid {
