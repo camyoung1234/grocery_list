@@ -435,6 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const syncLoginBtn = document.getElementById('sync-login-btn');
     const syncSignupBtn = document.getElementById('sync-signup-btn');
     const syncLogoutBtn = document.getElementById('sync-logout-btn');
+    const syncCancelBtn = document.getElementById('sync-cancel-btn');
     const syncUserEmailSpan = document.getElementById('sync-user-email');
     const syncErrorDiv = document.getElementById('sync-error');
     const syncMessageDiv = document.getElementById('sync-message');
@@ -796,6 +797,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (e) {
                 showSyncError(e.message);
+            }
+        });
+    }
+
+    if (syncCancelBtn) {
+        syncCancelBtn.addEventListener('click', () => {
+            if (isAppRunning) {
+                syncModalOverlay.classList.remove('visible');
+            }
+        });
+    }
+
+    if (syncModalOverlay) {
+        syncModalOverlay.addEventListener('mousedown', (e) => {
+            if (e.target === syncModalOverlay && isAppRunning) {
+                syncModalOverlay.classList.remove('visible');
             }
         });
     }
