@@ -142,7 +142,7 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: calc(1rem + 16px) 16px 0 16px;
+    padding: 1rem 0 0 0;
     /* 1rem gutter for symmetry and to avoid mobile back gestures, bottom removed */
     box-shadow: var(--shadow);
     display: flex;
@@ -356,7 +356,7 @@ h1 {
     padding: 0;
     margin: 0;
     flex: 1;
-    padding-bottom: calc(120px + 16px);
+    padding-bottom: 120px;
 }
 
 /* Swipe slide transition (Retained for potential legacy use) */
@@ -1751,7 +1751,7 @@ input:checked+.slider:before {
 /* Bottom Toolbar */
 .bottom-toolbar {
     position: fixed;
-    bottom: calc(1rem + 16px);
+    bottom: 1rem;
     left: 50%;
     transform: translateX(-50%);
     width: calc(100% - 2rem);
@@ -1771,7 +1771,7 @@ input:checked+.slider:before {
 @media (min-width: 600px) {
     .bottom-toolbar {
         position: sticky;
-        bottom: calc(1rem + 16px);
+        bottom: 1rem;
         margin: 0 auto 1rem auto;
     }
 }
@@ -2448,13 +2448,13 @@ input:checked+.slider:before {
 /* Viewport Mask for Rounded Corners */
 .viewport-mask {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: -100px;
+    left: -100px;
+    right: -100px;
+    bottom: -100px;
+    border: 100px solid #000000;
+    border-radius: 132px; /* 100px border + 32px inner radius */
     pointer-events: none;
     z-index: 10000;
-    border: 16px solid #000000;
-    border-radius: 48px;
     box-sizing: border-box;
 }
