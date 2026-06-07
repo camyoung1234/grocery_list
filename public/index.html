@@ -31,30 +31,49 @@
         </ul>
 
         <nav class="bottom-toolbar">
-            <div class="list-picker-container">
-                <div id="lists-menu" class="lists-menu" role="menu"></div>
-                <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists" aria-label="Manage Lists" aria-haspopup="true">
-                    <div class="list-swatch" id="current-list-swatch" aria-hidden="true"></div>
-                    <span id="current-list-name">Loading...</span>
-                    <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M6 10L12 16L18 10"></path>
-                    </svg>
-                </button>
+            <div id="toolbar-main">
+                <div class="list-picker-container">
+                    <div id="lists-menu" class="lists-menu" role="menu"></div>
+                    <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists" aria-label="Manage Lists" aria-haspopup="true">
+                        <div class="list-swatch" id="current-list-swatch" aria-hidden="true"></div>
+                        <span id="current-list-name">Loading...</span>
+                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M6 10L12 16L18 10"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="toolbar-actions">
+                    <button class="toolbar-btn" id="toolbar-clear-shop" title="Clear Shopping Progress" aria-label="Clear Shopping Progress">
+                        <i class="fas fa-eraser" aria-hidden="true"></i>
+                    </button>
+                    <button class="toolbar-btn" id="toolbar-mode" title="Toggle Mode" aria-label="Toggle Mode">
+                        <i class="fas fa-list-check" aria-hidden="true"></i>
+                    </button>
+                    <button class="toolbar-btn" id="toolbar-reorder" title="Toggle Edit Mode" aria-label="Toggle Edit Mode">
+                        <i class="fas fa-pen" aria-hidden="true"></i>
+                    </button>
+                    <button class="toolbar-btn" id="toolbar-sync" title="Cloud Sync" aria-label="Cloud Sync">
+                        <span id="sync-icon" class="sync-icon" aria-hidden="true"></span>
+                    </button>
+                </div>
             </div>
 
-            <div class="toolbar-actions">
-                <button class="toolbar-btn" id="toolbar-clear-shop" title="Clear Shopping Progress" aria-label="Clear Shopping Progress">
-                    <i class="fas fa-eraser" aria-hidden="true"></i>
-                </button>
-                <button class="toolbar-btn" id="toolbar-mode" title="Toggle Mode" aria-label="Toggle Mode">
-                    <i class="fas fa-list-check" aria-hidden="true"></i>
-                </button>
-                <button class="toolbar-btn" id="toolbar-reorder" title="Toggle Edit Mode" aria-label="Toggle Edit Mode">
-                    <i class="fas fa-pen" aria-hidden="true"></i>
-                </button>
-                <button class="toolbar-btn" id="toolbar-sync" title="Cloud Sync" aria-label="Cloud Sync">
-                    <span id="sync-icon" class="sync-icon" aria-hidden="true"></span>
-                </button>
+            <div id="toolbar-numpad" class="hidden">
+                <div class="numpad-grid">
+                    <button class="numpad-btn" data-key="1">1</button>
+                    <button class="numpad-btn" data-key="2">2</button>
+                    <button class="numpad-btn" data-key="3">3</button>
+                    <button class="numpad-btn" data-key="4">4</button>
+                    <button class="numpad-btn" data-key="5">5</button>
+                    <button class="numpad-btn" data-key="6">6</button>
+                    <button class="numpad-btn" data-key="7">7</button>
+                    <button class="numpad-btn" data-key="8">8</button>
+                    <button class="numpad-btn" data-key="9">9</button>
+                    <button class="numpad-btn" data-key="backspace" aria-label="Backspace"><i class="fas fa-backspace"></i></button>
+                    <button class="numpad-btn" data-key="0">0</button>
+                    <button class="numpad-btn" data-key="enter" aria-label="Next or Done"><i class="fas fa-arrow-right"></i></button>
+                </div>
             </div>
         </nav>
     </div>

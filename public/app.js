@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const groceryList = document.getElementById('grocery-list');
     const appContainer = document.querySelector('.app-container');
     const listsMenu = document.getElementById('lists-menu');
+    const toolbarMain = document.getElementById('toolbar-main');
+    const toolbarNumpad = document.getElementById('toolbar-numpad');
 
     // --- Intersection Observer for Performance ---
     const inViewportSet = new Set();
@@ -2356,6 +2358,52 @@ document.addEventListener('DOMContentLoaded', async () => {
         newlyDeletedIds.clear();
     }
 
+    let activeQtyInput = null;
+
+    function focusNextQtyInput(currentInput) {
+        const allInputs = Array.from(document.querySelectorAll('.qty-input'));
+        const visibleInputs = allInputs.filter(inp => {
+            const style = window.getComputedStyle(inp.parentElement);
+            return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        });
+        const idx = visibleInputs.indexOf(currentInput);
+        if (idx !== -1 && idx < visibleInputs.length - 1) {
+            visibleInputs[idx + 1].focus();
+        } else {
+            currentInput.blur();
+        }
+    }
+
+    function handleNumpadClick(key) {
+        if (!activeQtyInput) return;
+
+        let val = activeQtyInput.value;
+        if (key === 'backspace') {
+            val = val.slice(0, -1);
+        } else if (key === 'enter') {
+            focusNextQtyInput(activeQtyInput);
+            return;
+        } else {
+            // If value is currently "0", replace it unless we're adding more digits
+            if (val === '0') val = key;
+            else val += key;
+        }
+
+        activeQtyInput.value = val;
+        // Trigger input event to sync state
+        activeQtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Set up numpad listeners once
+    document.querySelectorAll('.numpad-btn').forEach(btn => {
+        const handleInteraction = (e) => {
+            e.preventDefault(); // Prevent focus loss from input
+            handleNumpadClick(btn.dataset.key);
+        };
+        btn.addEventListener('mousedown', handleInteraction);
+        btn.addEventListener('touchstart', handleInteraction, { passive: false });
+    });
+
     function createQtyStepper(item, type) {
         const group = document.createElement('div');
         group.className = `qty-stepper ${type}-stepper`;
@@ -2363,13 +2411,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         const input = document.createElement('input');
         input.type = 'text';
         input.autocomplete = 'off';
-        input.inputMode = 'numeric';
+        input.inputMode = 'none'; // Suppress native keyboard
         input.className = 'qty-input';
         input.value = type === 'have' ? item.haveCount : item.wantCount;
 
         group.appendChild(input);
         applyManualSelection(input);
         input.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        input.addEventListener('focus', () => {
+            activeQtyInput = input;
+            toolbarMain.classList.add('hidden');
+            toolbarNumpad.classList.remove('hidden');
+            document.body.classList.add('numpad-open');
+        });
+
+        input.addEventListener('blur', () => {
+            // Small delay to check if focus moved to another qty-input
+            setTimeout(() => {
+                if (!document.activeElement.classList.contains('qty-input')) {
+                    activeQtyInput = null;
+                    toolbarMain.classList.remove('hidden');
+                    toolbarNumpad.classList.add('hidden');
+                    document.body.classList.remove('numpad-open');
+                }
+            }, 50);
+        });
 
         input.addEventListener('input', () => {
             if (type === 'have') {
@@ -2382,18 +2449,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                // Find next visible qty-input
-                const allInputs = Array.from(document.querySelectorAll('.qty-input'));
-                const visibleInputs = allInputs.filter(inp => {
-                    const style = window.getComputedStyle(inp.parentElement);
-                    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
-                });
-                const idx = visibleInputs.indexOf(input);
-                if (idx !== -1 && idx < visibleInputs.length - 1) {
-                    visibleInputs[idx + 1].focus();
-                } else {
-                    input.blur();
-                }
+                focusNextQtyInput(input);
             }
         });
 
