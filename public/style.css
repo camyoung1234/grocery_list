@@ -356,7 +356,7 @@ h1 {
     padding: 0;
     margin: 0;
     flex: 1;
-    padding-bottom: 80px;
+    padding-bottom: 120px;
 }
 
 /* Swipe slide transition (Retained for potential legacy use) */
@@ -1751,18 +1751,19 @@ input:checked+.slider:before {
 /* Bottom Toolbar */
 .bottom-toolbar {
     position: fixed;
-    bottom: 0;
+    bottom: 1rem;
     left: 50%;
     transform: translateX(-50%);
-    width: 100%;
-    max-width: 500px;
+    width: calc(100% - 2rem);
+    max-width: 460px;
     background: var(--card-bg);
     padding: 0.75rem 1rem;
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
-    border-top: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
     z-index: 1000;
     box-sizing: border-box;
 }
@@ -1770,8 +1771,8 @@ input:checked+.slider:before {
 @media (min-width: 600px) {
     .bottom-toolbar {
         position: sticky;
-        border-bottom-left-radius: var(--border-radius);
-        border-bottom-right-radius: var(--border-radius);
+        bottom: 1rem;
+        margin: 0 auto 1rem auto;
     }
 }
 
