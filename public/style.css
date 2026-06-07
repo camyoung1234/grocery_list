@@ -1,4 +1,7 @@
-html { scroll-behavior: smooth; }
+html {
+    scroll-behavior: smooth;
+    overscroll-behavior: none;
+}
 * {
     box-sizing: border-box;
 }
@@ -161,6 +164,7 @@ body {
         height: fit-content;
         max-height: 90vh;
         overflow-y: auto;
+        overscroll-behavior: none;
     }
 }
 
@@ -909,6 +913,7 @@ h1 {
     min-width: 120px;
     max-height: 150px;
     overflow-y: auto;
+    overscroll-behavior: none;
     z-index: 100;
     /* Ensure it appears above other elements */
     animation: dropdownPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -1276,6 +1281,7 @@ input:checked+.slider:before {
     z-index: 1001;
     max-height: 200px;
     overflow-y: auto;
+    overscroll-behavior: none;
     display: none;
 }
 
@@ -1922,6 +1928,7 @@ input:checked+.slider:before {
     padding: 0.5rem 0;
     max-height: 50vh;
     overflow-y: auto;
+    overscroll-behavior: none;
     z-index: 2000;
     opacity: 0;
     pointer-events: none;
