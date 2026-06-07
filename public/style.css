@@ -31,7 +31,7 @@
     --accent-color: var(--theme-amber);
     --danger-color: var(--theme-red);
     --success-color: var(--theme-green);
-    --border-radius: 12px;
+    --border-radius: 24px;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --font-family: 'Outfit', sans-serif;
@@ -125,7 +125,7 @@
 
 body {
     font-family: var(--font-family);
-    background-color: color-mix(in srgb, var(--primary-color) 4%, var(--secondary-color));
+    background-color: #000000 !important;
     color: var(--text-color);
     margin: 0;
     display: flex;
@@ -142,7 +142,7 @@ body {
     width: 100%;
     max-width: 500px;
     background: var(--card-bg);
-    padding: 1rem 0 0 0;
+    padding: calc(1rem + 16px) 16px 0 16px;
     /* 1rem gutter for symmetry and to avoid mobile back gestures, bottom removed */
     box-shadow: var(--shadow);
     display: flex;
@@ -356,7 +356,7 @@ h1 {
     padding: 0;
     margin: 0;
     flex: 1;
-    padding-bottom: 120px;
+    padding-bottom: calc(120px + 16px);
 }
 
 /* Swipe slide transition (Retained for potential legacy use) */
@@ -1751,7 +1751,7 @@ input:checked+.slider:before {
 /* Bottom Toolbar */
 .bottom-toolbar {
     position: fixed;
-    bottom: 1rem;
+    bottom: calc(1rem + 16px);
     left: 50%;
     transform: translateX(-50%);
     width: calc(100% - 2rem);
@@ -1771,7 +1771,7 @@ input:checked+.slider:before {
 @media (min-width: 600px) {
     .bottom-toolbar {
         position: sticky;
-        bottom: 1rem;
+        bottom: calc(1rem + 16px);
         margin: 0 auto 1rem auto;
     }
 }
@@ -1981,8 +1981,7 @@ input:checked+.slider:before {
     pointer-events: none !important;
     transform: translate(-50%, -50%) scale(0.5) !important;
     transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear !important;
-    width: 0 !important;
-}
+    }
 
 .grocery-item.show-controls .drag-handle {
     opacity: 1 !important;
@@ -2290,7 +2289,7 @@ input:checked+.slider:before {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
-}
+    }
 
 
 @property --glow-angle {
@@ -2348,8 +2347,7 @@ input:checked+.slider:before {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translate(-50%, -50%) scale(0.5) !important;
-    width: 0 !important;
-}
+    }
 
 .is-dragging .item-delete-btn,
 .is-dragging .section-delete-btn,
@@ -2362,8 +2360,7 @@ input:checked+.slider:before {
 .is-dragging .item-delete-btn,
 .is-dragging .section-delete-btn,
 .is-dragging .move-here-btn {
-    width: 0 !important;
-}
+    }
 
 .is-dragging .quantity-controls {
     opacity: 1 !important;
@@ -2446,4 +2443,18 @@ input:checked+.slider:before {
     text-transform: uppercase;
     letter-spacing: 1px;
     opacity: 0.5;
+}
+
+/* Viewport Mask for Rounded Corners */
+.viewport-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 10000;
+    border: 16px solid #000000;
+    border-radius: 48px;
+    box-sizing: border-box;
 }

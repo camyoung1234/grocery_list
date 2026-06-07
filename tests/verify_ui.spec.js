@@ -2,6 +2,12 @@
 const { test, expect } = require('@playwright/test');
 const { mockFirebase, setMockState } = require('./mockFirebase');
 
+test.beforeEach(async ({ page }) => {
+    await mockFirebase(page);
+    await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true'); });
+    await page.goto('http://localhost:3000');
+});
+
 test('verify edit mode UI consistency', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
 
