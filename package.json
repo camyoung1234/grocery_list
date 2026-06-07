@@ -19,11 +19,11 @@
   },
   "homepage": "https://github.com/camyoung1234/grocery_list#readme",
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "wrangler": "^4.71.0"
   },
   "dependencies": {
     "@playwright/browser-chromium": "^1.60.0",
-    "@playwright/test": "^1.60.0",
     "playwright": "^1.58.2"
   }
 }

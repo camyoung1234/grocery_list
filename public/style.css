@@ -32,7 +32,7 @@ html { scroll-behavior: smooth; }
     --accent-color: var(--theme-amber);
     --danger-color: var(--theme-red);
     --success-color: var(--theme-green);
-    --border-radius: 12px;
+    --border-radius: 24px;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --font-family: 'Outfit', sans-serif;
@@ -126,7 +126,7 @@ html { scroll-behavior: smooth; }
 
 body {
     font-family: var(--font-family);
-    background-color: color-mix(in srgb, var(--primary-color) 4%, var(--secondary-color));
+    background-color: #000000 !important;
     color: var(--text-color);
     margin: 0;
     display: flex;
@@ -1987,8 +1987,7 @@ input:checked+.slider:before {
     pointer-events: none !important;
     transform: translate(-50%, -50%) scale(0.5) !important;
     transition: width 0.3s linear, opacity 0.3s linear, transform 0.3s linear !important;
-    width: 0 !important;
-}
+    }
 
 .grocery-item.show-controls .drag-handle {
     opacity: 1 !important;
@@ -2347,7 +2346,7 @@ input:checked+.slider:before {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
-}
+    }
 
 
 @property --glow-angle {
@@ -2406,8 +2405,7 @@ input:checked+.slider:before {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translate(-50%, -50%) scale(0.5) !important;
-    width: 0 !important;
-}
+    }
 
 .is-dragging .item-delete-btn,
 .is-dragging .section-delete-btn,
@@ -2420,8 +2418,7 @@ input:checked+.slider:before {
 .is-dragging .item-delete-btn,
 .is-dragging .section-delete-btn,
 .is-dragging .move-here-btn {
-    width: 0 !important;
-}
+    }
 
 .is-dragging .quantity-controls {
     opacity: 1 !important;
@@ -2504,4 +2501,18 @@ input:checked+.slider:before {
     text-transform: uppercase;
     letter-spacing: 1px;
     opacity: 0.5;
+}
+
+/* Viewport Mask for Rounded Corners */
+.viewport-mask {
+    position: fixed;
+    top: -100px;
+    left: -100px;
+    right: -100px;
+    bottom: -100px;
+    border: 100px solid #000000;
+    border-radius: 132px; /* 100px border + 32px inner radius */
+    pointer-events: none;
+    z-index: 10000;
+    box-sizing: border-box;
 }
