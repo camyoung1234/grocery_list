@@ -38,19 +38,22 @@ await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true
     // Verify input exists
     const wantInput = page.locator('.want-stepper .qty-input');
     await expect(wantInput).toBeVisible();
-    await expect(wantInput).toHaveValue('1');
+    await expect(wantInput).toHaveText('1');
 
     // Change value
-    await wantInput.fill('2');
-    await expect(wantInput).toHaveValue('2');
+    await wantInput.click();
+    await page.keyboard.type('2');
+    await expect(wantInput).toHaveText('2');
 
     // Verify shop qty circle also updated
     const circleNum = page.locator('.shop-check-area .qty-number');
     await expect(circleNum).toHaveText('2');
 
     // Change back
-    await wantInput.fill('1');
-    await expect(wantInput).toHaveValue('1');
+    await wantInput.click();
+    await page.keyboard.press('Backspace');
+    await page.keyboard.type('1');
+    await expect(wantInput).toHaveText('1');
     await expect(circleNum).toHaveText('1');
 
     // Exit Edit Mode and verify controls are hidden

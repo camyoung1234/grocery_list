@@ -992,6 +992,9 @@ h1 {
     border-radius: 8px;
     background: var(--input-bg);
     color: var(--text-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     font-size: 1rem;
     font-weight: 700;
@@ -1000,6 +1003,7 @@ h1 {
     transition: border-color var(--transition);
     box-sizing: border-box;
     -moz-appearance: textfield;
+    cursor: text;
 }
 
 .qty-input::-webkit-outer-spin-button,
