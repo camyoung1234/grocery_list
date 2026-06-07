@@ -2404,10 +2404,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.numpad-btn').forEach(btn => {
         const handleInteraction = (e) => {
             e.preventDefault(); // Prevent focus loss from input
+            btn.classList.add('pressed');
             handleNumpadClick(btn.dataset.key);
+        };
+        const endInteraction = () => {
+            btn.classList.remove('pressed');
         };
         btn.addEventListener('mousedown', handleInteraction);
         btn.addEventListener('touchstart', handleInteraction, { passive: false });
+        btn.addEventListener('mouseup', endInteraction);
+        btn.addEventListener('mouseleave', endInteraction);
+        btn.addEventListener('touchend', endInteraction);
+        btn.addEventListener('touchcancel', endInteraction);
     });
 
     function createQtyStepper(item, type) {

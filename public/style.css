@@ -2127,13 +2127,17 @@ input:checked+.slider:before {
     user-select: none;
 }
 
-.numpad-btn:active {
-    background: color-mix(in srgb, var(--primary-color) 20%, var(--hover-bg));
-    transform: scale(0.92);
+.numpad-btn:active,
+.numpad-btn.pressed {
+    background: var(--primary-color) !important;
+    color: white !important;
+    transform: scale(1.15);
+    z-index: 10;
+    transition: all 0.05s ease-out;
 }
 
 .numpad-btn[data-key="backspace"] {
-    color: var(--danger-color);
+    color: var(--primary-color);
 }
 
 .numpad-btn[data-key="enter"] {
