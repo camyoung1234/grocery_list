@@ -45,7 +45,7 @@ await page.addInitScript(() => { localStorage.setItem('grocery-logged-in', 'true
     await expect(wantInput).toHaveValue('2');
 
     // Verify shop qty circle also updated
-    const circleNum = page.locator('.shop-qty-circle .qty-number');
+    const circleNum = page.locator('.shop-check-area .qty-number');
     await expect(circleNum).toHaveText('2');
 
     // Change back

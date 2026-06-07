@@ -537,10 +537,8 @@ h1 {
     font-weight: 700;
 }
 
-.section-container .grocery-item.shop-chip.selected .shop-qty-circle {
-    background: transparent;
+.section-container .grocery-item.shop-chip.selected .shop-check-area {
     color: var(--primary-color);
-    border-color: var(--primary-color);
 }
 
 
@@ -586,18 +584,13 @@ h1 {
     transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-.shop-qty-circle {
+.shop-check-area {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: 2px solid var(--text-color);
     color: var(--text-color);
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    font-size: 0.75rem;
-    font-weight: 700;
+    width: 32px;
+    height: 32px;
     position: absolute;
     top: 50%;
     left: 50%;
@@ -605,16 +598,9 @@ h1 {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.section-container .grocery-item.shop-chip.is-completing .shop-qty-circle,
-.section-container .grocery-item.shop-chip.completed .shop-qty-circle {
-    background: transparent;
-    border: 2px solid var(--primary-color);
-    color: var(--card-bg);
-}
-
-.section-container .grocery-item.shop-chip.is-completing .shop-qty-circle {
-    animation: checkmark-swell 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    transition: none;
+.section-container .grocery-item.shop-chip.is-completing .shop-check-area,
+.section-container .grocery-item.shop-chip.completed .shop-check-area {
+    color: var(--primary-color);
 }
 
 @keyframes move-strike {
@@ -655,57 +641,35 @@ h1 {
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-.shop-chip.is-undoing .shop-qty-circle::before {
-    width: 0 !important;
-    height: 0 !important;
-    transition: width 0.2s ease-in, height 0.2s ease-in !important;
-}
-
-.shop-chip.is-undoing .shop-qty-circle .qty-number {
-    transform: scale(1) translateY(0) !important;
+.shop-chip.is-undoing .shop-check-area .qty-number {
+    transform: scale(1) !important;
     opacity: 1 !important;
-    transition: all 0.2s ease-in !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
-.shop-chip.is-undoing .shop-qty-circle .check-icon {
-    transform: scale(0.5) translateY(10px) !important;
+.shop-chip.is-undoing .shop-check-area .check-svg {
     opacity: 0 !important;
+    transform: scale(0.5) !important;
     transition: all 0.2s ease-in !important;
 }
 
-.shop-qty-circle::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background-image: conic-gradient(from var(--glow-angle), var(--primary-color), var(--accent-color), var(--primary-color));
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: -1;
+.shop-chip.is-undoing .shop-check-area .check-path {
+    stroke-dashoffset: 25;
+    transition: stroke-dashoffset 0.2s ease-in !important;
 }
 
-.shop-chip.is-completing .shop-qty-circle::before {
-    width: 100%;
-    height: 100%;
-}
-
-.shop-chip.completed .shop-qty-circle::before {
-    width: 100%;
-    height: 100%;
-    animation: rotate-glow 3s linear infinite;
-}
-
-.shop-chip.is-completing .shop-qty-circle .qty-number {
-    transform: scale(0.5) translateY(-10px);
+.shop-chip.is-completing .shop-check-area .qty-number {
+    transform: scale(0.5);
     opacity: 0;
 }
 
-.shop-chip.is-completing .shop-qty-circle .check-icon {
-    transform: scale(1) translateY(0);
+.shop-chip.is-completing .shop-check-area .check-svg {
     opacity: 1;
+    transform: scale(1);
+}
+
+.shop-chip.is-completing .shop-check-area .check-path {
+    stroke-dashoffset: 0;
 }
 
 .spark-particle {
@@ -724,31 +688,44 @@ h1 {
     color: var(--text-muted) !important;
 }
 
-.shop-qty-circle .qty-number,
-.shop-qty-circle .check-icon {
+.shop-check-area .qty-number,
+.shop-check-area .check-svg {
     position: absolute;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.shop-qty-circle .qty-number {
-    transform: scale(1) translateY(0);
+.shop-check-area .qty-number {
+    transform: scale(1);
     opacity: 1;
+    font-size: 1.2rem;
+    font-weight: 700;
 }
 
-.shop-qty-circle .check-icon {
-    transform: scale(0.5) translateY(10px);
+.shop-check-area .check-svg {
+    width: 24px;
+    height: 24px;
     opacity: 0;
-    font-size: 0.7rem;
+    transform: scale(0.5);
+}
+
+.check-path {
+    stroke-dasharray: 25;
+    stroke-dashoffset: 25;
+    transition: stroke-dashoffset 0.3s ease-out;
 }
 
 .section-container .grocery-item.shop-chip.completed .qty-number {
-    transform: scale(0.5) translateY(-10px);
+    transform: scale(0.5);
     opacity: 0;
 }
 
-.section-container .grocery-item.shop-chip.completed .check-icon {
-    transform: scale(1) translateY(0);
+.section-container .grocery-item.shop-chip.completed .check-svg {
     opacity: 1;
+    transform: scale(1);
+}
+
+.section-container .grocery-item.shop-chip.completed .check-path {
+    stroke-dashoffset: 0;
 }
 
 .item-text {
@@ -2058,14 +2035,14 @@ h1 {
     cursor: default;
 }
 
-.shop-qty-circle {
+.shop-check-area {
     opacity: 0;
     visibility: hidden;
     transform: translate(-50%, -50%) scale(0.5);
     pointer-events: none;
 }
 
-.hide-drag-handles .shop-qty-circle {
+.hide-drag-handles .shop-check-area {
     opacity: 1;
     visibility: visible;
     transform: translate(-50%, -50%) scale(1);
