@@ -2429,6 +2429,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             toolbarMain.classList.add('hidden');
             toolbarNumpad.classList.remove('hidden');
             document.body.classList.add('numpad-open');
+
+            // Auto-scroll to ensure input is visible above the numpad
+            setTimeout(() => {
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 150);
         });
 
         input.addEventListener('blur', () => {
