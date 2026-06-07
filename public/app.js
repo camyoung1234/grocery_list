@@ -1206,6 +1206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectTheme(initialTheme || 'var(--theme-blue)');
             selectAccent(initialAccent || 'var(--theme-amber)');
             trueBlackToggle.checked = !!initialTrueBlack;
+            document.documentElement.classList.toggle('true-black', !!initialTrueBlack);
         } else {
             modalDisplayGroup.classList.add('hidden');
             modalThemeGroup.classList.add('hidden');
@@ -1244,6 +1245,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentDeleteActionCallback();
         }
         hideModal();
+    });
+
+    trueBlackToggle.addEventListener('change', () => {
+        document.documentElement.classList.toggle('true-black', trueBlackToggle.checked);
     });
 
     modalSaveBtn.addEventListener('click', () => {
