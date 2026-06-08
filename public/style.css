@@ -318,8 +318,8 @@ h1 {
     background: transparent;
     border-radius: 8px;
     font-family: inherit;
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 1.2rem;
+    font-weight: 700;
     outline: none;
     color: var(--primary-color);
 }
@@ -334,6 +334,8 @@ h1 {
     line-height: 1;
     padding: 0 !important;
     width: 100%;
+    font-size: 1.2rem;
+    font-weight: 700;
 }
 
 .add-section-input {
@@ -351,7 +353,7 @@ h1 {
     -webkit-text-fill-color: transparent;
     background-clip: text;
     animation: rotate-glow 3s linear infinite;
-    font-weight: 500;
+    font-weight: 700;
     opacity: 1;
 }
 
@@ -496,7 +498,7 @@ h1 {
 
 .item-info {
     flex: 1;
-    font-weight: 500;
+    font-weight: 700;
     display: flex;
     align-items: center;
     min-width: 0;
@@ -754,7 +756,8 @@ h1 {
     transition: var(--transition);
     position: relative;
     display: inline-block;
-    font-size: 1rem;
+    font-size: 1.2rem;
+    font-weight: 700;
     line-height: normal;
     padding: 0;
     flex-shrink: 1;
@@ -846,8 +849,8 @@ h1 {
 
 .item-edit-container>.inline-mirror-span {
     font-family: inherit;
-    font-size: 1rem;
-    font-weight: normal;
+    font-size: 1.2rem;
+    font-weight: 700;
     padding: 2px 6px;
     border: 1px solid transparent;
     line-height: 1.5rem;
@@ -855,8 +858,8 @@ h1 {
 
 .item-edit-container>.inline-edit-input {
     font-family: inherit;
-    font-size: 1rem;
-    font-weight: normal;
+    font-size: 1.2rem;
+    font-weight: 700;
     color: var(--text-color);
     background: transparent;
     border: 1px solid var(--primary-color);
