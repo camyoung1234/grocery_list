@@ -331,16 +331,16 @@ h1 {
 }
 
 .add-item-input {
-    line-height: 1.5rem;
-    padding: 3px 0 !important;
+    line-height: 1;
+    padding: 0 !important;
     width: 100%;
 }
 
 .add-section-input {
     font-size: 1.2rem;
     font-weight: 700;
-    padding: 3px 0 !important;
-    line-height: 1.5rem;
+    padding: 0 !important;
+    line-height: 1;
     margin: 0;
     width: 100%;
 }
@@ -755,8 +755,8 @@ h1 {
     position: relative;
     display: inline-block;
     font-size: 1rem;
-    line-height: 1.5rem;
-    padding: 3px 0;
+    line-height: normal;
+    padding: 0;
     flex-shrink: 1;
     min-width: 0;
 }
@@ -1468,9 +1468,8 @@ input:checked+.slider:before {
     color: var(--text-color);
     cursor: pointer;
     transition: var(--transition);
-    line-height: 1.5rem;
-    padding: 3px 0;
-    /* Add matching vertical space to compensate for input border/padding */
+    line-height: normal;
+    padding: 0;
     flex: 1;
 }
 
