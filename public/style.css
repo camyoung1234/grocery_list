@@ -1468,7 +1468,7 @@ input:checked+.slider:before {
     color: var(--text-color);
     cursor: pointer;
     transition: var(--transition);
-    line-height: 1;
+    line-height: normal;
     padding: 0;
     flex: 1;
 }
