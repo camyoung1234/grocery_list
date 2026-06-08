@@ -988,19 +988,17 @@ h1 {
 .qty-input {
     width: 48px;
     height: 32px;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    background: var(--input-bg);
+    border: none;
+    background: transparent;
     color: var(--text-color);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    font-size: 1rem;
+    font-size: 1.2rem;
     font-weight: 700;
     font-family: inherit;
     outline: none;
-    transition: border-color var(--transition);
     box-sizing: border-box;
     -moz-appearance: textfield;
     cursor: text;
@@ -1013,7 +1011,7 @@ h1 {
 }
 
 .qty-input:focus {
-    border-color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 .qty-input::selection {
@@ -2415,7 +2413,6 @@ input:checked+.slider:before {
     }
 }
 
-.qty-input:focus,
 .inline-item-input:focus,
 .inline-edit-input:focus,
 .inline-section-input:focus,
