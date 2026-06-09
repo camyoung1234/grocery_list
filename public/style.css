@@ -849,23 +849,34 @@ h1 {
     font-size: 1rem;
     font-weight: normal;
     padding: 2px 6px;
-    border: 1px solid transparent;
+    border: none;
     line-height: 1.5rem;
+    visibility: visible;
+    color: var(--primary-color);
+    pointer-events: none;
 }
 
 .item-edit-container>.inline-edit-input {
     font-family: inherit;
     font-size: 1rem;
     font-weight: normal;
-    color: var(--text-color);
+    color: transparent;
     background: transparent;
-    border: 1px solid var(--primary-color);
+    border: none;
     border-radius: 8px;
     padding: 2px 6px;
     outline: none;
     line-height: 1.5rem;
     box-sizing: border-box;
     height: calc(1.5rem + 6px);
+    caret-color: var(--primary-color);
+}
+
+.item-edit-container>.inline-edit-input:focus {
+    background: transparent !important;
+    border: none !important;
+    animation: none !important;
+    box-shadow: none !important;
 }
 
 .item-shop-badge {
@@ -1368,6 +1379,23 @@ input:checked+.slider:before {
     100% {
         transform: scale(1);
     }
+}
+
+@keyframes char-pop {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.char-pop {
+    display: inline-block;
+    animation: char-pop 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .qty-input.pop-animate {
