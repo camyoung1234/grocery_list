@@ -2375,6 +2375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         groceryList.querySelectorAll('.add-item-input, .add-section-input').forEach(applyManualSelection);
 
         newlyDeletedIds.clear();
+        adjustItemFontWidths();
     }
 
     let activeQtyInput = null;
@@ -3108,6 +3109,45 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     groceryList.addEventListener('dragend', handleDragEnd);
 
+    function adjustItemFontWidths() {
+        const itemTexts = groceryList.querySelectorAll('.item-text');
+        itemTexts.forEach(itemText => {
+            const itemInfo = itemText.closest('.item-info');
+            if (!itemInfo || itemText.closest('.undo-row')) return;
+
+            // Use getComputedStyle to ensure we have the most accurate layout info
+            const style = window.getComputedStyle(itemText);
+            if (style.display === 'none' || style.visibility === 'hidden') return;
+
+            // Reset to default to measure natural width
+            itemText.style.fontVariationSettings = "'wdth' 100";
+
+            // Use getBoundingClientRect for more precision if clientWidth is rounding
+            const containerWidth = itemInfo.getBoundingClientRect().width;
+
+            // Check if it actually overflows
+            if (itemText.scrollWidth <= containerWidth + 0.5) return;
+
+            // Binary search for the largest wdth (25-100) that fits
+            let low = 25;
+            let high = 100;
+            let optimalWidth = 25;
+
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                itemText.style.fontVariationSettings = `'wdth' ${mid}`;
+                // Using a small epsilon for subpixel layout issues
+                if (itemText.scrollWidth <= containerWidth + 0.5) {
+                    optimalWidth = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            itemText.style.fontVariationSettings = `'wdth' ${optimalWidth}`;
+        });
+    }
+
     function updateOrderInState(movedId, anchorId, targetSectionId, isAtEnd) {
         const currentList = getCurrentList();
         const isHome = currentMode === 'home';
@@ -3175,6 +3215,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             newSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
         }
     }
+
+    const resizeObserver = new ResizeObserver(() => {
+        adjustItemFontWidths();
+    });
+    resizeObserver.observe(groceryList);
 
     init();
 });

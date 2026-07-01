@@ -759,6 +759,10 @@ h1 {
     padding: 0;
     flex-shrink: 1;
     min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    font-variation-settings: 'wdth' 100;
 }
 
 
@@ -2385,6 +2389,8 @@ input:checked+.slider:before {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
+    width: 0;
+    min-width: 0;
     }
 
 
