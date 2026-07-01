@@ -527,7 +527,7 @@ h1 {
 
 /* Shop Mode Content */
 .section-items-list.shop-mode {
-    padding-left: 0;
+    padding-left: 1rem;
     display: flex;
     flex-direction: column;
     gap: 0;
