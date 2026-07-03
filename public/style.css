@@ -1773,7 +1773,7 @@ input:checked+.slider:before {
     z-index: 1000;
     box-sizing: border-box;
     transition: padding 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
+    overflow: visible;
     display: grid;
     align-items: center;
 }
@@ -1797,7 +1797,7 @@ input:checked+.slider:before {
     transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s;
     max-height: 100px;
     opacity: 1;
-    overflow: hidden;
+    overflow: visible;
     visibility: visible;
 }
 
@@ -2385,6 +2385,8 @@ input:checked+.slider:before {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
+    width: 0;
+    min-width: 0;
     }
 
 
