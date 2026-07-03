@@ -2,6 +2,8 @@ const { mockFirebase, setMockState } = require('./mockFirebase');
 const { test, expect } = require('@playwright/test');
 
 test('verify indentation behavior', async ({ page }) => {
+  await mockFirebase(page);
+  await page.goto('/');
 
   await page.waitForSelector('.bottom-toolbar');
 
@@ -99,6 +101,7 @@ await setMockState(page, { ...state, mode: 'home', editMode: true });
 
   console.log(`Shop Edit ON - Section Title X: ${shopSectionX_EditOn}, Item Text X: ${shopItemX_EditOn}`);
 
-  // Both should align when editing (drag handles visible)
-  expect(Math.abs(shopSectionX_EditOn - shopItemX_EditOn)).toBeLessThanOrEqual(1);
+  // Shop items should be indented even in edit mode (1rem = 16px)
+  expect(shopItemX_EditOn).toBeGreaterThan(shopSectionX_EditOn);
+  expect(Math.abs(shopItemX_EditOn - shopSectionX_EditOn - 16)).toBeLessThanOrEqual(2);
 });
