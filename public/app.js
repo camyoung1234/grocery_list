@@ -948,6 +948,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             editMode = !editMode;
             saveMode();
             updateModeUI();
+            renderList();
 
             // Maintain scroll position for the top row
             if (topRow) {
@@ -1940,27 +1941,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             sameNameItems.forEach(i => i.wantCount = newWant);
             saveAppState();
 
-            sameNameItems.forEach(i => {
-                const stepper = document.querySelector(`.grocery-item[data-id="${i.id}"] .want-stepper`);
-                if (stepper) {
-                    const input = stepper.querySelector('.qty-input');
-                    if (input) {
-                        if (input.tagName === 'INPUT') input.value = i.wantCount;
-                        else input.textContent = i.wantCount;
-                        input.classList.remove('pop-animate');
-                        void input.offsetWidth;
-                        input.classList.add('pop-animate');
+            if (currentMode === 'shop' && !editMode) {
+                renderList();
+            } else {
+                sameNameItems.forEach(i => {
+                    const stepper = document.querySelector(`.grocery-item[data-id="${i.id}"] .want-stepper`);
+                    if (stepper) {
+                        const input = stepper.querySelector('.qty-input');
+                        if (input) {
+                            if (input.tagName === 'INPUT') input.value = i.wantCount;
+                            else input.textContent = i.wantCount;
+                            input.classList.remove('pop-animate');
+                            void input.offsetWidth;
+                            input.classList.add('pop-animate');
+                        }
                     }
-                }
-                const circle = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-check-area`);
-                if (circle) {
-                    const qtyNum = circle.querySelector('.qty-number');
-                    if (qtyNum) {
-                        const toBuy = Math.max(0, i.wantCount - i.haveCount);
-                        qtyNum.textContent = toBuy;
+                    const circle = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-check-area`);
+                    if (circle) {
+                        const qtyNum = circle.querySelector('.qty-number');
+                        if (qtyNum) {
+                            const toBuy = Math.max(0, i.wantCount - i.haveCount);
+                            qtyNum.textContent = toBuy;
+                        }
                     }
-                }
-            });
+                });
+            }
 
             return;
         }
@@ -2213,7 +2218,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 sectionItems = [];
                 groupedMap.forEach(group => {
                     if (nameToSection.get(group.text) === section.id) {
-                        sectionItems.push(group);
+                        // In shop mode, hide items with 0 quantity to buy unless editing
+                        const toBuy = Math.max(0, group.wantCount - group.haveCount);
+                        if (editMode || toBuy > 0) {
+                            sectionItems.push(group);
+                        }
                     }
                 });
 
