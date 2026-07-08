@@ -60,6 +60,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectionRenderTimeout = null;
     let unsubscribeFirestore = null;
 
+    let longPressTimer = null;
+    let longPressTarget = null;
+    let longPressType = null;
+    let longPressStartX = 0;
+    let longPressStartY = 0;
+
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
     const appContainer = document.querySelector('.app-container');
@@ -357,17 +363,111 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleDragStart(e, li, type);
     });
 
-    groceryList.addEventListener('touchstart', (e) => {
+    const cancelLongPressDrag = () => {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+        longPressTarget = null;
+        longPressType = null;
+    };
+
+    const handlePressStart = (e) => {
         const target = e.target;
         const handle = target.closest('.drag-handle');
-        if (!handle) return;
+        const touch = e.type === 'touchstart' ? e.touches[0] : e;
 
-        const li = handle.closest('li.grocery-item, li.section-container');
-        if (!li) return;
+        if (handle) {
+            const li = handle.closest('li.grocery-item, li.section-container');
+            if (li) {
+                const type = li.classList.contains('section-container') ? 'section' : 'item';
+                if (e.type === 'touchstart') {
+                    handleTouchStart(e, li, type);
+                }
+                return;
+            }
+        }
 
-        const type = li.classList.contains('section-container') ? 'section' : 'item';
-        handleTouchStart(e, li, type);
+        // Long press support for home mode
+        if (currentMode === 'home') {
+            const li = target.closest('.grocery-item, .section-header');
+            if (li && !target.closest('button') && !target.closest('input') && !target.closest('.qty-input')) {
+                const element = li.classList.contains('section-header') ? li.closest('.section-container') : li;
+                if (!element) return;
+
+                const type = element.classList.contains('section-container') ? 'section' : 'item';
+
+                cancelLongPressDrag();
+                longPressTarget = element;
+                longPressType = type;
+                longPressStartX = touch.clientX;
+                longPressStartY = touch.clientY;
+
+                longPressTimer = setTimeout(() => {
+                    if (longPressTarget === element) {
+                        const initialRect = element.getBoundingClientRect();
+                        createDragVisual(touch, element, type, initialRect);
+                        handleDragStart(e, element, type, initialRect, true);
+                        cancelLongPressDrag();
+                    }
+                }, 500);
+            }
+        }
+    };
+
+    groceryList.addEventListener('touchstart', (e) => {
+        handlePressStart(e);
     }, { passive: false });
+
+    groceryList.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        handlePressStart(e);
+    });
+
+    const handlePressMove = (e) => {
+        if (!longPressTarget) return;
+        const touch = e.type === 'touchmove' ? e.touches[0] : e;
+        const dist = Math.abs(touch.clientX - longPressStartX) + Math.abs(touch.clientY - longPressStartY);
+        if (dist > 10) {
+            cancelLongPressDrag();
+        }
+    };
+
+    groceryList.addEventListener('touchmove', (e) => {
+        handlePressMove(e);
+        if (isDragStarted) {
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            if (e.cancelable) e.preventDefault();
+        }
+    }, { passive: false });
+
+    groceryList.addEventListener('mousemove', (e) => {
+        handlePressMove(e);
+        if (isDragStarted) {
+            handleMove(e.clientX, e.clientY);
+        }
+    });
+
+    groceryList.addEventListener('touchend', (e) => {
+        cancelLongPressDrag();
+        if (isDragStarted) {
+            handleDragEnd(true);
+        }
+    });
+
+    groceryList.addEventListener('touchcancel', (e) => {
+        cancelLongPressDrag();
+        if (isDragStarted) {
+            handleDragEnd(false);
+        }
+    });
+
+    groceryList.addEventListener('mouseup', (e) => {
+        cancelLongPressDrag();
+        if (isDragStarted) {
+            handleDragEnd(true);
+        }
+    });
 
     // Toolbar Elements
     const toolbarSyncBtn = document.getElementById('toolbar-sync');
@@ -2546,8 +2646,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         groceryList.appendChild(document.querySelector('.add-section-row'));
     }
 
-    function handleDragStart(e, element, type) {
-        if (!editMode && !element.classList.contains("show-controls")) {
+    function handleDragStart(e, element, type, initialRect = null, isLongPress = false) {
+        if (!isLongPress && !editMode && !element.classList.contains("show-controls")) {
             e.preventDefault();
             return;
         }
@@ -2752,67 +2852,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     groceryList.addEventListener('dragover', (e) => {
         e.preventDefault();
-        if (!draggedElement || !isDragStarted) return;
-
-        if (touchGhost) {
-            touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
+        if (isDragStarted) {
+            handleMove(e.clientX, e.clientY);
         }
-
-        updateAutoScroll(e.clientY);
-
-        if (reorderUpdateFrame) return;
-        reorderUpdateFrame = requestAnimationFrame(() => {
-            reorderUpdateFrame = null;
-            if (!draggedElement) return;
-
-            let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
-
-            // For desktop dragover, ALWAYS use center point for target detection to match touch behavior
-            // and solve edge/gutter glitches.
-            const listRect = groceryList.getBoundingClientRect();
-            const centerX = listRect.left + listRect.width / 2;
-            const viewportY = Math.max(0, Math.min(window.innerHeight - 1, e.clientY));
-            const elAtCenter = document.elementFromPoint(centerX, viewportY);
-            let target = elAtCenter ? elAtCenter.closest(targetSelector) : null;
-
-            if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
-
-            if (dragType === 'item') {
-                // Use offsetTop to get the stable layout position, avoiding jitter from active animations
-                const listRect = groceryList.getBoundingClientRect();
-                const relativeY = e.clientY - listRect.top + window.scrollY;
-                const midpoint = target.offsetTop + target.offsetHeight / 2;
-                let isBefore = relativeY < midpoint;
-                
-                if (target.classList.contains('add-item-row')) isBefore = true;
-                if (target.classList.contains('section-header')) isBefore = false;
-
-                if (target.classList.contains('add-section-row')) {
-                    target = target.previousElementSibling;
-                    while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
-                    if (!target) return;
-                    isBefore = true;
-                }
-
-                animatePlaceholderMove(target, isBefore);
-            } else {
-                // Section reordering: Prevent dropping below "Add section" row
-                if (target.classList.contains('add-section-row')) {
-                    // Do nothing - the placeholder shouldn't move to/below the stationary delete target
-                } else {
-                    const rect = target.getBoundingClientRect();
-                    const midpoint = rect.top + rect.height / 2;
-                    let isBefore = e.clientY < midpoint;
-
-                    // Shop Mode anchor: Cannot drop before Uncategorized
-                    if (currentMode !== 'home' && target.dataset.id === shopDefId && isBefore) {
-                        isBefore = false; // Force snap AFTER
-                    }
-
-                    animatePlaceholderMove(target, isBefore);
-                }
-            }
-        });
     });
 
     groceryList.addEventListener('drop', (e) => {
@@ -2918,21 +2960,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleDragStart(e, element, type, initialRect);
     }
 
-    groceryList.addEventListener('touchmove', (e) => {
-        if (!draggedElement || !isDragStarted) return;
-        const touch = e.touches[0];
+    function handleMove(clientX, clientY) {
+        if (!isDragStarted) return;
 
         if (touchGhost) {
-            touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
+            touchGhost.style.top = (clientY - dragOffset.y) + 'px';
         }
 
-        updateAutoScroll(touch.clientY);
+        updateAutoScroll(clientY);
 
-        // Prevent scrolling during drag
-        if (e.cancelable) e.preventDefault();
-
-
-        requestAnimationFrame(() => {
+        if (reorderUpdateFrame) return;
+        reorderUpdateFrame = requestAnimationFrame(() => {
+            reorderUpdateFrame = null;
             if (!draggedElement) return;
 
             // Disable pointer events so we can detect target behind it
@@ -2942,7 +2981,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const listRect = groceryList.getBoundingClientRect();
             const centerX = listRect.left + listRect.width / 2;
-            let target = document.elementFromPoint(centerX, touch.clientY);
+            let target = document.elementFromPoint(centerX, clientY);
 
             draggedElement.style.pointerEvents = originalPointerEvents;
             if (touchGhost) touchGhost.style.pointerEvents = '';
@@ -2955,7 +2994,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (dragType === 'item') {
                 const rect = target.getBoundingClientRect();
                 const midpoint = rect.top + rect.height / 2;
-                let isBefore = touch.clientY < midpoint;
+                let isBefore = clientY < midpoint;
 
                 if (target.classList.contains('add-item-row')) isBefore = true;
                 if (target.classList.contains('section-header')) isBefore = false;
@@ -2975,7 +3014,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     const rect = target.getBoundingClientRect();
                     const midpoint = rect.top + rect.height / 2;
-                    let isBefore = touch.clientY < midpoint;
+                    let isBefore = clientY < midpoint;
 
                     // Shop Mode anchor: Cannot drop before Uncategorized
                     if (currentMode !== 'home' && target.dataset.id === shopDefId && isBefore) {
@@ -2986,15 +3025,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         });
-    }, { passive: false });
-
-    groceryList.addEventListener('touchend', (e) => {
-        if (!draggedElement) return;
-
-        // Reuse drop logic
-        const dropEvent = new Event('drop');
-        groceryList.dispatchEvent(dropEvent);
-    });
+    }
 
     function handleDragEnd(wasDropped = false) {
         const el = draggedElement;
