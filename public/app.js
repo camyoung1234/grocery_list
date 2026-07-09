@@ -2335,8 +2335,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (isHome) {
                     li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn" aria-label="Delete item"><i class="fas fa-times"></i></button>`;
-                    const controls = li.querySelector('.quantity-controls');
-                    controls.appendChild(createQtyStepper(item, 'have'));
+                    const leftAction = li.querySelector('.left-action');
+                    leftAction.appendChild(createQtyStepper(item, 'have'));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-check-area"><span class="qty-number">${toBuy}</span><svg class="check-svg" viewBox="0 0 24 24"><path class="check-path" d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;

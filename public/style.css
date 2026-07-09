@@ -513,6 +513,19 @@ h1 {
     min-width: 48px;
     /* Fix width to enable transition */
     opacity: 1;
+}
+
+.home-mode:not(.hide-drag-handles) .quantity-controls {
+    width: 0;
+    min-width: 0;
+}
+
+/* Home mode stepper is on the left now, but we must ensure it doesn't overlap text when hidden */
+.home-mode .left-action {
+    z-index: 210;
+}
+
+.quantity-controls {
     overflow: visible;
     position: relative;
     z-index: 200;
@@ -983,6 +996,24 @@ h1 {
 
 .home-mode.hide-drag-handles .have-stepper {
     display: flex;
+}
+
+.left-action .have-stepper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+}
+
+.hide-drag-handles .left-action .have-stepper {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
 }
 
 .shop-mode:not(.hide-drag-handles) .want-stepper {
@@ -2031,7 +2062,8 @@ input:checked+.slider:before {
     visibility: visible !important;
 }
 
-.grocery-item.show-controls .quantity-controls {
+.grocery-item.show-controls .quantity-controls,
+.grocery-item.show-controls .have-stepper {
     opacity: 0 !important;
     pointer-events: none !important;
     visibility: hidden !important;
@@ -2385,7 +2417,9 @@ input:checked+.slider:before {
 .home-mode:not(.hide-drag-handles) .grocery-item .quantity-controls,
 .touch-ghost.home-mode:not(.hide-drag-handles) .quantity-controls,
 .shop-mode.hide-drag-handles .grocery-item .quantity-controls,
-.touch-ghost.shop-mode.hide-drag-handles .quantity-controls {
+.touch-ghost.shop-mode.hide-drag-handles .quantity-controls,
+.home-mode:not(.hide-drag-handles) .grocery-item .have-stepper,
+.touch-ghost.home-mode:not(.hide-drag-handles) .have-stepper {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
@@ -2464,7 +2498,8 @@ input:checked+.slider:before {
 .is-dragging .move-here-btn {
     }
 
-.is-dragging .quantity-controls {
+.is-dragging .quantity-controls,
+.is-dragging .have-stepper {
     opacity: 1 !important;
     pointer-events: auto !important;
     visibility: visible !important;
@@ -2490,6 +2525,7 @@ input:checked+.slider:before {
 .is-dragging .section-header,
 .is-dragging .section-container,
 .is-dragging .quantity-controls,
+.is-dragging .have-stepper,
 .is-dragging .drag-handle,
 .is-dragging .item-delete-btn,
 .is-dragging .section-actions,
