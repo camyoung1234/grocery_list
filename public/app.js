@@ -1586,8 +1586,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.className = 'inline-edit-input';
         applyManualSelection(input);
 
+        let lastValue = item.text;
         const syncMirror = () => {
-            mirror.textContent = input.value || ' ';
+            const val = input.value;
+            let html = '';
+            for (let i = 0; i < val.length; i++) {
+                const char = val[i];
+                const isNew = i >= lastValue.length || char !== lastValue[i];
+                const charHtml = char === ' ' ? '&nbsp;' : escapeHTML(char);
+                if (isNew) {
+                    html += `<span class="char-pop">${charHtml}</span>`;
+                } else {
+                    html += `<span>${charHtml}</span>`;
+                }
+            }
+            if (val === '') html = '&nbsp;';
+            mirror.innerHTML = html;
+            lastValue = val;
         };
         input.addEventListener('input', syncMirror);
         syncMirror(); // Initial sync
