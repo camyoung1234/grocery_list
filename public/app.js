@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { parseVoiceCommand, matchGroceryItems } from "./voice.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA8hTcqZ_I3zIsSC9Vq_XEg6T6KWaUav20",
@@ -59,6 +60,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
     let selectionRenderTimeout = null;
     let unsubscribeFirestore = null;
+    let searchQuery = '';
+    let voiceBarOpen = false;
+    let voiceSubMode = 'smart'; // 'smart' | 'walk'
+    let voiceListening = false;
+    let speechRecognition = null;
+    let walkCursorId = null;
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -67,6 +74,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bottomToolbar = document.querySelector('.bottom-toolbar');
     const toolbarMain = document.getElementById('toolbar-main');
     const toolbarNumpad = document.getElementById('toolbar-numpad');
+    const modeHeaderTitle = document.getElementById('mode-header-title');
+    const modeHeaderBadge = document.getElementById('mode-header-badge');
+    const quickAddToggleBtn = document.getElementById('quick-add-toggle-btn');
+    const quickSearchWrap = document.getElementById('quick-search-wrap');
+    const quickSearchInput = document.getElementById('quick-search-input');
+    const quickSearchClear = document.getElementById('quick-search-clear');
+    const homeColumnsHeader = document.getElementById('home-columns-header');
+    const selectionBar = document.getElementById('selection-bar');
+    const selectionCountText = document.getElementById('selection-count-text');
+    const selectionDeleteBtn = document.getElementById('selection-delete-btn');
+    const selectionClearBtn = document.getElementById('selection-clear-btn');
+    const voiceBar = document.getElementById('voice-bar');
+    const toolbarVoiceBtn = document.getElementById('toolbar-voice');
+    const voiceMicToggle = document.getElementById('voice-mic-toggle');
+    const voiceCloseBtn = document.getElementById('voice-close-btn');
+    const voiceStatus = document.getElementById('voice-status');
+    const voiceSuggestions = document.getElementById('voice-suggestions');
+    const voiceTextForm = document.getElementById('voice-text-form');
+    const voiceTextInput = document.getElementById('voice-text-input');
+    const quickAddModalOverlay = document.getElementById('quick-add-modal-overlay');
+    const quickAddForm = document.getElementById('quick-add-form');
+    const quickAddNameInput = document.getElementById('quick-add-name');
+    const quickAddHaveInput = document.getElementById('quick-add-have');
+    const quickAddWantInput = document.getElementById('quick-add-want');
+    const quickAddHomeSelect = document.getElementById('quick-add-home-section');
+    const quickAddShopSelect = document.getElementById('quick-add-shop-section');
+    const quickAddCancelBtn = document.getElementById('quick-add-cancel-btn');
 
     // --- Intersection Observer for Performance ---
     const inViewportSet = new Set();
@@ -119,21 +153,55 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Move Here (Shop Selection Mode)
+        // Section Sort A-Z
+        const sortAzBtn = target.closest('.section-sort-az-btn');
+        if (sortAzBtn) {
+            e.stopPropagation();
+            const container = sortAzBtn.closest('.section-container');
+            if (container) sortSectionAlphabetically(container.dataset.id, currentMode === 'home');
+            return;
+        }
+
+        // Section Move Up / Down
+        const moveUpBtn = target.closest('.section-move-up-btn');
+        if (moveUpBtn) {
+            e.stopPropagation();
+            const container = moveUpBtn.closest('.section-container');
+            if (container) moveSectionByOffset(container.dataset.id, -1, currentMode === 'home');
+            return;
+        }
+        const moveDownBtn = target.closest('.section-move-down-btn');
+        if (moveDownBtn) {
+            e.stopPropagation();
+            const container = moveDownBtn.closest('.section-container');
+            if (container) moveSectionByOffset(container.dataset.id, 1, currentMode === 'home');
+            return;
+        }
+
+        // Move Here (Selection Mode in Home or Shop)
         const moveHereBtn = target.closest('.move-here-btn');
         if (moveHereBtn) {
             e.stopPropagation();
             const container = moveHereBtn.closest('.section-container');
             if (selectedShopItems.size > 0 && container) {
                 const currentList = getCurrentList();
+                const isHome = currentMode === 'home';
+                const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+                const indexKey = isHome ? 'homeIndex' : 'shopIndex';
+                const targetSecId = container.dataset.id;
+
+                let maxIdx = currentList.items
+                    .filter(i => i[sectionIdKey] === targetSecId)
+                    .reduce((max, i) => Math.max(max, i[indexKey] || 0), -1);
+
                 currentList.items.forEach(item => {
                     if (selectedShopItems.has(item.id)) {
-                        item.shopSectionId = container.dataset.id;
+                        item[sectionIdKey] = targetSecId;
+                        item[indexKey] = ++maxIdx;
                     }
                 });
                 saveAppState();
-                shopSelectionMode = false;
-                selectedShopItems.clear();
+                clearSelection();
                 renderList();
             }
             return;
@@ -178,6 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Manual DOM updates to trigger CSS transitions immediately
                 shopChip.classList.toggle('selected', !wasSelected);
                 groceryList.classList.toggle('shop-selection-mode', shopSelectionMode);
+                updateSelectionBar();
 
                 // Update neighbors for rounded corners (sel-top/sel-bottom)
                 const neighbors = [shopChip, shopChip.previousElementSibling, shopChip.nextElementSibling];
@@ -209,27 +278,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Single tap to show controls in Home mode when NOT in global editMode
+        // Home Mode item tap handling (Edit Mode multi-select, Walk List cursor, or non-edit show-controls)
         const groceryItem = target.closest('.grocery-item');
-        if (groceryItem && !editMode && currentMode === 'home' && !groceryItem.classList.contains('add-item-row')) {
+        if (groceryItem && currentMode === 'home' && !groceryItem.classList.contains('add-item-row') && !groceryItem.classList.contains('add-section-row') && !groceryItem.classList.contains('undo-row')) {
             const id = groceryItem.dataset.id;
             const item = getCurrentList().items.find(i => i.id === id);
             if (!item) return;
 
-            // If item text clicked while controls are already shown, start inline edit
-            const isTextClick = target.classList.contains('item-text');
-            if (isTextClick && groceryItem.classList.contains('show-controls')) {
+            if (editMode && !target.closest('.drag-handle') && !target.closest('.item-delete-btn') && !target.closest('.inline-edit-input')) {
                 e.stopPropagation();
-                startInlineItemEdit(item, groceryItem.querySelector('.item-info'), target);
+                toggleItemSelection(id, groceryItem);
                 return;
             }
 
-            // Otherwise, just toggle controls
-            if (!groceryItem.classList.contains('show-controls')) {
-                e.stopPropagation();
-                // Deactivate others
-                groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
-                groceryItem.classList.add('show-controls');
+            if (voiceBarOpen && voiceSubMode === 'walk' && !target.closest('.qty-input') && !target.closest('.item-delete-btn')) {
+                walkCursorId = id;
+                updateWalkHighlight();
+                return;
+            }
+
+            if (!editMode) {
+                // If item text clicked while controls are already shown, start inline edit
+                const isTextClick = target.classList.contains('item-text');
+                if (isTextClick && groceryItem.classList.contains('show-controls')) {
+                    e.stopPropagation();
+                    startInlineItemEdit(item, groceryItem.querySelector('.item-info'), target);
+                    return;
+                }
+
+                // Otherwise, just toggle controls
+                if (!groceryItem.classList.contains('show-controls')) {
+                    e.stopPropagation();
+                    // Deactivate others
+                    groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
+                    groceryItem.classList.add('show-controls');
+                }
             }
         }
     });
@@ -752,9 +835,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 saveAppState();
             }
 
-            // Clear shop selection mode on any mode switch
-            shopSelectionMode = false;
-            selectedShopItems.clear();
+            // Clear selection mode & voice bar on any mode switch
+            clearSelection();
+            if (newMode !== 'home' && voiceBarOpen) {
+                toggleVoiceBar(false);
+            }
 
             currentMode = newMode;
             saveMode();
@@ -1909,12 +1994,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderList();
     }
 
+    function updateTotalBadgesForItem(id) {
+        const sameNameItems = precomputedSameNameItems.get(id) || [];
+        if (sameNameItems.length <= 1) return;
+        const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
+        const want = sameNameItems[0].wantCount;
+        sameNameItems.forEach(i => {
+            const badge = document.querySelector(`.grocery-item[data-id="${i.id}"] .total-badge`);
+            if (badge) {
+                badge.textContent = `∑ ${totalHave}/${want}`;
+                badge.classList.toggle('stocked', totalHave >= want);
+                badge.classList.toggle('needed', totalHave < want);
+            }
+        });
+    }
+
     function setHave(id, value) {
         const currentList = getCurrentList();
         const item = currentList.items.find(i => i.id === id);
         if (item) {
             item.haveCount = Math.max(0, parseInt(value) || 0);
             saveAppState();
+            updateTotalBadgesForItem(id);
+            updateHeaderSummary();
             // Optimization: Update only the relevant input if possible
             const stepper = document.querySelector(`.grocery-item[data-id="${id}"] .have-stepper`);
             if (stepper) {
@@ -1940,6 +2042,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const newWant = Math.max(0, parseInt(value) || 0);
             sameNameItems.forEach(i => i.wantCount = newWant);
             saveAppState();
+            updateTotalBadgesForItem(id);
+            updateHeaderSummary();
 
             if (currentMode === 'shop' && !editMode) {
                 renderList();
@@ -2013,6 +2117,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             toolbarClearShopBtn.style.display = currentMode === 'shop' ? 'flex' : 'none';
         }
 
+        if (toolbarVoiceBtn) {
+            toolbarVoiceBtn.style.display = currentMode === 'home' ? 'flex' : 'none';
+            toolbarVoiceBtn.classList.toggle('active', voiceBarOpen && currentMode === 'home');
+        }
+
         if (toolbarReorderBtn) {
             toolbarReorderBtn.classList.toggle('active', editMode);
             toolbarReorderBtn.title = editMode ? 'Exit Edit Mode' : 'Enter Edit Mode';
@@ -2025,6 +2134,47 @@ document.addEventListener('DOMContentLoaded', async () => {
             appContainer.classList.toggle('hide-drag-handles', !editMode);
             appContainer.classList.toggle('home-mode', isHome);
             appContainer.classList.toggle('shop-mode', !isHome);
+        }
+
+        if (quickAddToggleBtn) {
+            quickAddToggleBtn.classList.toggle('hidden', !isHome);
+        }
+        if (quickSearchWrap) {
+            quickSearchWrap.classList.toggle('hidden', !isHome);
+        }
+        if (homeColumnsHeader) {
+            homeColumnsHeader.classList.toggle('hidden', !isHome || editMode);
+        }
+        updateHeaderSummary();
+    }
+
+    function updateHeaderSummary() {
+        const currentList = getCurrentList();
+        const isHome = currentMode === 'home';
+        if (modeHeaderTitle) {
+            modeHeaderTitle.textContent = isHome ? 'Home Inventory' : 'Shopping List';
+        }
+        if (!modeHeaderBadge || !currentList) return;
+
+        if (isHome) {
+            const count = currentList.items.filter(i => !i.pendingDelete).length;
+            modeHeaderBadge.textContent = `${count} item${count === 1 ? '' : 's'}`;
+        } else {
+            // Count unique items to buy
+            const grouped = new Map();
+            currentList.items.forEach(item => {
+                if (item.pendingDelete) return;
+                const name = item.text.trim();
+                const g = grouped.get(name) || { have: 0, want: item.wantCount };
+                g.have += item.haveCount;
+                g.want = item.wantCount;
+                grouped.set(name, g);
+            });
+            let toBuyCount = 0;
+            grouped.forEach(g => {
+                if (g.want - g.have > 0) toBuyCount++;
+            });
+            modeHeaderBadge.textContent = toBuyCount === 0 ? 'All stocked' : `${toBuyCount} to buy`;
         }
     }
 
@@ -2167,11 +2317,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sections = currentList[sectionsKey] || [];
 
         // Toggle global reorder/selection classes
-        if (!isHome && shopSelectionMode) {
+        if (shopSelectionMode) {
             groceryList.classList.add('shop-selection-mode');
         } else {
             groceryList.classList.remove('shop-selection-mode');
         }
+
+        const activeSearch = isHome ? searchQuery.trim().toLowerCase() : '';
 
 
         // Pre-group items for shop mode
@@ -2208,11 +2360,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        sections.forEach((section) => {
+        let totalVisibleStoreItems = 0;
+
+        sections.forEach((section, secIdx) => {
             // items for this section 
             let sectionItems;
             if (isHome) {
                 sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
+                if (activeSearch) {
+                    sectionItems = sectionItems.filter(i => i.text.toLowerCase().includes(activeSearch));
+                    if (sectionItems.length === 0) return;
+                }
             } else {
                 // Filter groups for this section
                 sectionItems = [];
@@ -2232,6 +2390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         sectionItems.push(item);
                     }
                 });
+                totalVisibleStoreItems += sectionItems.length;
             }
 
 
@@ -2246,19 +2405,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             header.className = 'section-header';
 
             const canRename = isHome || section.id !== shopDefId;
+            const canMoveUp = canRename && (isHome ? secIdx > 0 : secIdx > 1);
+            const canMoveDown = canRename && secIdx < sections.length - 1;
             const dragHandleHTML = canRename
                 ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
                 : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
+
+            const sortAzHTML = `<button class="section-sort-az-btn" title="Sort section A-Z" aria-label="Sort ${escapeHTML(section.name)} alphabetically"><i class="fas fa-arrow-down-a-z"></i></button>`;
+            const moveUpHTML = canRename
+                ? `<button class="section-move-up-btn" ${canMoveUp ? '' : 'disabled'} title="Move section up" aria-label="Move ${escapeHTML(section.name)} up"><i class="fas fa-chevron-up"></i></button>`
+                : '';
+            const moveDownHTML = canRename
+                ? `<button class="section-move-down-btn" ${canMoveDown ? '' : 'disabled'} title="Move section down" aria-label="Move ${escapeHTML(section.name)} down"><i class="fas fa-chevron-down"></i></button>`
+                : '';
 
             const sectionDeleteHTML = canRename
                 ? `<button class="section-delete-btn" aria-label="Delete section"><i class="fas fa-times"></i></button>`
                 : '';
 
-            const moveHereHTML = !isHome
-                ? `<button class="move-here-btn" aria-label="Move selected items here"><i class="fas fa-level-down-alt"></i></button>`
-                : '';
+            const moveHereHTML = `<button class="move-here-btn" aria-label="Move selected items here"><i class="fas fa-level-down-alt"></i></button>`;
 
-            header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sectionDeleteHTML}${moveHereHTML}</div>`;
+            header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sortAzHTML}${moveUpHTML}${moveDownHTML}${sectionDeleteHTML}${moveHereHTML}</div>`;
 
             sectionLi.appendChild(header);
 
@@ -2288,7 +2455,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (isAnimating === 'undoing') li.classList.add('is-undoing');
 
 
-                if (!isHome && !item.pendingDelete) {
+                if (!item.pendingDelete && (editMode || !isHome)) {
                     const isSelected = selectedShopItems.has(item.id);
                     if (isSelected) {
                         li.classList.add('selected');
@@ -2297,6 +2464,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (prevItem && selectedShopItems.has(prevItem.id)) li.classList.add('sel-top');
                         if (nextItem && selectedShopItems.has(nextItem.id)) li.classList.add('sel-bottom');
                     }
+                }
+
+                if (isHome && voiceBarOpen && voiceSubMode === 'walk' && walkCursorId === item.id) {
+                    li.classList.add('voice-active-row');
                 }
 
                 if (isSectionRestoration) li.classList.add('restoring-item');
@@ -2334,13 +2505,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 li.dataset.sectionId = section.id;
 
                 if (isHome) {
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div><button class="item-delete-btn" aria-label="Delete item"><i class="fas fa-times"></i></button>`;
+                    const sameNameItems = precomputedSameNameItems.get(item.id) || [item];
+                    let totalBadgeHTML = '';
+                    if (sameNameItems.length > 1) {
+                        const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
+                        const statusClass = totalHave >= item.wantCount ? 'stocked' : 'needed';
+                        totalBadgeHTML = `<span class="total-badge ${statusClass}" title="Total across ${sameNameItems.length} locations">∑ ${totalHave}/${item.wantCount}</span>`;
+                    }
+                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span>${totalBadgeHTML}</div><div class="quantity-controls"></div><button class="item-delete-btn" aria-label="Delete item"><i class="fas fa-times"></i></button>`;
                     const controls = li.querySelector('.quantity-controls');
                     controls.appendChild(createQtyStepper(item, 'have'));
+                    controls.appendChild(createQtyStepper(item, 'want'));
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-check-area"><span class="qty-number">${toBuy}</span><svg class="check-svg" viewBox="0 0 24 24"><path class="check-path" d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
-                    li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
                 }
 
                 itemsUl.appendChild(li);
@@ -2362,6 +2540,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             fragment.appendChild(sectionLi);
         });
 
+
+        if (!isHome && !editMode && totalVisibleStoreItems === 0) {
+            const emptyState = document.createElement('li');
+            emptyState.className = 'store-empty-state';
+            emptyState.innerHTML = `<i class="fas fa-check-circle" aria-hidden="true"></i><div class="empty-title">All stocked up!</div><div class="empty-sub">Switch to Home mode to update inventory or desired quantities.</div>`;
+            fragment.appendChild(emptyState);
+        }
 
         // Add "Add a section..." element at the bottom
         const addSecRow = document.createElement('li');
@@ -2385,6 +2570,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         newlyDeletedIds.clear();
         adjustItemFontWidths();
+        updateHeaderSummary();
+        updateSelectionBar();
     }
 
     let activeQtyInput = null;
@@ -3229,6 +3416,539 @@ document.addEventListener('DOMContentLoaded', async () => {
         adjustItemFontWidths();
     });
     resizeObserver.observe(groceryList);
+
+    // --- Selection, Quick Sort, Quick Search, Quick Add & Voice Mode ---
+
+    function clearSelection() {
+        shopSelectionMode = false;
+        selectedShopItems.clear();
+        groceryList.classList.remove('shop-selection-mode');
+        groceryList.querySelectorAll('.grocery-item.selected').forEach(el => {
+            el.classList.remove('selected', 'sel-top', 'sel-bottom');
+        });
+        updateSelectionBar();
+    }
+
+    function toggleItemSelection(id, rowEl) {
+        const wasSelected = selectedShopItems.has(id);
+        if (wasSelected) {
+            selectedShopItems.delete(id);
+            if (selectedShopItems.size === 0) shopSelectionMode = false;
+        } else {
+            shopSelectionMode = true;
+            selectedShopItems.add(id);
+        }
+
+        rowEl.classList.toggle('selected', !wasSelected);
+        groceryList.classList.toggle('shop-selection-mode', shopSelectionMode);
+
+        const neighbors = [rowEl, rowEl.previousElementSibling, rowEl.nextElementSibling];
+        neighbors.forEach(el => {
+            if (el && el.classList.contains('grocery-item') && !el.classList.contains('add-item-row')) {
+                const isElSel = selectedShopItems.has(el.dataset.id);
+                const prev = el.previousElementSibling;
+                const next = el.nextElementSibling;
+                const isPrevSel = prev && prev.classList.contains('grocery-item') && selectedShopItems.has(prev.dataset.id);
+                const isNextSel = next && next.classList.contains('grocery-item') && selectedShopItems.has(next.dataset.id);
+                el.classList.toggle('sel-top', isElSel && isPrevSel);
+                el.classList.toggle('sel-bottom', isElSel && isNextSel);
+            }
+        });
+        updateSelectionBar();
+    }
+
+    function updateSelectionBar() {
+        if (!selectionBar || !selectionCountText) return;
+        const count = selectedShopItems.size;
+        if (count > 0 && (editMode || currentMode === 'shop')) {
+            selectionCountText.textContent = `${count} selected`;
+            selectionBar.classList.remove('hidden');
+        } else {
+            selectionBar.classList.add('hidden');
+        }
+    }
+
+    if (selectionClearBtn) {
+        selectionClearBtn.addEventListener('click', () => {
+            clearSelection();
+            renderList();
+        });
+    }
+
+    if (selectionDeleteBtn) {
+        selectionDeleteBtn.addEventListener('click', () => {
+            if (selectedShopItems.size === 0) return;
+            const ids = Array.from(selectedShopItems);
+            clearSelection();
+            ids.forEach(id => deleteItem(id));
+        });
+    }
+
+    function sortSectionAlphabetically(sectionId, isHome) {
+        const currentList = getCurrentList();
+        if (!currentList) return;
+        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
+        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
+        const items = currentList.items.filter(i => i[sectionIdKey] === sectionId && !i.pendingDelete);
+        items.sort((a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' }));
+        items.forEach((item, idx) => { item[indexKey] = idx; });
+        saveAppState();
+        renderList();
+    }
+
+    function moveSectionByOffset(sectionId, delta, isHome) {
+        const currentList = getCurrentList();
+        if (!currentList) return;
+        const sections = isHome ? currentList.homeSections : currentList.shopSections;
+        const idx = sections.findIndex(s => s.id === sectionId);
+        if (idx === -1) return;
+        const targetIdx = idx + delta;
+        const minIdx = isHome ? 0 : 1; // Keep Uncategorized pinned at 0 in Store mode
+        if (targetIdx < minIdx || targetIdx >= sections.length) return;
+        const [moved] = sections.splice(idx, 1);
+        sections.splice(targetIdx, 0, moved);
+        saveAppState();
+        renderList();
+    }
+
+    // Quick Search
+    if (quickSearchInput) {
+        quickSearchInput.addEventListener('input', () => {
+            searchQuery = quickSearchInput.value;
+            if (quickSearchClear) {
+                quickSearchClear.classList.toggle('hidden', !searchQuery);
+            }
+            renderList();
+        });
+
+        quickSearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && searchQuery.trim()) {
+                e.preventDefault();
+                const currentList = getCurrentList();
+                const q = searchQuery.trim().toLowerCase();
+                const hasMatch = currentList && currentList.items.some(i => !i.pendingDelete && i.text.toLowerCase().includes(q));
+                if (!hasMatch) {
+                    openQuickAddModal(searchQuery.trim());
+                }
+            } else if (e.key === 'Escape') {
+                searchQuery = '';
+                quickSearchInput.value = '';
+                if (quickSearchClear) quickSearchClear.classList.add('hidden');
+                renderList();
+            }
+        });
+    }
+
+    if (quickSearchClear) {
+        quickSearchClear.addEventListener('click', () => {
+            searchQuery = '';
+            quickSearchInput.value = '';
+            quickSearchClear.classList.add('hidden');
+            renderList();
+            quickSearchInput.focus();
+        });
+    }
+
+    // Quick Add Modal
+    function openQuickAddModal(prefillName = '', prefillHave = 0, prefillWant = 1) {
+        const currentList = getCurrentList();
+        if (!currentList || !quickAddModalOverlay) return;
+
+        quickAddHomeSelect.innerHTML = '';
+        if (currentList.homeSections.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = 'sec-h-def';
+            opt.textContent = 'Uncategorized';
+            quickAddHomeSelect.appendChild(opt);
+        } else {
+            currentList.homeSections.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name;
+                quickAddHomeSelect.appendChild(opt);
+            });
+        }
+
+        quickAddShopSelect.innerHTML = '';
+        currentList.shopSections.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.name;
+            quickAddShopSelect.appendChild(opt);
+        });
+
+        quickAddNameInput.value = prefillName;
+        quickAddHaveInput.value = prefillHave;
+        quickAddWantInput.value = prefillWant;
+        quickAddModalOverlay.classList.add('visible');
+        setTimeout(() => quickAddNameInput.focus(), 50);
+    }
+
+    function closeQuickAddModal() {
+        if (quickAddModalOverlay) quickAddModalOverlay.classList.remove('visible');
+    }
+
+    if (quickAddToggleBtn) {
+        quickAddToggleBtn.addEventListener('click', () => openQuickAddModal());
+    }
+    if (quickAddCancelBtn) {
+        quickAddCancelBtn.addEventListener('click', closeQuickAddModal);
+    }
+    if (quickAddModalOverlay) {
+        quickAddModalOverlay.addEventListener('mousedown', (e) => {
+            if (e.target === quickAddModalOverlay) closeQuickAddModal();
+        });
+    }
+    if (quickAddForm) {
+        quickAddForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = quickAddNameInput.value.trim();
+            if (!name) return;
+
+            const currentList = getCurrentList();
+            let homeSecId = quickAddHomeSelect.value;
+            if (currentList.homeSections.length === 0) {
+                const uncat = getOrCreateUncategorizedSection(true);
+                homeSecId = uncat.id;
+            }
+            const shopSecId = quickAddShopSelect.value || 'sec-s-def';
+            const have = Math.max(0, parseInt(quickAddHaveInput.value, 10) || 0);
+            const want = Math.max(0, parseInt(quickAddWantInput.value, 10) || 0);
+
+            const existingSameName = currentList.items.filter(i => i.text.trim() === name);
+            existingSameName.forEach(i => { i.wantCount = want; });
+
+            const newItem = {
+                id: Date.now().toString(),
+                text: name,
+                homeSectionId: homeSecId,
+                shopSectionId: shopSecId,
+                homeIndex: currentList.items.length,
+                shopIndex: currentList.items.length,
+                haveCount: have,
+                wantCount: want,
+                shopCompleted: false
+            };
+
+            currentList.items.push(newItem);
+            saveAppState();
+            closeQuickAddModal();
+            if (searchQuery) {
+                searchQuery = '';
+                if (quickSearchInput) quickSearchInput.value = '';
+                if (quickSearchClear) quickSearchClear.classList.add('hidden');
+            }
+            renderList();
+        });
+    }
+
+    // Voice Input Mode
+    function getOrderedHomeItems() {
+        const currentList = getCurrentList();
+        if (!currentList) return [];
+        const ordered = [];
+        currentList.homeSections.forEach(sec => {
+            const secItems = currentList.items
+                .filter(i => i.homeSectionId === sec.id && !i.pendingDelete)
+                .sort((a, b) => (a.homeIndex || 0) - (b.homeIndex || 0));
+            ordered.push(...secItems);
+        });
+        return ordered;
+    }
+
+    function updateWalkHighlight() {
+        groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
+        if (!voiceBarOpen || voiceSubMode !== 'walk' || !walkCursorId) return;
+        const row = groceryList.querySelector(`.grocery-item[data-id="${walkCursorId}"]`);
+        if (row) {
+            row.classList.add('voice-active-row');
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const item = getCurrentList()?.items.find(i => i.id === walkCursorId);
+            if (item && voiceStatus) {
+                voiceStatus.textContent = `Walk List: "${item.text}" (Have: ${item.haveCount}) — say a number or "next"`;
+            }
+        }
+    }
+
+    function advanceWalkCursor(delta = 1) {
+        const ordered = getOrderedHomeItems();
+        if (ordered.length === 0) {
+            walkCursorId = null;
+            if (voiceStatus) voiceStatus.textContent = 'List is empty — say an item and count to add it.';
+            return;
+        }
+        const idx = ordered.findIndex(i => i.id === walkCursorId);
+        let nextIdx = idx === -1 ? 0 : idx + delta;
+        if (nextIdx >= ordered.length) {
+            walkCursorId = ordered[0].id;
+            updateWalkHighlight();
+            if (voiceStatus) voiceStatus.textContent = `Reached end — wrapped to "${ordered[0].text}"`;
+            return;
+        }
+        if (nextIdx < 0) nextIdx = 0;
+        walkCursorId = ordered[nextIdx].id;
+        updateWalkHighlight();
+    }
+
+    function setVoiceSubMode(subMode) {
+        voiceSubMode = subMode;
+        document.querySelectorAll('.voice-pill').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.voiceMode === subMode);
+        });
+        if (voiceSuggestions) voiceSuggestions.classList.add('hidden');
+        if (subMode === 'walk') {
+            const ordered = getOrderedHomeItems();
+            if (!walkCursorId || !ordered.some(i => i.id === walkCursorId)) {
+                walkCursorId = ordered.length > 0 ? ordered[0].id : null;
+            }
+            updateWalkHighlight();
+        } else {
+            groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
+            if (voiceStatus) voiceStatus.textContent = 'Smart Match: say "<item> <count>" (e.g. "milk 2", "a one one")';
+        }
+    }
+
+    function applyVoiceItemUpdate(item, count) {
+        setHave(item.id, count);
+        const row = groceryList.querySelector(`.grocery-item[data-id="${item.id}"]`);
+        if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.remove('voice-flash');
+            void row.offsetWidth;
+            row.classList.add('voice-flash');
+        }
+        if (voiceStatus) {
+            voiceStatus.textContent = `Updated "${item.text}" → Have: ${count}`;
+        }
+        if (voiceSuggestions) {
+            voiceSuggestions.innerHTML = '';
+            voiceSuggestions.classList.add('hidden');
+        }
+    }
+
+    function showVoiceAddOption(itemName, count) {
+        if (!voiceSuggestions) return;
+        const formatted = itemName.replace(/\b\w/g, c => c.toUpperCase());
+        voiceSuggestions.innerHTML = '';
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'voice-suggestion-chip add-new';
+        addBtn.innerHTML = `<i class="fas fa-plus"></i> Add "${escapeHTML(formatted)}" (Have: ${count})`;
+        addBtn.addEventListener('click', () => {
+            const currentList = getCurrentList();
+            if (!currentList) return;
+            let homeSecId = currentList.homeSections[0]?.id;
+            if (!homeSecId) {
+                homeSecId = getOrCreateUncategorizedSection(true).id;
+            }
+            const newItem = {
+                id: Date.now().toString(),
+                text: formatted,
+                homeSectionId: homeSecId,
+                shopSectionId: 'sec-s-def',
+                homeIndex: currentList.items.length,
+                shopIndex: currentList.items.length,
+                haveCount: count,
+                wantCount: Math.max(1, count),
+                shopCompleted: false
+            };
+            currentList.items.push(newItem);
+            saveAppState();
+            renderList();
+            voiceSuggestions.classList.add('hidden');
+            if (voiceStatus) voiceStatus.textContent = `Added "${formatted}" (Have: ${count})`;
+        });
+        voiceSuggestions.appendChild(addBtn);
+        voiceSuggestions.classList.remove('hidden');
+    }
+
+    function handleVoiceTranscript(transcript) {
+        const cmd = parseVoiceCommand(transcript, voiceSubMode);
+        if (cmd.type === 'empty') return;
+
+        if (cmd.type === 'nav') {
+            if (cmd.action === 'next') advanceWalkCursor(1);
+            else if (cmd.action === 'prev') advanceWalkCursor(-1);
+            else if (cmd.action === 'stop') toggleVoiceBar(false);
+            return;
+        }
+
+        if (cmd.type === 'walk-qty') {
+            const ordered = getOrderedHomeItems();
+            if (!walkCursorId && ordered.length > 0) walkCursorId = ordered[0].id;
+            const currentItem = ordered.find(i => i.id === walkCursorId);
+            if (!currentItem) {
+                if (voiceStatus) voiceStatus.textContent = 'No item selected for Walk List.';
+                return;
+            }
+            const prevName = currentItem.text;
+            setHave(currentItem.id, cmd.count);
+            advanceWalkCursor(1);
+            const nextItem = getOrderedHomeItems().find(i => i.id === walkCursorId);
+            if (voiceStatus) {
+                voiceStatus.textContent = nextItem
+                    ? `${prevName} → ${cmd.count}. Next: "${nextItem.text}"`
+                    : `${prevName} → ${cmd.count}`;
+            }
+            return;
+        }
+
+        const currentList = getCurrentList();
+        if (!currentList) return;
+        const count = cmd.type === 'item-count' ? cmd.count : 1;
+        const matches = matchGroceryItems(cmd.itemQuery, currentList.items);
+
+        if (matches.length === 0) {
+            if (voiceStatus) voiceStatus.textContent = `No match for "${cmd.itemQuery}". Tap below to add it:`;
+            showVoiceAddOption(cmd.itemQuery, count);
+            return;
+        }
+
+        const top = matches[0];
+        const second = matches[1];
+        const isClearWinner = !second || top.score >= 0.96 || (top.score - second.score >= 0.12);
+
+        if (isClearWinner) {
+            applyVoiceItemUpdate(top.item, count);
+            if (voiceSubMode === 'walk') {
+                walkCursorId = top.item.id;
+                advanceWalkCursor(1);
+            }
+            return;
+        }
+
+        // Ambiguous: show disambiguation chips + option to add new
+        if (voiceStatus) voiceStatus.textContent = `Multiple matches for "${cmd.itemQuery}" (count ${count}):`;
+        if (voiceSuggestions) {
+            voiceSuggestions.innerHTML = '';
+            matches.slice(0, 4).forEach(({ item }) => {
+                const secName = currentList.homeSections.find(s => s.id === item.homeSectionId)?.name || '';
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'voice-suggestion-chip';
+                chip.textContent = secName ? `${item.text} (${secName}) → ${count}` : `${item.text} → ${count}`;
+                chip.addEventListener('click', () => applyVoiceItemUpdate(item, count));
+                voiceSuggestions.appendChild(chip);
+            });
+            voiceSuggestions.classList.remove('hidden');
+        }
+    }
+
+    function stopSpeechListening() {
+        voiceListening = false;
+        if (voiceMicToggle) voiceMicToggle.classList.remove('listening');
+        if (speechRecognition) {
+            try { speechRecognition.stop(); } catch (_) {}
+        }
+    }
+
+    function startSpeechListening() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            if (voiceStatus) {
+                voiceStatus.textContent = 'Speech recognition unavailable in this browser — type commands below.';
+            }
+            if (voiceTextInput) voiceTextInput.focus();
+            return;
+        }
+
+        if (!speechRecognition) {
+            speechRecognition = new SpeechRecognition();
+            speechRecognition.continuous = true;
+            speechRecognition.interimResults = true;
+            speechRecognition.lang = 'en-US';
+
+            speechRecognition.onresult = (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const res = event.results[i];
+                    if (res.isFinal) {
+                        handleVoiceTranscript(res[0].transcript);
+                    } else {
+                        interim += res[0].transcript;
+                    }
+                }
+                if (interim && voiceStatus) {
+                    voiceStatus.textContent = `Listening: "${interim.trim()}"`;
+                }
+            };
+
+            speechRecognition.onerror = (event) => {
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    if (voiceStatus) voiceStatus.textContent = 'Mic permission denied — type commands below.';
+                    stopSpeechListening();
+                }
+            };
+
+            speechRecognition.onend = () => {
+                if (voiceListening && voiceBarOpen) {
+                    try { speechRecognition.start(); } catch (_) { stopSpeechListening(); }
+                } else {
+                    if (voiceMicToggle) voiceMicToggle.classList.remove('listening');
+                }
+            };
+        }
+
+        try {
+            voiceListening = true;
+            if (voiceMicToggle) voiceMicToggle.classList.add('listening');
+            speechRecognition.start();
+            if (voiceStatus) voiceStatus.textContent = 'Listening... say "<item> <count>" or switch to Walk List';
+        } catch (_) {
+            // Already started
+        }
+    }
+
+    function toggleVoiceBar(force) {
+        voiceBarOpen = force !== undefined ? force : !voiceBarOpen;
+        if (voiceBarOpen && currentMode !== 'home') {
+            switchMode('home', false);
+        }
+        if (voiceBarOpen && editMode) {
+            editMode = false;
+            saveMode();
+            updateModeUI();
+            renderList();
+        }
+        if (voiceBar) {
+            voiceBar.classList.toggle('hidden', !voiceBarOpen);
+        }
+        if (toolbarVoiceBtn) {
+            toolbarVoiceBtn.classList.toggle('active', voiceBarOpen);
+        }
+        if (voiceBarOpen) {
+            setVoiceSubMode(voiceSubMode);
+        } else {
+            stopSpeechListening();
+            groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
+        }
+    }
+
+    if (toolbarVoiceBtn) {
+        toolbarVoiceBtn.addEventListener('click', () => toggleVoiceBar());
+    }
+    if (voiceCloseBtn) {
+        voiceCloseBtn.addEventListener('click', () => toggleVoiceBar(false));
+    }
+    if (voiceMicToggle) {
+        voiceMicToggle.addEventListener('click', () => {
+            if (voiceListening) stopSpeechListening();
+            else startSpeechListening();
+        });
+    }
+    document.querySelectorAll('.voice-pill').forEach(btn => {
+        btn.addEventListener('click', () => setVoiceSubMode(btn.dataset.voiceMode));
+    });
+    if (voiceTextForm) {
+        voiceTextForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const val = voiceTextInput.value.trim();
+            if (!val) return;
+            handleVoiceTranscript(val);
+            voiceTextInput.value = '';
+        });
+    }
 
     init();
 });

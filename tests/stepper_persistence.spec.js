@@ -33,22 +33,17 @@ test('Stepper remains expanded after incrementing wanted quantity', async ({ pag
     };
   await setMockState(page, { ...state, mode: 'home', editMode: false });
 
-  // Verify Edit Mode is OFF
+  // Verify Edit Mode is OFF (want-stepper is visible in Home non-edit Mode)
   const appContainer = page.locator('.app-container');
   await expect(appContainer).toHaveClass(/hide-drag-handles/);
-
-  // Enter Edit Mode
-  await page.click('#toolbar-reorder');
-  // Switch to Shop Mode (want-stepper is visible in Shop + Edit Mode)
-  await page.click('#toolbar-mode');
-  await page.waitForTimeout(600);
 
   const milkRow = page.locator('.grocery-item:has-text("Milk")');
   const wantInput = milkRow.locator('.want-stepper .qty-input');
 
-  // 1. Fill input to increment
-  await wantInput.fill('2');
+  // 1. Click and type to increment
+  await wantInput.click();
+  await page.keyboard.type('2');
 
   // 2. Verify quantity incremented
-  await expect(wantInput).toHaveValue('2');
+  await expect(wantInput).toHaveText('2');
 });

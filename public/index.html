@@ -26,9 +26,72 @@
     <div class="app-container hidden">
         <input type="file" id="import-input" accept=".json" class="hidden-input">
 
+        <header class="app-top-header" id="app-top-header">
+            <div class="top-header-row">
+                <div class="top-header-title-group">
+                    <h2 class="top-header-title" id="mode-header-title">Home Inventory</h2>
+                    <span class="top-header-badge" id="mode-header-badge">0 items</span>
+                </div>
+                <div class="top-header-actions">
+                    <button type="button" class="header-pill-btn hidden" id="quick-add-toggle-btn" title="Quick Add Item" aria-label="Quick Add Item">
+                        <i class="fas fa-plus" aria-hidden="true"></i>
+                        <span>Add</span>
+                    </button>
+                </div>
+            </div>
+            <div class="quick-search-wrap" id="quick-search-wrap">
+                <i class="fas fa-search quick-search-icon" aria-hidden="true"></i>
+                <input type="search" id="quick-search-input" class="quick-search-input" placeholder="Search items..." aria-label="Search items" autocomplete="off">
+                <button type="button" id="quick-search-clear" class="quick-search-clear hidden" aria-label="Clear search">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="home-columns-header hidden" id="home-columns-header" aria-hidden="true">
+                <span class="col-label-item">Item</span>
+                <span class="col-label-qty">Have</span>
+                <span class="col-label-qty">Want</span>
+            </div>
+        </header>
+
+        <div id="selection-bar" class="selection-bar hidden" role="region" aria-label="Selection actions">
+            <span id="selection-count-text" class="selection-count-text">0 selected</span>
+            <span class="selection-hint">Tap a section's <i class="fas fa-level-down-alt" aria-hidden="true"></i> to move</span>
+            <div class="selection-bar-actions">
+                <button type="button" id="selection-delete-btn" class="selection-bar-btn danger" aria-label="Delete selected items">
+                    <i class="fas fa-trash" aria-hidden="true"></i>
+                </button>
+                <button type="button" id="selection-clear-btn" class="selection-bar-btn" aria-label="Clear selection">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+
         <ul id="grocery-list" class="grocery-list">
             <!-- Items will be added here dynamically -->
         </ul>
+
+        <div id="voice-bar" class="voice-bar hidden" role="region" aria-label="Voice input assistant">
+            <div class="voice-bar-header">
+                <button type="button" id="voice-mic-toggle" class="voice-mic-btn" aria-label="Toggle microphone listening">
+                    <i class="fas fa-microphone" aria-hidden="true"></i>
+                </button>
+                <div class="voice-mode-pills" role="group" aria-label="Voice input mode">
+                    <button type="button" class="voice-pill active" data-voice-mode="smart">Smart Match</button>
+                    <button type="button" class="voice-pill" data-voice-mode="walk">Walk List</button>
+                </div>
+                <button type="button" id="voice-close-btn" class="voice-close-btn" aria-label="Close voice mode">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div id="voice-status" class="voice-status">Tap mic or type a command (e.g. "milk 2" or "a one one")</div>
+            <div id="voice-suggestions" class="voice-suggestions hidden"></div>
+            <form id="voice-text-form" class="voice-text-form">
+                <input type="text" id="voice-text-input" class="voice-text-input" placeholder='Say or type: "whole milk 2", "a one one"...' autocomplete="off" aria-label="Type voice command">
+                <button type="submit" class="voice-send-btn" aria-label="Run command">
+                    <i class="fas fa-arrow-up" aria-hidden="true"></i>
+                </button>
+            </form>
+        </div>
 
         <nav class="bottom-toolbar">
             <div id="toolbar-main">
@@ -46,6 +109,9 @@
                 <div class="toolbar-actions">
                     <button class="toolbar-btn" id="toolbar-clear-shop" title="Clear Shopping Progress" aria-label="Clear Shopping Progress">
                         <i class="fas fa-eraser" aria-hidden="true"></i>
+                    </button>
+                    <button class="toolbar-btn" id="toolbar-voice" title="Voice Input Mode" aria-label="Voice Input Mode">
+                        <i class="fas fa-microphone" aria-hidden="true"></i>
                     </button>
                     <button class="toolbar-btn" id="toolbar-mode" title="Toggle Mode" aria-label="Toggle Mode">
                         <i class="fas fa-list-check" aria-hidden="true"></i>
@@ -214,6 +280,41 @@
                     <button id="sync-cancel-btn" class="modal-btn cancel" style="width: 100%;">Cancel</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Quick Add Item Modal -->
+    <div id="quick-add-modal-overlay" class="modal-overlay">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-modal-title">
+            <h3 id="quick-add-modal-title">Quick Add Item</h3>
+            <form id="quick-add-form">
+                <div class="form-group">
+                    <label for="quick-add-name" class="modal-label">Item Name</label>
+                    <input type="text" id="quick-add-name" placeholder="e.g. Whole Milk" autocomplete="off" required>
+                </div>
+                <div class="quick-add-grid">
+                    <div class="form-group">
+                        <label for="quick-add-have" class="modal-label">Have</label>
+                        <input type="number" id="quick-add-have" min="0" value="0" inputmode="numeric">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-add-want" class="modal-label">Want</label>
+                        <input type="number" id="quick-add-want" min="0" value="1" inputmode="numeric">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="quick-add-home-section" class="modal-label">Home Location</label>
+                    <select id="quick-add-home-section" class="modal-select"></select>
+                </div>
+                <div class="form-group">
+                    <label for="quick-add-shop-section" class="modal-label">Store Aisle</label>
+                    <select id="quick-add-shop-section" class="modal-select"></select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="quick-add-cancel-btn" class="modal-btn cancel">Cancel</button>
+                    <button type="submit" id="quick-add-save-btn" class="modal-btn save">Add Item</button>
+                </div>
+            </form>
         </div>
     </div>
 
