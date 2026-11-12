@@ -205,7 +205,9 @@ export function parseVoiceCommand(rawText, voiceSubMode = 'smart') {
         }
     }
 
-    const tokens = phrase.replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+    // Separate attached trailing digits if preceded by letters (e.g. "wipes3" -> "wipes 3")
+    const spacedTrailingDigits = phrase.replace(/([a-z])(\d+)$/i, '$1 $2');
+    const tokens = spacedTrailingDigits.replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
 
     // 1. Try trailing count (try longest valid number suffix up to 3 tokens, e.g. "half a dozen", "twenty one", "one")
     for (let len = Math.min(3, tokens.length - 1); len >= 1; len--) {

@@ -66,6 +66,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let voiceListening = false;
     let speechRecognition = null;
     let walkCursorId = null;
+    let inventoriedItemIds = new Set();
+    let pendingVoiceItem = null;
+    let pendingVoiceTimer = null;
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -76,6 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toolbarNumpad = document.getElementById('toolbar-numpad');
     const modeHeaderTitle = document.getElementById('mode-header-title');
     const modeHeaderBadge = document.getElementById('mode-header-badge');
+    const resetHomeCountsBtn = document.getElementById('reset-home-counts-btn');
     const quickAddToggleBtn = document.getElementById('quick-add-toggle-btn');
     const quickSearchWrap = document.getElementById('quick-search-wrap');
     const quickSearchInput = document.getElementById('quick-search-input');
@@ -2136,6 +2140,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             appContainer.classList.toggle('shop-mode', !isHome);
         }
 
+        if (resetHomeCountsBtn) {
+            resetHomeCountsBtn.classList.toggle('hidden', !isHome);
+        }
         if (quickAddToggleBtn) {
             quickAddToggleBtn.classList.toggle('hidden', !isHome);
         }
@@ -2519,6 +2526,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     const toBuy = Math.max(0, item.wantCount - item.haveCount);
                     li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-check-area"><span class="qty-number">${toBuy}</span><svg class="check-svg" viewBox="0 0 24 24"><path class="check-path" d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
+                    li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
                 }
 
                 itemsUl.appendChild(li);
@@ -3690,8 +3698,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateWalkHighlight();
     }
 
+    let resetConfirmTimer = null;
+    if (resetHomeCountsBtn) {
+        resetHomeCountsBtn.addEventListener('click', () => {
+            if (!resetHomeCountsBtn.dataset.confirming) {
+                resetHomeCountsBtn.dataset.confirming = 'true';
+                const label = resetHomeCountsBtn.querySelector('span');
+                if (label) label.textContent = 'Confirm Zero?';
+                resetConfirmTimer = setTimeout(() => {
+                    delete resetHomeCountsBtn.dataset.confirming;
+                    if (label) label.textContent = 'Zero All';
+                }, 3000);
+                return;
+            }
+            clearTimeout(resetConfirmTimer);
+            delete resetHomeCountsBtn.dataset.confirming;
+            const label = resetHomeCountsBtn.querySelector('span');
+            if (label) label.textContent = 'Zero All';
+
+            const currentList = getCurrentList();
+            if (!currentList) return;
+            currentList.items.forEach(item => { item.haveCount = 0; });
+            inventoriedItemIds.clear();
+            pendingVoiceItem = null;
+            saveAppState();
+            renderList();
+            if (voiceBarOpen && voiceStatus) {
+                voiceStatus.textContent = 'All Have counts reset to 0 — ready for inventory.';
+            }
+        });
+    }
+
     function setVoiceSubMode(subMode) {
         voiceSubMode = subMode;
+        pendingVoiceItem = null;
         document.querySelectorAll('.voice-pill').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.voiceMode === subMode);
         });
@@ -3702,14 +3742,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 walkCursorId = ordered.length > 0 ? ordered[0].id : null;
             }
             updateWalkHighlight();
+        } else if (subMode === 'inventory') {
+            groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
+            if (voiceStatus) voiceStatus.textContent = 'Inventory: say "<item> <count>" — repeat items prompt Set vs Add';
         } else {
             groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
-            if (voiceStatus) voiceStatus.textContent = 'Smart Match: say "<item> <count>" (e.g. "milk 2", "a one one")';
+            if (voiceStatus) voiceStatus.textContent = 'Smart: say "<item> <count>" (e.g. "milk 2", "a one one")';
         }
     }
 
-    function applyVoiceItemUpdate(item, count) {
+    function applyVoiceItemUpdate(item, count, heardText = '') {
         setHave(item.id, count);
+        inventoriedItemIds.add(item.id);
+        pendingVoiceItem = null;
         const row = groceryList.querySelector(`.grocery-item[data-id="${item.id}"]`);
         if (row) {
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3718,7 +3763,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             row.classList.add('voice-flash');
         }
         if (voiceStatus) {
-            voiceStatus.textContent = `Updated "${item.text}" → Have: ${count}`;
+            const prefix = heardText ? `Heard "${heardText}" → ` : '';
+            voiceStatus.textContent = `${prefix}Updated "${item.text}" → Have: ${count}`;
         }
         if (voiceSuggestions) {
             voiceSuggestions.innerHTML = '';
@@ -3726,11 +3772,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function showVoiceAddOption(itemName, count) {
-        if (!voiceSuggestions) return;
+    function buildVoiceAddChip(itemName, count) {
         const formatted = itemName.replace(/\b\w/g, c => c.toUpperCase());
-        voiceSuggestions.innerHTML = '';
-
         const addBtn = document.createElement('button');
         addBtn.type = 'button';
         addBtn.className = 'voice-suggestion-chip add-new';
@@ -3754,17 +3797,65 @@ document.addEventListener('DOMContentLoaded', async () => {
                 shopCompleted: false
             };
             currentList.items.push(newItem);
+            inventoriedItemIds.add(newItem.id);
             saveAppState();
             renderList();
-            voiceSuggestions.classList.add('hidden');
+            if (voiceSuggestions) voiceSuggestions.classList.add('hidden');
             if (voiceStatus) voiceStatus.textContent = `Added "${formatted}" (Have: ${count})`;
         });
-        voiceSuggestions.appendChild(addBtn);
+        return addBtn;
+    }
+
+    function showVoiceAddOption(itemName, count) {
+        if (!voiceSuggestions) return;
+        voiceSuggestions.innerHTML = '';
+        voiceSuggestions.appendChild(buildVoiceAddChip(itemName, count));
         voiceSuggestions.classList.remove('hidden');
     }
 
+    function promptInventoryRepeatDisambiguation(item, count, heardText = '') {
+        if (!voiceSuggestions) {
+            applyVoiceItemUpdate(item, count, heardText);
+            return;
+        }
+        if (voiceStatus) {
+            voiceStatus.textContent = `"${item.text}" is already at ${item.haveCount}. Set to ${count} or add +${count}?`;
+        }
+        voiceSuggestions.innerHTML = '';
+
+        const setChip = document.createElement('button');
+        setChip.type = 'button';
+        setChip.className = 'voice-suggestion-chip';
+        setChip.textContent = `Set to ${count}`;
+        setChip.addEventListener('click', () => applyVoiceItemUpdate(item, count, heardText));
+
+        const addChip = document.createElement('button');
+        addChip.type = 'button';
+        addChip.className = 'voice-suggestion-chip increment';
+        addChip.textContent = `Add +${count} (→ ${item.haveCount + count})`;
+        addChip.addEventListener('click', () => applyVoiceItemUpdate(item, item.haveCount + count, heardText));
+
+        voiceSuggestions.appendChild(setChip);
+        voiceSuggestions.appendChild(addChip);
+        voiceSuggestions.classList.remove('hidden');
+    }
+
+    function resolveMatchedVoiceItem(item, count, heardText) {
+        const isRepeatInInventory = voiceSubMode === 'inventory' && (inventoriedItemIds.has(item.id) || item.haveCount > 0);
+        if (isRepeatInInventory) {
+            promptInventoryRepeatDisambiguation(item, count, heardText);
+        } else {
+            applyVoiceItemUpdate(item, count, heardText);
+            if (voiceSubMode === 'walk') {
+                walkCursorId = item.id;
+                advanceWalkCursor(1);
+            }
+        }
+    }
+
     function handleVoiceTranscript(transcript) {
-        const cmd = parseVoiceCommand(transcript, voiceSubMode);
+        const raw = transcript.trim();
+        const cmd = parseVoiceCommand(raw, voiceSubMode);
         if (cmd.type === 'empty') return;
 
         if (cmd.type === 'nav') {
@@ -3775,15 +3866,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (cmd.type === 'walk-qty') {
+            if (voiceSubMode !== 'walk' && pendingVoiceItem) {
+                const target = pendingVoiceItem;
+                clearTimeout(pendingVoiceTimer);
+                pendingVoiceItem = null;
+                resolveMatchedVoiceItem(target, cmd.count, raw);
+                return;
+            }
             const ordered = getOrderedHomeItems();
             if (!walkCursorId && ordered.length > 0) walkCursorId = ordered[0].id;
             const currentItem = ordered.find(i => i.id === walkCursorId);
             if (!currentItem) {
-                if (voiceStatus) voiceStatus.textContent = 'No item selected for Walk List.';
+                if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" — no item selected.`;
                 return;
             }
             const prevName = currentItem.text;
             setHave(currentItem.id, cmd.count);
+            inventoriedItemIds.add(currentItem.id);
             advanceWalkCursor(1);
             const nextItem = getOrderedHomeItems().find(i => i.id === walkCursorId);
             if (voiceStatus) {
@@ -3796,11 +3895,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const currentList = getCurrentList();
         if (!currentList) return;
-        const count = cmd.type === 'item-count' ? cmd.count : 1;
+
+        // If no number was spoken (e.g. STT split "wipes" and "three", or user only said item name),
+        // do NOT blindly overwrite haveCount to 1 — hold pendingVoiceItem and offer quick-tap counts.
+        if (cmd.type === 'item-only') {
+            const matches = matchGroceryItems(cmd.itemQuery, currentList.items);
+            if (matches.length === 0) {
+                if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" — no match. Tap to add:`;
+                showVoiceAddOption(cmd.itemQuery, 1);
+                return;
+            }
+            const topItem = matches[0].item;
+            pendingVoiceItem = topItem;
+            clearTimeout(pendingVoiceTimer);
+            pendingVoiceTimer = setTimeout(() => { pendingVoiceItem = null; }, 6000);
+            if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" → "${topItem.text}". Say a number or tap:`;
+            if (voiceSuggestions) {
+                voiceSuggestions.innerHTML = '';
+                [1, 2, 3].forEach(n => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'voice-suggestion-chip';
+                    chip.textContent = `${topItem.text} → ${n}`;
+                    chip.addEventListener('click', () => resolveMatchedVoiceItem(topItem, n, raw));
+                    voiceSuggestions.appendChild(chip);
+                });
+                if (matches[0].score < 0.98) {
+                    voiceSuggestions.appendChild(buildVoiceAddChip(cmd.itemQuery, 1));
+                }
+                voiceSuggestions.classList.remove('hidden');
+            }
+            return;
+        }
+
+        const count = cmd.count;
         const matches = matchGroceryItems(cmd.itemQuery, currentList.items);
 
         if (matches.length === 0) {
-            if (voiceStatus) voiceStatus.textContent = `No match for "${cmd.itemQuery}". Tap below to add it:`;
+            if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" — no match for "${cmd.itemQuery}". Tap to add:`;
             showVoiceAddOption(cmd.itemQuery, count);
             return;
         }
@@ -3810,16 +3942,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isClearWinner = !second || top.score >= 0.96 || (top.score - second.score >= 0.12);
 
         if (isClearWinner) {
-            applyVoiceItemUpdate(top.item, count);
-            if (voiceSubMode === 'walk') {
-                walkCursorId = top.item.id;
-                advanceWalkCursor(1);
-            }
+            resolveMatchedVoiceItem(top.item, count, raw);
             return;
         }
 
-        // Ambiguous: show disambiguation chips + option to add new
-        if (voiceStatus) voiceStatus.textContent = `Multiple matches for "${cmd.itemQuery}" (count ${count}):`;
+        // Ambiguous: show disambiguation chips + option to add new if not exact
+        if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" — choose match (count ${count}):`;
         if (voiceSuggestions) {
             voiceSuggestions.innerHTML = '';
             matches.slice(0, 4).forEach(({ item }) => {
@@ -3828,9 +3956,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 chip.type = 'button';
                 chip.className = 'voice-suggestion-chip';
                 chip.textContent = secName ? `${item.text} (${secName}) → ${count}` : `${item.text} → ${count}`;
-                chip.addEventListener('click', () => applyVoiceItemUpdate(item, count));
+                chip.addEventListener('click', () => resolveMatchedVoiceItem(item, count, raw));
                 voiceSuggestions.appendChild(chip);
             });
+            if (top.score < 0.98) {
+                voiceSuggestions.appendChild(buildVoiceAddChip(cmd.itemQuery, count));
+            }
             voiceSuggestions.classList.remove('hidden');
         }
     }

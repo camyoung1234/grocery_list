@@ -988,7 +988,8 @@ h1 {
 }
 
 .home-mode.hide-drag-handles .have-stepper,
-.home-mode.hide-drag-handles .want-stepper {
+.home-mode.hide-drag-handles .want-stepper,
+.shop-mode:not(.hide-drag-handles) .want-stepper {
     display: flex;
 }
 
@@ -2664,6 +2665,12 @@ input:checked+.slider:before {
     white-space: nowrap;
 }
 
+.top-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
 .header-pill-btn {
     display: inline-flex;
     align-items: center;
@@ -2678,6 +2685,11 @@ input:checked+.slider:before {
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
+}
+
+.header-pill-btn.secondary {
+    background: color-mix(in srgb, var(--text-color) 8%, transparent);
+    color: var(--text-color);
 }
 
 .header-pill-btn:active {
@@ -3019,6 +3031,12 @@ input:checked+.slider:before {
     background: var(--primary-color);
     color: #fff;
     border-color: var(--primary-color);
+}
+
+.voice-suggestion-chip.increment {
+    background: color-mix(in srgb, var(--success-color) 14%, transparent);
+    color: var(--success-color);
+    border-color: color-mix(in srgb, var(--success-color) 40%, transparent);
 }
 
 .voice-text-form {
