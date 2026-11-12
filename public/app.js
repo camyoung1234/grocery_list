@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let inventoriedItemIds = new Set();
     let pendingVoiceItem = null;
     let pendingVoiceTimer = null;
+    let pendingVoiceDecisions = [];
 
     // --- DOM Elements ---
     const groceryList = document.getElementById('grocery-list');
@@ -90,6 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const selectionDeleteBtn = document.getElementById('selection-delete-btn');
     const selectionClearBtn = document.getElementById('selection-clear-btn');
     const voiceBar = document.getElementById('voice-bar');
+    const voicePendingQueue = document.getElementById('voice-pending-queue');
     const toolbarVoiceBtn = document.getElementById('toolbar-voice');
     const voiceMicToggle = document.getElementById('voice-mic-toggle');
     const voiceCloseBtn = document.getElementById('voice-close-btn');
@@ -2153,6 +2155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             homeColumnsHeader.classList.toggle('hidden', !isHome || editMode);
         }
         updateHeaderSummary();
+        renderVoicePendingQueue();
     }
 
     function updateHeaderSummary() {
@@ -3772,72 +3775,140 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function buildVoiceAddChip(itemName, count) {
-        const formatted = itemName.replace(/\b\w/g, c => c.toUpperCase());
-        const addBtn = document.createElement('button');
-        addBtn.type = 'button';
-        addBtn.className = 'voice-suggestion-chip add-new';
-        addBtn.innerHTML = `<i class="fas fa-plus"></i> Add "${escapeHTML(formatted)}" (Have: ${count})`;
-        addBtn.addEventListener('click', () => {
-            const currentList = getCurrentList();
-            if (!currentList) return;
-            let homeSecId = currentList.homeSections[0]?.id;
-            if (!homeSecId) {
-                homeSecId = getOrCreateUncategorizedSection(true).id;
-            }
-            const newItem = {
-                id: Date.now().toString(),
-                text: formatted,
-                homeSectionId: homeSecId,
-                shopSectionId: 'sec-s-def',
-                homeIndex: currentList.items.length,
-                shopIndex: currentList.items.length,
-                haveCount: count,
-                wantCount: Math.max(1, count),
-                shopCompleted: false
-            };
-            currentList.items.push(newItem);
-            inventoriedItemIds.add(newItem.id);
-            saveAppState();
-            renderList();
-            if (voiceSuggestions) voiceSuggestions.classList.add('hidden');
-            if (voiceStatus) voiceStatus.textContent = `Added "${formatted}" (Have: ${count})`;
-        });
-        return addBtn;
+    function removeVoiceDecision(decisionId) {
+        pendingVoiceDecisions = pendingVoiceDecisions.filter(d => d.id !== decisionId);
+        renderVoicePendingQueue();
     }
 
-    function showVoiceAddOption(itemName, count) {
-        if (!voiceSuggestions) return;
-        voiceSuggestions.innerHTML = '';
-        voiceSuggestions.appendChild(buildVoiceAddChip(itemName, count));
-        voiceSuggestions.classList.remove('hidden');
+    function enqueueVoiceDecision(prompt, actions) {
+        const id = 'vd-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+        pendingVoiceDecisions.push({ id, prompt, actions });
+        renderVoicePendingQueue();
+    }
+
+    function renderVoicePendingQueue() {
+        if (!voicePendingQueue) return;
+        if (currentMode !== 'home' || pendingVoiceDecisions.length === 0) {
+            voicePendingQueue.innerHTML = '';
+            voicePendingQueue.classList.add('hidden');
+            return;
+        }
+
+        voicePendingQueue.innerHTML = '';
+        const header = document.createElement('div');
+        header.className = 'voice-pending-header';
+        header.innerHTML = `<span>Pending Decisions (${pendingVoiceDecisions.length})</span>`;
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'voice-pending-clear-btn';
+        clearBtn.textContent = 'Clear All';
+        clearBtn.addEventListener('click', () => {
+            pendingVoiceDecisions = [];
+            renderVoicePendingQueue();
+        });
+        header.appendChild(clearBtn);
+        voicePendingQueue.appendChild(header);
+
+        pendingVoiceDecisions.forEach(decision => {
+            const card = document.createElement('div');
+            card.className = 'voice-pending-card';
+
+            const top = document.createElement('div');
+            top.className = 'voice-pending-card-top';
+            const promptSpan = document.createElement('span');
+            promptSpan.textContent = decision.prompt;
+            const dismissBtn = document.createElement('button');
+            dismissBtn.type = 'button';
+            dismissBtn.className = 'voice-pending-dismiss';
+            dismissBtn.setAttribute('aria-label', 'Dismiss decision');
+            dismissBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+            dismissBtn.addEventListener('click', () => removeVoiceDecision(decision.id));
+            top.appendChild(promptSpan);
+            top.appendChild(dismissBtn);
+
+            const chipsWrap = document.createElement('div');
+            chipsWrap.className = 'voice-pending-chips';
+            decision.actions.forEach(act => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `voice-suggestion-chip ${act.variant || ''}`.trim();
+                btn.innerHTML = act.icon ? `<i class="${act.icon}" aria-hidden="true"></i> ${escapeHTML(act.label)}` : escapeHTML(act.label);
+                btn.addEventListener('click', () => {
+                    act.onSelect();
+                    removeVoiceDecision(decision.id);
+                });
+                chipsWrap.appendChild(btn);
+            });
+
+            card.appendChild(top);
+            card.appendChild(chipsWrap);
+            voicePendingQueue.appendChild(card);
+        });
+
+        voicePendingQueue.classList.remove('hidden');
+    }
+
+    function createNewVoiceItemAction(itemName, count) {
+        const formatted = itemName.replace(/\b\w/g, c => c.toUpperCase());
+        return {
+            label: `Add "${formatted}" (Have: ${count})`,
+            variant: 'add-new',
+            icon: 'fas fa-plus',
+            onSelect: () => {
+                const currentList = getCurrentList();
+                if (!currentList) return;
+                let homeSecId = currentList.homeSections[0]?.id;
+                if (!homeSecId) {
+                    homeSecId = getOrCreateUncategorizedSection(true).id;
+                }
+                const newItem = {
+                    id: Date.now().toString(),
+                    text: formatted,
+                    homeSectionId: homeSecId,
+                    shopSectionId: 'sec-s-def',
+                    homeIndex: currentList.items.length,
+                    shopIndex: currentList.items.length,
+                    haveCount: count,
+                    wantCount: Math.max(1, count),
+                    shopCompleted: false
+                };
+                currentList.items.push(newItem);
+                inventoriedItemIds.add(newItem.id);
+                saveAppState();
+                renderList();
+                if (voiceStatus) voiceStatus.textContent = `Added "${formatted}" (Have: ${count})`;
+            }
+        };
+    }
+
+    function showVoiceAddOption(itemName, count, heardText = '') {
+        enqueueVoiceDecision(
+            `New item "${itemName}" (Have: ${count})`,
+            [createNewVoiceItemAction(itemName, count)]
+        );
+        if (voiceStatus) {
+            voiceStatus.textContent = `Queued "+ Add ${itemName}" (${count}) — keep speaking`;
+        }
     }
 
     function promptInventoryRepeatDisambiguation(item, count, heardText = '') {
-        if (!voiceSuggestions) {
-            applyVoiceItemUpdate(item, count, heardText);
-            return;
-        }
+        enqueueVoiceDecision(
+            `"${item.text}" is at ${item.haveCount} — Set to ${count} or Add +${count}?`,
+            [
+                {
+                    label: `Set to ${count}`,
+                    onSelect: () => applyVoiceItemUpdate(item, count, heardText)
+                },
+                {
+                    label: `Add +${count} (→ ${item.haveCount + count})`,
+                    variant: 'increment',
+                    onSelect: () => applyVoiceItemUpdate(item, item.haveCount + count, heardText)
+                }
+            ]
+        );
         if (voiceStatus) {
-            voiceStatus.textContent = `"${item.text}" is already at ${item.haveCount}. Set to ${count} or add +${count}?`;
+            voiceStatus.textContent = `Queued Set vs Add for "${item.text}" — keep speaking`;
         }
-        voiceSuggestions.innerHTML = '';
-
-        const setChip = document.createElement('button');
-        setChip.type = 'button';
-        setChip.className = 'voice-suggestion-chip';
-        setChip.textContent = `Set to ${count}`;
-        setChip.addEventListener('click', () => applyVoiceItemUpdate(item, count, heardText));
-
-        const addChip = document.createElement('button');
-        addChip.type = 'button';
-        addChip.className = 'voice-suggestion-chip increment';
-        addChip.textContent = `Add +${count} (→ ${item.haveCount + count})`;
-        addChip.addEventListener('click', () => applyVoiceItemUpdate(item, item.haveCount + count, heardText));
-
-        voiceSuggestions.appendChild(setChip);
-        voiceSuggestions.appendChild(addChip);
-        voiceSuggestions.classList.remove('hidden');
     }
 
     function resolveMatchedVoiceItem(item, count, heardText) {
@@ -3897,34 +3968,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!currentList) return;
 
         // If no number was spoken (e.g. STT split "wipes" and "three", or user only said item name),
-        // do NOT blindly overwrite haveCount to 1 — hold pendingVoiceItem and offer quick-tap counts.
+        // hold pendingVoiceItem briefly for a spoken number AND enqueue quick-tap counts if not resolved.
         if (cmd.type === 'item-only') {
             const matches = matchGroceryItems(cmd.itemQuery, currentList.items);
             if (matches.length === 0) {
-                if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" — no match. Tap to add:`;
-                showVoiceAddOption(cmd.itemQuery, 1);
+                showVoiceAddOption(cmd.itemQuery, 1, raw);
                 return;
             }
             const topItem = matches[0].item;
             pendingVoiceItem = topItem;
             clearTimeout(pendingVoiceTimer);
-            pendingVoiceTimer = setTimeout(() => { pendingVoiceItem = null; }, 6000);
-            if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" → "${topItem.text}". Say a number or tap:`;
-            if (voiceSuggestions) {
-                voiceSuggestions.innerHTML = '';
-                [1, 2, 3].forEach(n => {
-                    const chip = document.createElement('button');
-                    chip.type = 'button';
-                    chip.className = 'voice-suggestion-chip';
-                    chip.textContent = `${topItem.text} → ${n}`;
-                    chip.addEventListener('click', () => resolveMatchedVoiceItem(topItem, n, raw));
-                    voiceSuggestions.appendChild(chip);
-                });
-                if (matches[0].score < 0.98) {
-                    voiceSuggestions.appendChild(buildVoiceAddChip(cmd.itemQuery, 1));
+            pendingVoiceTimer = setTimeout(() => {
+                if (pendingVoiceItem === topItem) {
+                    pendingVoiceItem = null;
+                    const actions = [1, 2, 3].map(n => ({
+                        label: `${topItem.text} → ${n}`,
+                        onSelect: () => resolveMatchedVoiceItem(topItem, n, raw)
+                    }));
+                    if (matches[0].score < 0.98) {
+                        actions.push(createNewVoiceItemAction(cmd.itemQuery, 1));
+                    }
+                    enqueueVoiceDecision(`No count heard for "${raw}"`, actions);
                 }
-                voiceSuggestions.classList.remove('hidden');
-            }
+            }, 2500);
+            if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" → "${topItem.text}" (say number...)`;
             return;
         }
 
@@ -3932,8 +3999,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const matches = matchGroceryItems(cmd.itemQuery, currentList.items);
 
         if (matches.length === 0) {
-            if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" — no match for "${cmd.itemQuery}". Tap to add:`;
-            showVoiceAddOption(cmd.itemQuery, count);
+            showVoiceAddOption(cmd.itemQuery, count, raw);
             return;
         }
 
@@ -3946,24 +4012,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Ambiguous: show disambiguation chips + option to add new if not exact
-        if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" — choose match (count ${count}):`;
-        if (voiceSuggestions) {
-            voiceSuggestions.innerHTML = '';
-            matches.slice(0, 4).forEach(({ item }) => {
-                const secName = currentList.homeSections.find(s => s.id === item.homeSectionId)?.name || '';
-                const chip = document.createElement('button');
-                chip.type = 'button';
-                chip.className = 'voice-suggestion-chip';
-                chip.textContent = secName ? `${item.text} (${secName}) → ${count}` : `${item.text} → ${count}`;
-                chip.addEventListener('click', () => resolveMatchedVoiceItem(item, count, raw));
-                voiceSuggestions.appendChild(chip);
-            });
-            if (top.score < 0.98) {
-                voiceSuggestions.appendChild(buildVoiceAddChip(cmd.itemQuery, count));
-            }
-            voiceSuggestions.classList.remove('hidden');
+        // Ambiguous: enqueue disambiguation chips + option to add new if not exact
+        const actions = matches.slice(0, 4).map(({ item }) => {
+            const secName = currentList.homeSections.find(s => s.id === item.homeSectionId)?.name || '';
+            return {
+                label: secName ? `${item.text} (${secName}) → ${count}` : `${item.text} → ${count}`,
+                onSelect: () => resolveMatchedVoiceItem(item, count, raw)
+            };
+        });
+        if (top.score < 0.98) {
+            actions.push(createNewVoiceItemAction(cmd.itemQuery, count));
         }
+        enqueueVoiceDecision(`Choose match for "${cmd.itemQuery}" (${count})`, actions);
+        if (voiceStatus) voiceStatus.textContent = `Queued match choice for "${cmd.itemQuery}" — keep speaking`;
     }
 
     function stopSpeechListening() {
