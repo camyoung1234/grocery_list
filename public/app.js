@@ -38,6 +38,12 @@ const els = {
     shoppingCountBadge: document.getElementById('shopping-count-badge'),
     inventoryPendingBadge: document.getElementById('inventory-pending-badge'),
 
+    bottomNavBar: document.getElementById('bottom-nav-bar'),
+    bottomSearchBar: document.getElementById('bottom-search-bar'),
+    searchOpenBtn: document.getElementById('search-open-btn'),
+    searchCloseBtn: document.getElementById('search-close-btn'),
+    storeSearchInput: document.getElementById('store-search-input'),
+
     settingsOpenBtn: document.getElementById('settings-open-btn'),
     settingsModal: document.getElementById('settings-modal'),
     settingsCloseBtn: document.getElementById('settings-close-btn'),
@@ -46,8 +52,8 @@ const els = {
 
     storeView: document.getElementById('store-view'),
     inventoryView: document.getElementById('inventory-view'),
+    storeViewHeading: document.getElementById('store-view-heading'),
 
-    storeSearchInput: document.getElementById('store-search-input'),
     addAisleOpenBtn: document.getElementById('add-aisle-open-btn'),
     clearChecksBtn: document.getElementById('clear-checks-btn'),
     addAisleForm: document.getElementById('add-aisle-form'),
@@ -72,14 +78,35 @@ function commit() {
     render();
 }
 
-function showToast(message) {
+function showToast(message, undoCallback = null, durationMs = 4500) {
+    // Clear existing toasts so they don't stack excessively on mobile
+    els.toastContainer.innerHTML = '';
+
     const toast = document.createElement('div');
     toast.className = 'toast';
-    toast.textContent = message;
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = message;
+    toast.appendChild(textSpan);
+
+    let timer = null;
+    if (typeof undoCallback === 'function') {
+        const undoBtn = document.createElement('button');
+        undoBtn.type = 'button';
+        undoBtn.className = 'toast-undo-btn';
+        undoBtn.textContent = 'Undo';
+        undoBtn.addEventListener('click', () => {
+            if (timer) clearTimeout(timer);
+            toast.remove();
+            undoCallback();
+        });
+        toast.appendChild(undoBtn);
+    }
+
     els.toastContainer.appendChild(toast);
-    setTimeout(() => {
+    timer = setTimeout(() => {
         toast.remove();
-    }, 2600);
+    }, undoCallback ? durationMs : 2600);
 }
 
 /* --- Auth-Ready Subscription --- */
@@ -99,6 +126,37 @@ function setTab(tab) {
 els.tabAllBtn.addEventListener('click', () => setTab('all'));
 els.tabShoppingBtn.addEventListener('click', () => setTab('shopping'));
 els.tabInventoryBtn.addEventListener('click', () => setTab('inventory'));
+
+/* --- Bottom Search Bar --- */
+function openSearchBar() {
+    els.bottomNavBar.classList.add('hidden');
+    els.bottomSearchBar.classList.remove('hidden');
+    els.storeSearchInput.focus();
+}
+
+function closeSearchBar() {
+    els.bottomSearchBar.classList.add('hidden');
+    els.bottomNavBar.classList.remove('hidden');
+    if (state.ui.searchQuery) {
+        state.ui.searchQuery = '';
+        els.storeSearchInput.value = '';
+        commit();
+    }
+}
+
+els.searchOpenBtn.addEventListener('click', openSearchBar);
+els.searchCloseBtn.addEventListener('click', closeSearchBar);
+
+els.storeSearchInput.addEventListener('input', e => {
+    state.ui.searchQuery = e.target.value;
+    commit();
+});
+
+els.storeSearchInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeSearchBar();
+    }
+});
 
 /* --- Settings Modal --- */
 els.settingsOpenBtn.addEventListener('click', () => {
@@ -127,12 +185,7 @@ els.settingShowShoppingHw.addEventListener('change', e => {
     commit();
 });
 
-/* --- Search & Toolbar --- */
-els.storeSearchInput.addEventListener('input', e => {
-    state.ui.searchQuery = e.target.value;
-    commit();
-});
-
+/* --- Store Toolbar Actions --- */
 els.clearChecksBtn.addEventListener('click', () => {
     if (state.cartItemIds.length === 0) return;
     clearCartChecks(state);
@@ -173,9 +226,14 @@ els.inventoryCommandForm.addEventListener('submit', e => {
 
 els.clearInventoryBtn.addEventListener('click', () => {
     if (state.inventoryEntries.length === 0) return;
+    const prevEntries = state.inventoryEntries.map(e => ({ ...e }));
     clearInventory(state);
     els.voiceFeedback.textContent = 'Inventory cleared. Ready for a fresh count.';
     commit();
+    showToast('Cleared inventory', () => {
+        state.inventoryEntries = prevEntries;
+        commit();
+    });
 });
 
 function handleVoiceOrTextCommand(rawText) {
@@ -290,6 +348,90 @@ els.voiceMicBtn.addEventListener('click', () => {
     }
 });
 
+/* --- Delete with Undo Helpers --- */
+function deleteStoreItemWithUndo(item) {
+    const itemIdx = state.items.findIndex(i => i.id === item.id);
+    if (itemIdx === -1) return;
+    const itemSnapshot = { ...item };
+    const wasInCart = state.cartItemIds.includes(item.id);
+    const affectedEntries = state.inventoryEntries
+        .filter(e => e.itemId === item.id)
+        .map(e => ({ id: e.id, status: e.status }));
+
+    deleteItem(state, item.id);
+    commit();
+
+    showToast(`Deleted "${item.name}"`, () => {
+        if (!state.items.some(i => i.id === itemSnapshot.id)) {
+            state.items.splice(Math.min(itemIdx, state.items.length), 0, itemSnapshot);
+        }
+        if (wasInCart && !state.cartItemIds.includes(itemSnapshot.id)) {
+            state.cartItemIds.push(itemSnapshot.id);
+        }
+        for (const prev of affectedEntries) {
+            const entry = state.inventoryEntries.find(e => e.id === prev.id);
+            if (entry) {
+                entry.itemId = itemSnapshot.id;
+                entry.status = prev.status;
+            }
+        }
+        commit();
+    });
+}
+
+function deleteAisleWithUndo(aisle) {
+    const aisleIdx = state.aisles.findIndex(a => a.id === aisle.id);
+    if (aisleIdx === -1) return;
+    const aisleSnapshot = { ...aisle };
+    const itemsSnapshot = state.items.filter(i => i.aisleId === aisle.id).map(i => ({ ...i }));
+    const itemIdSet = new Set(itemsSnapshot.map(i => i.id));
+    const cartSnapshot = state.cartItemIds.filter(id => itemIdSet.has(id));
+    const affectedEntries = state.inventoryEntries
+        .filter(e => e.itemId && itemIdSet.has(e.itemId))
+        .map(e => ({ id: e.id, itemId: e.itemId, status: e.status }));
+
+    deleteAisle(state, aisle.id);
+    commit();
+
+    showToast(`Deleted aisle "${aisle.name}"`, () => {
+        if (!state.aisles.some(a => a.id === aisleSnapshot.id)) {
+            state.aisles.splice(Math.min(aisleIdx, state.aisles.length), 0, aisleSnapshot);
+        }
+        for (const it of itemsSnapshot) {
+            if (!state.items.some(i => i.id === it.id)) {
+                state.items.push(it);
+            }
+        }
+        for (const id of cartSnapshot) {
+            if (!state.cartItemIds.includes(id)) state.cartItemIds.push(id);
+        }
+        for (const prev of affectedEntries) {
+            const entry = state.inventoryEntries.find(e => e.id === prev.id);
+            if (entry) {
+                entry.itemId = prev.itemId;
+                entry.status = prev.status;
+            }
+        }
+        commit();
+    });
+}
+
+function deleteInventoryEntryWithUndo(entry, label) {
+    const idx = state.inventoryEntries.findIndex(e => e.id === entry.id);
+    if (idx === -1) return;
+    const snapshot = { ...entry, candidateIds: [...(entry.candidateIds || [])] };
+
+    deleteInventoryEntry(state, entry.id);
+    commit();
+
+    showToast(`Deleted "${label}"`, () => {
+        if (!state.inventoryEntries.some(e => e.id === snapshot.id)) {
+            state.inventoryEntries.splice(Math.min(idx, state.inventoryEntries.length), 0, snapshot);
+        }
+        commit();
+    });
+}
+
 /* --- Render --- */
 function render() {
     const tab = state.ui.tab;
@@ -316,6 +458,10 @@ function render() {
     const toBuyCount = getTotalToBuyItemsCount(state);
     els.shoppingCountBadge.textContent = String(toBuyCount);
 
+    if (els.storeSearchInput.value !== state.ui.searchQuery) {
+        els.storeSearchInput.value = state.ui.searchQuery;
+    }
+
     if (!isInventory) {
         renderStoreView(isShopping);
     } else {
@@ -324,19 +470,13 @@ function render() {
 }
 
 function renderStoreView(isShopping) {
+    els.storeViewHeading.textContent = isShopping ? 'Shopping List' : 'All Items';
     els.addAisleOpenBtn.classList.toggle('hidden', isShopping);
     els.clearChecksBtn.classList.toggle('hidden', !isShopping);
     els.clearChecksBtn.disabled = state.cartItemIds.length === 0;
 
     if (isShopping) {
         els.addAisleForm.classList.add('hidden');
-    }
-
-    if (els.storeSearchInput.value !== state.ui.searchQuery) {
-        els.storeSearchInput.value = state.ui.searchQuery;
-    }
-
-    if (isShopping) {
         renderShoppingList();
     } else {
         renderAllStoreAisles();
@@ -356,7 +496,7 @@ function renderAllStoreAisles() {
         empty.className = 'empty-state';
         empty.innerHTML = `
             <div class="empty-state-title">No store aisles yet</div>
-            <div>Click <strong>+ Aisle</strong> above to create your first section (e.g. Produce, Dairy).</div>
+            <div>Tap <strong>+ Aisle</strong> above to create your first section (e.g. Produce, Dairy).</div>
         `;
         container.appendChild(empty);
         return;
@@ -465,9 +605,7 @@ function renderAllStoreAisles() {
         delAisleBtn.title = `Delete ${aisle.name}`;
         delAisleBtn.setAttribute('aria-label', `Delete aisle ${aisle.name}`);
         delAisleBtn.addEventListener('click', () => {
-            deleteAisle(state, aisle.id);
-            commit();
-            showToast(`Deleted aisle "${aisle.name}"`);
+            deleteAisleWithUndo(aisle);
         });
 
         actions.append(upBtn, downBtn, delAisleBtn);
@@ -552,8 +690,7 @@ function renderAllStoreAisles() {
                 delBtn.title = `Delete ${item.name}`;
                 delBtn.setAttribute('aria-label', `Delete ${item.name}`);
                 delBtn.addEventListener('click', () => {
-                    deleteItem(state, item.id);
-                    commit();
+                    deleteStoreItemWithUndo(item);
                 });
 
                 controls.append(stepper, delBtn);
@@ -665,8 +802,8 @@ function renderShoppingList() {
 
             const check = document.createElement('span');
             check.className = 'cart-check';
-            check.setAttribute('aria-hidden', 'true');
-            check.textContent = inCart ? '✓' : '';
+            check.setAttribute('aria-label', inCart ? `${item.name} checked` : `Buy ${item.toBuy} ${item.name}`);
+            check.textContent = inCart ? '✓' : String(item.toBuy);
 
             const textWrap = document.createElement('div');
             const nameEl = document.createElement('div');
@@ -682,12 +819,7 @@ function renderShoppingList() {
             }
 
             left.append(check, textWrap);
-
-            const buyBadge = document.createElement('span');
-            buyBadge.className = 'buy-badge';
-            buyBadge.textContent = `Buy ${item.toBuy}`;
-
-            li.append(left, buyBadge);
+            li.appendChild(left);
             list.appendChild(li);
         });
 
@@ -702,6 +834,16 @@ function renderInventoryMode() {
     const entryCountMap = getEntryCountMap(state);
     const itemsById = new Map(state.items.map(i => [i.id, i]));
     const aislesById = new Map(state.aisles.map(a => [a.id, a]));
+    const q = (state.ui.searchQuery || '').trim().toLowerCase();
+
+    const filteredEntries = q
+        ? entries.filter(entry => {
+            const itemName = entry.itemId && itemsById.has(entry.itemId)
+                ? itemsById.get(entry.itemId).name.toLowerCase()
+                : '';
+            return itemName.includes(q) || (entry.rawQuery || '').toLowerCase().includes(q);
+        })
+        : entries;
 
     const uniqueCount = Object.keys(haveMap).length;
     els.inventorySummary.textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} · ${uniqueCount} item${uniqueCount === 1 ? '' : 's'} counted`;
@@ -721,7 +863,15 @@ function renderInventoryMode() {
         return;
     }
 
-    entries.forEach(entry => {
+    if (filteredEntries.length === 0 && q) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `<div class="empty-state-title">No matching entries</div><div>Try a different search term.</div>`;
+        list.appendChild(empty);
+        return;
+    }
+
+    filteredEntries.forEach(entry => {
         const li = document.createElement('li');
         li.className = `inv-entry ${entry.status}`;
         li.dataset.entryId = entry.id;
@@ -735,9 +885,12 @@ function renderInventoryMode() {
         const title = document.createElement('div');
         title.className = 'inv-entry-title';
 
+        let displayLabel = entry.rawQuery;
+
         if (entry.status === 'matched' && entry.itemId && itemsById.has(entry.itemId)) {
             const storeItem = itemsById.get(entry.itemId);
             const aisle = aislesById.get(storeItem.aisleId);
+            displayLabel = storeItem.name;
 
             const nameSpan = document.createElement('span');
             nameSpan.textContent = storeItem.name;
@@ -779,8 +932,7 @@ function renderInventoryMode() {
         deleteBtn.title = 'Delete entry';
         deleteBtn.setAttribute('aria-label', `Delete ${entry.rawQuery}`);
         deleteBtn.addEventListener('click', () => {
-            deleteInventoryEntry(state, entry.id);
-            commit();
+            deleteInventoryEntryWithUndo(entry, displayLabel);
         });
 
         controls.append(stepper, deleteBtn);
