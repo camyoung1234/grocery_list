@@ -49,6 +49,8 @@ const els = {
     settingsCloseBtn: document.getElementById('settings-close-btn'),
     settingShowAllStock: document.getElementById('setting-show-all-stock'),
     settingShowShoppingHw: document.getElementById('setting-show-shopping-hw'),
+    settingShowAisleCounts: document.getElementById('setting-show-aisle-counts'),
+    settingCompactDensity: document.getElementById('setting-compact-density'),
 
     storeView: document.getElementById('store-view'),
     inventoryView: document.getElementById('inventory-view'),
@@ -162,6 +164,8 @@ els.storeSearchInput.addEventListener('keydown', e => {
 els.settingsOpenBtn.addEventListener('click', () => {
     els.settingShowAllStock.checked = state.settings.showAllItemsStockStatus;
     els.settingShowShoppingHw.checked = state.settings.showShoppingHaveWant;
+    els.settingShowAisleCounts.checked = state.settings.showAisleCounts;
+    els.settingCompactDensity.checked = state.settings.compactDensity;
     els.settingsModal.classList.remove('hidden');
 });
 
@@ -184,6 +188,29 @@ els.settingShowShoppingHw.addEventListener('change', e => {
     state.settings.showShoppingHaveWant = e.target.checked;
     commit();
 });
+
+els.settingShowAisleCounts.addEventListener('change', e => {
+    state.settings.showAisleCounts = e.target.checked;
+    commit();
+});
+
+els.settingCompactDensity.addEventListener('change', e => {
+    state.settings.compactDensity = e.target.checked;
+    commit();
+});
+
+function attachDoubleTap(el, onDoubleTap) {
+    let lastTapAt = 0;
+    el.addEventListener('click', () => {
+        const now = Date.now();
+        if (now - lastTapAt <= 350) {
+            lastTapAt = 0;
+            onDoubleTap();
+        } else {
+            lastTapAt = now;
+        }
+    });
+}
 
 /* --- Store Toolbar Actions --- */
 els.clearChecksBtn.addEventListener('click', () => {
@@ -434,6 +461,8 @@ function deleteInventoryEntryWithUndo(entry, label) {
 
 /* --- Render --- */
 function render() {
+    document.body.classList.toggle('compact', Boolean(state.settings.compactDensity));
+
     const tab = state.ui.tab;
     const isAll = tab === 'all';
     const isShopping = tab === 'shopping';
@@ -560,18 +589,20 @@ function renderAllStoreAisles() {
             nameBtn.type = 'button';
             nameBtn.className = 'aisle-name-btn';
             nameBtn.textContent = aisle.name;
-            nameBtn.title = 'Click to rename aisle';
-            nameBtn.addEventListener('click', () => {
+            nameBtn.title = 'Double-tap to rename aisle';
+            attachDoubleTap(nameBtn, () => {
                 editingAisleId = aisle.id;
                 render();
             });
             titleGroup.appendChild(nameBtn);
         }
 
-        const countBadge = document.createElement('span');
-        countBadge.className = 'aisle-count';
-        countBadge.textContent = String(aisleItems.length);
-        titleGroup.appendChild(countBadge);
+        if (state.settings.showAisleCounts) {
+            const countBadge = document.createElement('span');
+            countBadge.className = 'aisle-count';
+            countBadge.textContent = String(aisleItems.length);
+            titleGroup.appendChild(countBadge);
+        }
 
         const actions = document.createElement('div');
         actions.className = 'aisle-actions';
@@ -646,8 +677,8 @@ function renderAllStoreAisles() {
                     nameBtn.type = 'button';
                     nameBtn.className = 'item-name-btn';
                     nameBtn.textContent = item.name;
-                    nameBtn.title = 'Click to edit item name';
-                    nameBtn.addEventListener('click', () => {
+                    nameBtn.title = 'Double-tap to edit item name';
+                    attachDoubleTap(nameBtn, () => {
                         editingItemId = item.id;
                         render();
                     });
@@ -777,10 +808,13 @@ function renderShoppingList() {
         const title = document.createElement('span');
         title.className = 'aisle-name-btn';
         title.textContent = aisle.name;
-        const count = document.createElement('span');
-        count.className = 'aisle-count';
-        count.textContent = String(items.length);
-        titleGroup.append(title, count);
+        titleGroup.appendChild(title);
+        if (state.settings.showAisleCounts) {
+            const count = document.createElement('span');
+            count.className = 'aisle-count';
+            count.textContent = String(items.length);
+            titleGroup.appendChild(count);
+        }
         header.appendChild(titleGroup);
         card.appendChild(header);
 

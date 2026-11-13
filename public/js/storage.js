@@ -29,7 +29,9 @@ export function createSeedState() {
         cartItemIds: [],
         settings: {
             showAllItemsStockStatus: true,
-            showShoppingHaveWant: true
+            showShoppingHaveWant: true,
+            showAisleCounts: true,
+            compactDensity: false
         },
         ui: {
             tab: 'all', // 'all' | 'shopping' | 'inventory'
@@ -140,7 +142,9 @@ export class LocalDataStore {
             cartItemIds: Array.isArray(raw.cartItemIds) ? raw.cartItemIds : [],
             settings: {
                 showAllItemsStockStatus: raw.settings?.showAllItemsStockStatus ?? true,
-                showShoppingHaveWant: raw.settings?.showShoppingHaveWant ?? true
+                showShoppingHaveWant: raw.settings?.showShoppingHaveWant ?? true,
+                showAisleCounts: raw.settings?.showAisleCounts ?? true,
+                compactDensity: raw.settings?.compactDensity ?? false
             },
             ui: {
                 tab,

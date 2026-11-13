@@ -133,18 +133,49 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await expect(bananasRow.locator('.cart-check')).toHaveText('4');
     });
 
-    test('Settings Modal: toggles hide/show Stocked/Have/Need on All Items and Have/Want on Shopping List', async ({ page }) => {
+    test('Double-tap required to edit aisle and item names', async ({ page }) => {
+        const produceHeader = page.locator('.aisle-card', { hasText: 'Produce' }).locator('.aisle-name-btn');
+        // Single tap should NOT open edit input
+        await produceHeader.click();
+        await expect(page.locator('.aisle-name-input')).toHaveCount(0);
+
+        // Double tap SHOULD open edit input
+        await produceHeader.dblclick();
+        await expect(page.locator('.aisle-name-input')).toBeVisible();
+        await page.locator('.aisle-name-input').fill('Fresh Produce');
+        await page.locator('.aisle-name-input').press('Enter');
+        await expect(page.locator('.aisle-card .aisle-name-btn', { hasText: 'Fresh Produce' })).toBeVisible();
+
+        const bananasBtn = page.locator('.item-row .item-name-btn', { hasText: 'Bananas' });
+        await bananasBtn.click();
+        await expect(page.locator('.item-name-input')).toHaveCount(0);
+
+        await bananasBtn.dblclick();
+        await expect(page.locator('.item-name-input')).toBeVisible();
+        await page.locator('.item-name-input').fill('Organic Bananas');
+        await page.locator('.item-name-input').press('Enter');
+        await expect(page.locator('.item-row .item-name-btn', { hasText: 'Organic Bananas' })).toBeVisible();
+    });
+
+    test('Settings Modal: toggles hide/show Stocked/Have/Need, Have/Want, aisle counts, and compact density', async ({ page }) => {
         await expect(page.locator('.item-row .stock-pill').first()).toBeVisible();
+        await expect(page.locator('.aisle-count').first()).toBeVisible();
+        await expect(page.locator('body')).not.toHaveClass(/compact/);
 
         await page.click('#settings-open-btn');
         await page.click('label[for="setting-show-all-stock"]');
         await page.click('label[for="setting-show-shopping-hw"]');
+        await page.click('label[for="setting-show-aisle-counts"]');
+        await page.click('label[for="setting-compact-density"]');
         await page.click('#settings-close-btn');
 
         await expect(page.locator('.item-row .stock-pill')).toHaveCount(0);
+        await expect(page.locator('.aisle-count')).toHaveCount(0);
+        await expect(page.locator('body')).toHaveClass(/compact/);
 
         await page.click('#tab-shopping-btn');
         await expect(page.locator('.shopping-row .shopping-item-sub')).toHaveCount(0);
+        await expect(page.locator('.aisle-count')).toHaveCount(0);
     });
 
     test('Inventory Mode: simulated Web Speech API voice recognition works end-to-end', async ({ page }) => {

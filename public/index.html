@@ -8,7 +8,7 @@
     <meta name="description" content="Organize groceries by store aisle, count home inventory with your voice, and generate a smart shopping list.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400..700&family=Google+Sans+Flex:wght@400..700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 
     <!-- PWA & Mobile Install Tags -->
@@ -161,6 +161,22 @@
                         <div class="setting-desc">Display current and target counts under each item to buy</div>
                     </div>
                     <input type="checkbox" id="setting-show-shopping-hw" class="toggle-switch">
+                </label>
+
+                <label class="setting-row" for="setting-show-aisle-counts">
+                    <div class="setting-text">
+                        <div class="setting-label">Show item counts on aisles</div>
+                        <div class="setting-desc">Display the number badge next to each aisle name</div>
+                    </div>
+                    <input type="checkbox" id="setting-show-aisle-counts" class="toggle-switch">
+                </label>
+
+                <label class="setting-row" for="setting-compact-density">
+                    <div class="setting-text">
+                        <div class="setting-label">Compact list density</div>
+                        <div class="setting-desc">Tighter row spacing to fit more items on screen</div>
+                    </div>
+                    <input type="checkbox" id="setting-compact-density" class="toggle-switch">
                 </label>
 
                 <div class="setting-row static">
