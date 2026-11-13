@@ -42,12 +42,25 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await breadRow.locator('button[aria-label="Increase Desired quantity for Sourdough Bread"]').click();
         await expect(breadRow.locator('.stepper-input')).toHaveValue('3');
 
-        // Delete Sourdough Bread -> Undo toast appears and restores it
-        await breadRow.locator('button[aria-label="Delete Sourdough Bread"]').click();
+        // Decrement Sourdough Bread to 0 -> minus button becomes X, then click X to delete + Undo
+        const decBtn = breadRow.locator('button[aria-label="Decrease Desired quantity for Sourdough Bread"]');
+        await decBtn.click(); // 2
+        await decBtn.click(); // 1
+        await decBtn.click(); // 0
+        await expect(breadRow.locator('.stepper-input')).toHaveValue('0');
+
+        const delAtZeroBtn = breadRow.locator('button[aria-label="Delete Desired quantity for Sourdough Bread"]');
+        await expect(delAtZeroBtn).toHaveText('×');
+        await delAtZeroBtn.click();
+
         await expect(bakeryCard.locator('.item-row', { hasText: 'Sourdough Bread' })).toHaveCount(0);
         await expect(page.locator('.toast-undo-btn')).toBeVisible();
         await page.click('.toast-undo-btn');
         await expect(bakeryCard.locator('.item-row', { hasText: 'Sourdough Bread' })).toBeVisible();
+
+        // Restore desired quantity to 3 and verify localStorage persistence
+        await breadRow.locator('.stepper-input').fill('3');
+        await breadRow.locator('.stepper-input').dispatchEvent('change');
 
         // Reload and verify localStorage persistence
         await page.reload();
@@ -90,13 +103,16 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await expect(milkEntries).toHaveCount(2);
         await expect(milkEntries.first()).toContainText('Total: 3');
 
-        // 5. Delete "milk 1" with X -> Undo restores, then delete again
-        await milkEntries.last().locator('.inv-delete-btn').click();
+        // 5. Decrement "milk 1" to 0 -> minus becomes X, click X to delete -> Undo restores, then delete again
+        const milk1Row = milkEntries.last();
+        await milk1Row.locator('button[aria-label="Decrease Count for Milk"]').click();
+        await expect(milk1Row.locator('.stepper-input')).toHaveValue('0');
+        await milk1Row.locator('button[aria-label="Delete Count for Milk"]').click();
         await expect(page.locator('.inv-entry.matched', { hasText: 'Whole Milk' })).toHaveCount(1);
         await page.click('.toast-undo-btn');
         await expect(page.locator('.inv-entry.matched', { hasText: 'Whole Milk' })).toHaveCount(2);
 
-        await milkEntries.last().locator('.inv-delete-btn').click();
+        await milkEntries.last().locator('button[aria-label="Delete Count for Milk"]').click();
         await expect(page.locator('.inv-entry.matched', { hasText: 'Whole Milk' })).toHaveCount(1);
 
         // Verify in All Items

@@ -709,22 +709,17 @@ function renderAllStoreAisles() {
                 const controls = document.createElement('div');
                 controls.className = 'item-controls';
 
-                const stepper = createQtyStepper(item.wantQty, `Desired quantity for ${item.name}`, nextQty => {
-                    updateItemWantQty(state, item.id, nextQty);
-                    commit();
-                });
+                const stepper = createQtyStepper(
+                    item.wantQty,
+                    `Desired quantity for ${item.name}`,
+                    nextQty => {
+                        updateItemWantQty(state, item.id, nextQty);
+                        commit();
+                    },
+                    () => deleteStoreItemWithUndo(item)
+                );
 
-                const delBtn = document.createElement('button');
-                delBtn.type = 'button';
-                delBtn.className = 'icon-btn danger';
-                delBtn.textContent = '×';
-                delBtn.title = `Delete ${item.name}`;
-                delBtn.setAttribute('aria-label', `Delete ${item.name}`);
-                delBtn.addEventListener('click', () => {
-                    deleteStoreItemWithUndo(item);
-                });
-
-                controls.append(stepper, delBtn);
+                controls.appendChild(stepper);
                 li.append(main, controls);
                 list.appendChild(li);
             });
@@ -954,22 +949,17 @@ function renderInventoryMode() {
         const controls = document.createElement('div');
         controls.className = 'inv-entry-controls';
 
-        const stepper = createQtyStepper(entry.count, `Count for ${entry.rawQuery}`, nextCount => {
-            updateInventoryEntryCount(state, entry.id, nextCount);
-            commit();
-        });
+        const stepper = createQtyStepper(
+            entry.count,
+            `Count for ${entry.rawQuery}`,
+            nextCount => {
+                updateInventoryEntryCount(state, entry.id, nextCount);
+                commit();
+            },
+            () => deleteInventoryEntryWithUndo(entry, displayLabel)
+        );
 
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'inv-delete-btn';
-        deleteBtn.textContent = '×';
-        deleteBtn.title = 'Delete entry';
-        deleteBtn.setAttribute('aria-label', `Delete ${entry.rawQuery}`);
-        deleteBtn.addEventListener('click', () => {
-            deleteInventoryEntryWithUndo(entry, displayLabel);
-        });
-
-        controls.append(stepper, deleteBtn);
+        controls.appendChild(stepper);
         top.append(info, controls);
         li.appendChild(top);
 
@@ -1067,18 +1057,27 @@ function renderInventoryMode() {
     });
 }
 
-function createQtyStepper(value, ariaLabel, onChange) {
+function createQtyStepper(value, ariaLabel, onChange, onDeleteAtZero = null) {
     const wrap = document.createElement('div');
     wrap.className = 'qty-stepper';
 
+    const isZero = (Number(value) || 0) <= 0;
     const decBtn = document.createElement('button');
     decBtn.type = 'button';
-    decBtn.className = 'stepper-btn';
-    decBtn.textContent = '−';
-    decBtn.setAttribute('aria-label', `Decrease ${ariaLabel}`);
-    decBtn.addEventListener('click', () => {
-        onChange(Math.max(0, (Number(value) || 0) - 1));
-    });
+    if (isZero && typeof onDeleteAtZero === 'function') {
+        decBtn.className = 'stepper-btn delete-at-zero';
+        decBtn.textContent = '×';
+        decBtn.title = 'Delete item';
+        decBtn.setAttribute('aria-label', `Delete ${ariaLabel}`);
+        decBtn.addEventListener('click', () => onDeleteAtZero());
+    } else {
+        decBtn.className = 'stepper-btn';
+        decBtn.textContent = '−';
+        decBtn.setAttribute('aria-label', `Decrease ${ariaLabel}`);
+        decBtn.addEventListener('click', () => {
+            onChange(Math.max(0, (Number(value) || 0) - 1));
+        });
+    }
 
     const input = document.createElement('input');
     input.type = 'number';
