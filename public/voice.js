@@ -25,7 +25,7 @@ const TRAILING_HOMOPHONES = {
 };
 
 /**
- * Parse a sequence of tokens representing a non-negative integer (e.g. ["twenty", "three"] -> 23, ["12"] -> 12).
+ * Parse a sequence of tokens representing a non-negative integer.
  * Returns null if the tokens do not form a valid number.
  */
 export function parseNumberTokens(tokens, allowHomophones = false) {
@@ -87,7 +87,6 @@ export function normalizeText(str) {
     const out = [];
     for (let i = 0; i < tokens.length; i++) {
         const tok = tokens[i];
-        // Handle compound tens + ones inside item names (e.g. "twenty one")
         if (tok in TENS && i + 1 < tokens.length && tokens[i + 1] in ONES && ONES[tokens[i + 1]] >= 1 && ONES[tokens[i + 1]] <= 9) {
             out.push(String(TENS[tok] + ONES[tokens[i + 1]]));
             i++;
@@ -106,14 +105,14 @@ export function normalizeCompact(str) {
     return normalizeText(str).replace(/\s+/g, '');
 }
 
-function singularize(word) {
+export function singularize(word) {
     if (word.length <= 3) return word;
     if (word.endsWith('ies')) return word.slice(0, -3) + 'y';
-    if (word.endsWith('es') && !word.endsWith('ses') && !word.endsWith('ches') && !word.endsWith('shes')) {
-        return word.slice(0, -1);
-    }
     if (word.endsWith('oes') || word.endsWith('ches') || word.endsWith('shes') || word.endsWith('xes')) {
         return word.slice(0, -2);
+    }
+    if (word.endsWith('es') && !word.endsWith('ses')) {
+        return word.slice(0, -1);
     }
     if (word.endsWith('s') && !word.endsWith('ss')) {
         return word.slice(0, -1);
@@ -159,44 +158,26 @@ function levenshteinRatio(a, b) {
 }
 
 /**
- * Parse a raw speech transcript into a structured command.
- * @param {string} rawText
- * @param {'smart'|'walk'} voiceSubMode
+ * Parse a raw speech transcript or text command into `{ type, itemQuery, count }`.
+ * Supports "<item> <count>" (e.g. "wipes 3", "baby wipes two"), "<count> <item>", and filler phrases.
  */
-export function parseVoiceCommand(rawText, voiceSubMode = 'smart') {
+export function parseVoiceCommand(rawText) {
     const trimmed = (rawText || '').trim();
     if (!trimmed) return { type: 'empty' };
 
     const lower = trimmed.toLowerCase().replace(/[.!?,]+$/g, '').trim();
 
-    // Navigation / control commands
-    if (/^(next|skip|pass|next item)$/.test(lower)) {
-        return { type: 'nav', action: 'next' };
-    }
-    if (/^(back|previous|prev|go back|previous item)$/.test(lower)) {
-        return { type: 'nav', action: 'prev' };
-    }
     if (/^(done|stop|exit|close|stop listening|finish)$/.test(lower)) {
         return { type: 'nav', action: 'stop' };
     }
 
-    const rawTokens = lower.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
-
-    // In Walk List mode, a standalone number updates the current item & advances
-    if (voiceSubMode === 'walk') {
-        const standaloneNum = parseNumberTokens(rawTokens, true);
-        if (standaloneNum !== null) {
-            return { type: 'walk-qty', count: standaloneNum };
-        }
-    }
-
     // Strip common leading filler phrases
-    let phrase = lower
-        .replace(/^(i\s+have|we\s+have|have|set|update|got|there\s+is|there\s+are|count)\s+/i, '')
+    const phrase = lower
+        .replace(/^(i\s+have|we\s+have|have|set|update|got|add|there\s+is|there\s+are|count)\s+/i, '')
         .trim();
 
-    // Handle explicit separator: "<item> to/at/is/equals <number>"
-    const sepMatch = phrase.match(/^(.+?)\s+(?:to|at|is|equals)\s+([a-z0-9\s-]+)$/i);
+    // Handle explicit separator: "<item> to/at/is/equals/x <number>"
+    const sepMatch = phrase.match(/^(.+?)\s+(?:to|at|is|equals|x)\s+([a-z0-9\s-]+)$/i);
     if (sepMatch) {
         const sepNumTokens = sepMatch[2].replace(/-/g, ' ').trim().split(/\s+/);
         const sepCount = parseNumberTokens(sepNumTokens, true);
@@ -207,9 +188,15 @@ export function parseVoiceCommand(rawText, voiceSubMode = 'smart') {
 
     // Separate attached trailing digits if preceded by letters (e.g. "wipes3" -> "wipes 3")
     const spacedTrailingDigits = phrase.replace(/([a-z])(\d+)$/i, '$1 $2');
-    const tokens = spacedTrailingDigits.replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+    const tokens = spacedTrailingDigits
+        .replace(/-/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(' ')
+        .filter(Boolean);
 
-    // 1. Try trailing count (try longest valid number suffix up to 3 tokens, e.g. "half a dozen", "twenty one", "one")
+    // 1. Try trailing count (e.g. "wipes 3", "eggs half a dozen", "milk twenty one")
     for (let len = Math.min(3, tokens.length - 1); len >= 1; len--) {
         const tail = tokens.slice(tokens.length - len);
         const count = parseNumberTokens(tail, len === 1);
@@ -224,7 +211,6 @@ export function parseVoiceCommand(rawText, voiceSubMode = 'smart') {
     // 2. Try leading count (e.g. "2 whole milk", "three bananas", "a dozen eggs")
     for (let len = Math.min(3, tokens.length - 1); len >= 1; len--) {
         const head = tokens.slice(0, len);
-        // Do not allow homophones at the start ("for" / "to") to avoid mangling phrases
         const count = parseNumberTokens(head, false);
         if (count !== null) {
             let itemTokens = tokens.slice(len);
@@ -236,20 +222,14 @@ export function parseVoiceCommand(rawText, voiceSubMode = 'smart') {
         }
     }
 
-    // 3. Standalone number in smart mode (no item name)
-    const onlyNum = parseNumberTokens(tokens, true);
-    if (onlyNum !== null) {
-        return { type: 'walk-qty', count: onlyNum };
-    }
-
-    return { type: 'item-only', itemQuery: phrase };
+    return { type: 'item-only', itemQuery: phrase, count: 1 };
 }
 
 /**
- * Score how well a query matches a list of items.
- * Returns sorted array of { item, score } for matches above threshold.
+ * Score how well a query matches a list of store items (`{ id, name }`).
+ * Returns sorted array of `{ item, score }` for matches above `minScore`.
  */
-export function matchGroceryItems(query, items, minScore = 0.52) {
+export function matchGroceryItems(query, items, minScore = 0.54) {
     const qNorm = normalizeText(query);
     const qCompact = normalizeCompact(query);
     if (!qNorm || !items || items.length === 0) return [];
@@ -260,9 +240,9 @@ export function matchGroceryItems(query, items, minScore = 0.52) {
     const results = [];
 
     for (const item of items) {
-        if (item.pendingDelete) continue;
-        const iNorm = normalizeText(item.text);
-        const iCompact = normalizeCompact(item.text);
+        const label = item.name ?? item.text ?? '';
+        const iNorm = normalizeText(label);
+        const iCompact = normalizeCompact(label);
         if (!iNorm) continue;
 
         let score = 0;
@@ -291,7 +271,6 @@ export function matchGroceryItems(query, items, minScore = 0.52) {
                 }
 
                 if (matchedTokens === qTokens.length) {
-                    // Favor closer token counts so "milk" prefers "Milk" over "Chocolate Almond Milk"
                     const lengthRatio = qTokens.length / Math.max(iTokens.length, qTokens.length);
                     score = 0.80 + 0.12 * lengthRatio;
                 } else if (iCompact.includes(qCompact) && qCompact.length >= 3) {
@@ -313,4 +292,39 @@ export function matchGroceryItems(query, items, minScore = 0.52) {
 
     results.sort((a, b) => b.score - a.score);
     return results;
+}
+
+/**
+ * Classify a voice/text query against store items into:
+ * - { status: 'matched', item, candidates: [item] }
+ * - { status: 'ambiguous', candidates: Item[] }
+ * - { status: 'unmatched', candidates: [] }
+ */
+export function classifyVoiceMatch(query, items) {
+    const matches = matchGroceryItems(query, items, 0.54);
+    if (matches.length === 0) {
+        return { status: 'unmatched', candidates: [] };
+    }
+
+    const top = matches[0];
+    // Exact or singular-exact match with clear separation from runner-up
+    if (top.score >= 0.94 && (matches.length === 1 || top.score - matches[1].score >= 0.08)) {
+        return { status: 'matched', item: top.item, candidates: [top.item] };
+    }
+
+    // Single unambiguous match (e.g. "wipes" when only "Baby Wipes" exists)
+    if (matches.length === 1 && top.score >= 0.65) {
+        return { status: 'matched', item: top.item, candidates: [top.item] };
+    }
+
+    // Multiple plausible matches: show suggestions so user can tap the right one
+    const closeMatches = matches.filter(m => m.score >= Math.max(0.58, top.score - 0.18));
+    if (closeMatches.length === 1) {
+        return { status: 'matched', item: closeMatches[0].item, candidates: [closeMatches[0].item] };
+    }
+
+    return {
+        status: 'ambiguous',
+        candidates: closeMatches.slice(0, 5).map(m => m.item)
+    };
 }
