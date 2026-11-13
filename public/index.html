@@ -23,95 +23,59 @@
 <body>
     <div class="app-shell">
         <header class="app-header">
-            <div class="header-top">
-                <div class="brand">
-                    <span class="brand-mark" aria-hidden="true">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                            <line x1="3" y1="6" x2="21" y2="6"/>
-                            <path d="M16 10a4 4 0 0 1-8 0"/>
-                        </svg>
-                    </span>
-                    <h1 class="brand-title">Grocery List</h1>
-                </div>
-
-                <div class="header-right">
-                    <button type="button" id="auth-status-btn" class="auth-pill" title="Local storage mode (authentication ready)">
-                        <span class="auth-dot" aria-hidden="true"></span>
-                        <span id="auth-status-label">Local Mode</span>
+            <div class="header-bar">
+                <nav class="segmented-nav" aria-label="Primary Views">
+                    <button type="button" id="tab-all-btn" class="segmented-tab active" data-tab="all" aria-pressed="true">
+                        <span>All Items</span>
                     </button>
-                </div>
-            </div>
+                    <button type="button" id="tab-shopping-btn" class="segmented-tab" data-tab="shopping" aria-pressed="false">
+                        <span>Shopping List</span>
+                        <span id="shopping-count-badge" class="nav-badge">0</span>
+                    </button>
+                    <button type="button" id="tab-inventory-btn" class="segmented-tab" data-tab="inventory" aria-pressed="false">
+                        <span>Inventory</span>
+                        <span id="inventory-pending-badge" class="nav-badge warn hidden">0</span>
+                    </button>
+                </nav>
 
-            <nav class="mode-switcher" aria-label="App Mode">
-                <button type="button" id="mode-store-btn" class="mode-tab active" data-mode="store" aria-pressed="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                        <polyline points="9 22 9 12 15 12 15 22"/>
+                <button type="button" id="settings-open-btn" class="settings-icon-btn" aria-label="Open settings" title="Settings">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
-                    <span>Store</span>
                 </button>
-                <button type="button" id="mode-inventory-btn" class="mode-tab" data-mode="inventory" aria-pressed="false">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                        <line x1="12" y1="19" x2="12" y2="23"/>
-                        <line x1="8" y1="23" x2="16" y2="23"/>
-                    </svg>
-                    <span>Inventory</span>
-                    <span id="inventory-pending-badge" class="tab-badge hidden">0</span>
-                </button>
-            </nav>
+            </div>
         </header>
 
-        <!-- STORE MODE -->
-        <main id="store-view" class="main-content" aria-label="Store Mode">
-            <div class="store-toolbar">
-                <div class="view-toggle" role="group" aria-label="Store View">
-                    <button type="button" id="view-all-btn" class="view-toggle-btn active" data-view="all">
-                        All Items
-                    </button>
-                    <button type="button" id="view-shopping-btn" class="view-toggle-btn" data-view="shopping">
-                        Shopping List
-                        <span id="shopping-count-badge" class="count-badge">0</span>
-                    </button>
+        <!-- STORE MODE (All Items & Shopping List) -->
+        <main id="store-view" class="main-content" aria-label="Store View">
+            <div class="toolbar-controls">
+                <div class="search-field">
+                    <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="search" id="store-search-input" class="search-input" placeholder="Search items or aisles..." aria-label="Search items or aisles" autocomplete="off">
                 </div>
-
-                <div class="toolbar-controls">
-                    <div class="search-field">
-                        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="11" cy="11" r="8"/>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                        </svg>
-                        <input type="search" id="store-search-input" class="search-input" placeholder="Search items or aisles..." aria-label="Search items or aisles" autocomplete="off">
-                    </div>
-                    <button type="button" id="add-aisle-open-btn" class="btn-secondary">
-                        + Aisle
-                    </button>
-                </div>
+                <button type="button" id="add-aisle-open-btn" class="btn-tonal">
+                    + Aisle
+                </button>
+                <button type="button" id="clear-checks-btn" class="btn-tonal hidden">
+                    Clear Checks
+                </button>
             </div>
 
             <!-- Inline Add Aisle Form (toggled) -->
             <form id="add-aisle-form" class="add-aisle-card hidden">
                 <input type="text" id="new-aisle-input" class="text-input" placeholder="New aisle name (e.g. Frozen, Bakery)..." aria-label="New aisle name" autocomplete="off">
                 <div class="add-aisle-actions">
-                    <button type="submit" class="btn-primary">Add Aisle</button>
                     <button type="button" id="add-aisle-cancel-btn" class="btn-ghost">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Aisle</button>
                 </div>
             </form>
 
             <div id="store-aisles-container" class="aisles-container">
                 <!-- Rendered dynamically -->
-            </div>
-
-            <div id="shopping-cart-bar" class="cart-bar hidden" role="region" aria-label="Shopping trip cart">
-                <div class="cart-bar-info">
-                    <span id="cart-bar-count" class="cart-bar-count">0 in cart</span>
-                </div>
-                <div class="cart-bar-actions">
-                    <button type="button" id="cart-clear-btn" class="btn-ghost-sm">Clear</button>
-                    <button type="button" id="cart-commit-btn" class="btn-primary-sm">Finish Trip &amp; Update Inventory</button>
-                </div>
             </div>
         </main>
 
@@ -124,7 +88,7 @@
                         <p class="voice-card-subtitle">Say or type <code>&lt;item&gt; &lt;count&gt;</code> — e.g. <em>&ldquo;wipes 3&rdquo;</em> or <em>&ldquo;milk 2&rdquo;</em></p>
                     </div>
                     <button type="button" id="voice-mic-btn" class="mic-btn" aria-label="Start voice input" aria-pressed="false">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
                             <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                             <line x1="12" y1="19" x2="12" y2="23"/>
@@ -155,6 +119,45 @@
                 </ul>
             </section>
         </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h2 id="settings-modal-title" class="modal-title">Display &amp; Settings</h2>
+                <button type="button" id="settings-close-btn" class="icon-btn" aria-label="Close settings">×</button>
+            </div>
+
+            <div class="settings-list">
+                <label class="setting-row" for="setting-show-all-stock">
+                    <div class="setting-text">
+                        <div class="setting-label">Show stock status on All Items</div>
+                        <div class="setting-desc">Display Stocked, Have, and Need badges under each item</div>
+                    </div>
+                    <input type="checkbox" id="setting-show-all-stock" class="toggle-switch">
+                </label>
+
+                <label class="setting-row" for="setting-show-shopping-hw">
+                    <div class="setting-text">
+                        <div class="setting-label">Show Have &amp; Want on Shopping List</div>
+                        <div class="setting-desc">Display current and target counts under each item to buy</div>
+                    </div>
+                    <input type="checkbox" id="setting-show-shopping-hw" class="toggle-switch">
+                </label>
+
+                <div class="setting-row static">
+                    <div class="setting-text">
+                        <div class="setting-label">Storage &amp; Sync</div>
+                        <div class="setting-desc">Saved locally in your browser</div>
+                    </div>
+                    <span class="status-chip">
+                        <span class="auth-dot" aria-hidden="true"></span>
+                        <span id="auth-status-label">Local Mode</span>
+                    </span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="toast-container" class="toast-container" aria-live="polite"></div>

@@ -284,30 +284,6 @@ export function toggleCartItem(state, itemId) {
     }
 }
 
-export function commitCartToInventory(state) {
-    if (state.cartItemIds.length === 0) return 0;
-    const haveMap = getHaveQtyMap(state);
-    let addedCount = 0;
-
-    for (const itemId of state.cartItemIds) {
-        const item = state.items.find(i => i.id === itemId);
-        if (!item) continue;
-        const haveQty = haveMap[item.id] || 0;
-        const toBuy = Math.max(0, (Number(item.wantQty) || 0) - haveQty);
-        if (toBuy > 0) {
-            state.inventoryEntries.unshift({
-                id: createId('inv'),
-                rawQuery: item.name,
-                count: toBuy,
-                status: 'matched',
-                itemId: item.id,
-                candidateIds: [],
-                createdAt: Date.now()
-            });
-            addedCount++;
-        }
-    }
-
+export function clearCartChecks(state) {
     state.cartItemIds = [];
-    return addedCount;
 }

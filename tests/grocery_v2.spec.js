@@ -1,14 +1,18 @@
 const { test, expect } = require('@playwright/test');
 
-test.describe('Grocery List v2 — Store, Voice Inventory & Shopping List', () => {
+test.describe('Grocery List v2 — Modern UI, 3-Way Toggle, Settings & Voice Inventory', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
         await page.evaluate(() => localStorage.clear());
         await page.reload();
     });
 
-    test('Store Mode: add aisle, add item to aisle, edit desired quantity, and persist in localStorage', async ({ page }) => {
-        await expect(page.locator('#auth-status-label')).toHaveText('Local Mode');
+    test('All Items: 3-way header toggle, add aisle, add item, edit desired quantity, and persist in localStorage', async ({ page }) => {
+        // Verify 3-way toggle is present and no bottom cart bar exists
+        await expect(page.locator('#tab-all-btn')).toBeVisible();
+        await expect(page.locator('#tab-shopping-btn')).toBeVisible();
+        await expect(page.locator('#tab-inventory-btn')).toBeVisible();
+        await expect(page.locator('#shopping-cart-bar')).toHaveCount(0);
 
         // Add a new aisle
         await page.click('#add-aisle-open-btn');
@@ -42,7 +46,7 @@ test.describe('Grocery List v2 — Store, Voice Inventory & Shopping List', () =
     });
 
     test('Inventory Mode: voice/text <item> <count>, ambiguous suggestions, add new item, duplicate summing, and X delete', async ({ page }) => {
-        await page.click('#mode-inventory-btn');
+        await page.click('#tab-inventory-btn');
 
         // 1. Ambiguous match: "wipes 3" matches both "Baby Wipes" and "Disinfecting Wipes"
         await page.fill('#inventory-command-input', 'wipes 3');
@@ -64,7 +68,6 @@ test.describe('Grocery List v2 — Store, Voice Inventory & Shopping List', () =
         await unmatchedEntry.locator('.aisle-select').selectOption({ label: 'Pantry' });
         await unmatchedEntry.locator('button', { hasText: '+ Add to Store List' }).click();
 
-        // Should now be matched and added to Pantry
         await expect(page.locator('.inv-entry.matched', { hasText: 'Sparkling Water' })).toBeVisible();
 
         // 3. Resolve the ambiguous "wipes" entry later by tapping "Baby Wipes"
@@ -85,30 +88,26 @@ test.describe('Grocery List v2 — Store, Voice Inventory & Shopping List', () =
         await milkEntries.last().locator('.inv-delete-btn').click();
         await expect(page.locator('.inv-entry.matched', { hasText: 'Whole Milk' })).toHaveCount(1);
 
-        // Verify in Store Mode that Whole Milk shows Have 2 (Want 2 -> Stocked!)
-        await page.click('#mode-store-btn');
+        // Verify in All Items that Whole Milk shows Have 2 (Want 2 -> Stocked!)
+        await page.click('#tab-all-btn');
         const milkRow = page.locator('.item-row', { hasText: 'Whole Milk' });
         await expect(milkRow).toContainText('Stocked (2/2)');
         const sparklingRow = page.locator('.aisle-card', { hasText: 'Pantry' }).locator('.item-row', { hasText: 'Sparkling Water' });
         await expect(sparklingRow).toBeVisible();
     });
 
-    test('Store Mode Shopping List: hides stocked items, shows how many to buy, sorted by aisle', async ({ page }) => {
-        // Seed inventory: Whole Milk = 2 (want 2 -> stocked), Bananas = 2 (want 6 -> buy 4), Eggs = 1 (want 1 -> stocked)
-        await page.click('#mode-inventory-btn');
+    test('Shopping List: hides stocked items, shows how many to buy sorted by aisle, and Clear Checks unchecks items', async ({ page }) => {
+        await page.click('#tab-inventory-btn');
         for (const cmd of ['whole milk 2', 'bananas 2', 'eggs 1']) {
             await page.fill('#inventory-command-input', cmd);
             await page.click('#inventory-command-submit');
         }
 
-        await page.click('#mode-store-btn');
-        await page.click('#view-shopping-btn');
+        await page.click('#tab-shopping-btn');
 
         // Whole Milk and Eggs should be hidden
         await expect(page.locator('.shopping-row', { hasText: 'Whole Milk' })).toHaveCount(0);
         await expect(page.locator('.shopping-row', { hasText: 'Eggs' })).toHaveCount(0);
-
-        // Dairy & Eggs aisle had only Milk & Eggs, so the entire aisle card should be hidden
         await expect(page.locator('.aisle-card', { hasText: 'Dairy & Eggs' })).toHaveCount(0);
 
         // Bananas should show "Buy 4" under Produce
@@ -117,17 +116,39 @@ test.describe('Grocery List v2 — Store, Voice Inventory & Shopping List', () =
         const bananasRow = produceCard.locator('.shopping-row', { hasText: 'Bananas' });
         await expect(bananasRow.locator('.buy-badge')).toHaveText('Buy 4');
 
-        // Verify aisle order: Produce comes before Pantry, Pantry before Household
+        // Verify aisle order
         const aisleTitles = await page.locator('#store-aisles-container .aisle-card .aisle-name-btn').allTextContents();
         expect(aisleTitles).toEqual(['Produce', 'Pantry', 'Household']);
 
-        // Check off Bananas in cart and finish trip -> updates inventory
+        // Check off Bananas and then Clear Checks
+        await expect(page.locator('#clear-checks-btn')).toBeDisabled();
         await bananasRow.click();
-        await expect(page.locator('#cart-bar-count')).toHaveText('1 in cart');
-        await page.click('#cart-commit-btn');
+        await expect(bananasRow).toHaveClass(/in-cart/);
+        await expect(page.locator('#clear-checks-btn')).toBeEnabled();
 
-        // Bananas is now stocked and disappears from Shopping List!
-        await expect(page.locator('.shopping-row', { hasText: 'Bananas' })).toHaveCount(0);
+        await page.click('#clear-checks-btn');
+        await expect(bananasRow).not.toHaveClass(/in-cart/);
+        await expect(page.locator('#clear-checks-btn')).toBeDisabled();
+    });
+
+    test('Settings Modal: toggles hide/show Stocked/Have/Need on All Items and Have/Want on Shopping List', async ({ page }) => {
+        // Initially visible on All Items
+        await expect(page.locator('.item-row .stock-pill').first()).toBeVisible();
+
+        // Open Settings and toggle both off
+        await page.click('#settings-open-btn');
+        await expect(page.locator('#settings-modal')).toBeVisible();
+        await page.click('label[for="setting-show-all-stock"]');
+        await page.click('label[for="setting-show-shopping-hw"]');
+        await page.click('#settings-close-btn');
+
+        // Stock pills should now be hidden on All Items
+        await expect(page.locator('.item-row .stock-pill')).toHaveCount(0);
+
+        // Switch to Shopping List: Have & Want subtitle should be hidden
+        await page.click('#tab-shopping-btn');
+        await expect(page.locator('.shopping-row .shopping-item-sub')).toHaveCount(0);
+        await expect(page.locator('.shopping-row .buy-badge').first()).toBeVisible();
     });
 
     test('Inventory Mode: simulated Web Speech API voice recognition works end-to-end', async ({ page }) => {
@@ -140,11 +161,10 @@ test.describe('Grocery List v2 — Store, Voice Inventory & Shopping List', () =
             };
         });
         await page.goto('/');
-        await page.click('#mode-inventory-btn');
+        await page.click('#tab-inventory-btn');
         await page.click('#voice-mic-btn');
         await expect(page.locator('#voice-mic-btn')).toHaveClass(/listening/);
 
-        // Simulate speech result event
         await page.evaluate(() => {
             window.__mockRec.onresult({
                 resultIndex: 0,

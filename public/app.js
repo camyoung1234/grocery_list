@@ -20,7 +20,7 @@ import {
     deleteInventoryEntry,
     clearInventory,
     toggleCartItem,
-    commitCartToInventory
+    clearCartChecks
 } from './js/state.js';
 
 let state = dataStore.loadState();
@@ -31,29 +31,29 @@ let recognition = null;
 
 // DOM Elements
 const els = {
-    authStatusBtn: document.getElementById('auth-status-btn'),
     authStatusLabel: document.getElementById('auth-status-label'),
-    modeStoreBtn: document.getElementById('mode-store-btn'),
-    modeInventoryBtn: document.getElementById('mode-inventory-btn'),
+    tabAllBtn: document.getElementById('tab-all-btn'),
+    tabShoppingBtn: document.getElementById('tab-shopping-btn'),
+    tabInventoryBtn: document.getElementById('tab-inventory-btn'),
+    shoppingCountBadge: document.getElementById('shopping-count-badge'),
     inventoryPendingBadge: document.getElementById('inventory-pending-badge'),
+
+    settingsOpenBtn: document.getElementById('settings-open-btn'),
+    settingsModal: document.getElementById('settings-modal'),
+    settingsCloseBtn: document.getElementById('settings-close-btn'),
+    settingShowAllStock: document.getElementById('setting-show-all-stock'),
+    settingShowShoppingHw: document.getElementById('setting-show-shopping-hw'),
 
     storeView: document.getElementById('store-view'),
     inventoryView: document.getElementById('inventory-view'),
 
-    viewAllBtn: document.getElementById('view-all-btn'),
-    viewShoppingBtn: document.getElementById('view-shopping-btn'),
-    shoppingCountBadge: document.getElementById('shopping-count-badge'),
     storeSearchInput: document.getElementById('store-search-input'),
     addAisleOpenBtn: document.getElementById('add-aisle-open-btn'),
+    clearChecksBtn: document.getElementById('clear-checks-btn'),
     addAisleForm: document.getElementById('add-aisle-form'),
     newAisleInput: document.getElementById('new-aisle-input'),
     addAisleCancelBtn: document.getElementById('add-aisle-cancel-btn'),
     storeAislesContainer: document.getElementById('store-aisles-container'),
-
-    shoppingCartBar: document.getElementById('shopping-cart-bar'),
-    cartBarCount: document.getElementById('cart-bar-count'),
-    cartClearBtn: document.getElementById('cart-clear-btn'),
-    cartCommitBtn: document.getElementById('cart-commit-btn'),
 
     voiceMicBtn: document.getElementById('voice-mic-btn'),
     voiceMicLabel: document.getElementById('voice-mic-label'),
@@ -87,31 +87,57 @@ authService.onAuthStateChanged(user => {
     els.authStatusLabel.textContent = user?.displayName || 'Local Mode';
 });
 
-/* --- Top-level Mode & View Switching --- */
-els.modeStoreBtn.addEventListener('click', () => {
-    if (isListening) stopVoiceListening();
-    state.ui.mode = 'store';
+/* --- 3-Way Tab Switching --- */
+function setTab(tab) {
+    if (tab !== 'inventory' && isListening) {
+        stopVoiceListening();
+    }
+    state.ui.tab = tab;
+    commit();
+}
+
+els.tabAllBtn.addEventListener('click', () => setTab('all'));
+els.tabShoppingBtn.addEventListener('click', () => setTab('shopping'));
+els.tabInventoryBtn.addEventListener('click', () => setTab('inventory'));
+
+/* --- Settings Modal --- */
+els.settingsOpenBtn.addEventListener('click', () => {
+    els.settingShowAllStock.checked = state.settings.showAllItemsStockStatus;
+    els.settingShowShoppingHw.checked = state.settings.showShoppingHaveWant;
+    els.settingsModal.classList.remove('hidden');
+});
+
+els.settingsCloseBtn.addEventListener('click', () => {
+    els.settingsModal.classList.add('hidden');
+});
+
+els.settingsModal.addEventListener('click', e => {
+    if (e.target === els.settingsModal) {
+        els.settingsModal.classList.add('hidden');
+    }
+});
+
+els.settingShowAllStock.addEventListener('change', e => {
+    state.settings.showAllItemsStockStatus = e.target.checked;
     commit();
 });
 
-els.modeInventoryBtn.addEventListener('click', () => {
-    state.ui.mode = 'inventory';
+els.settingShowShoppingHw.addEventListener('change', e => {
+    state.settings.showShoppingHaveWant = e.target.checked;
     commit();
 });
 
-els.viewAllBtn.addEventListener('click', () => {
-    state.ui.storeView = 'all';
-    commit();
-});
-
-els.viewShoppingBtn.addEventListener('click', () => {
-    state.ui.storeView = 'shopping';
-    commit();
-});
-
+/* --- Search & Toolbar --- */
 els.storeSearchInput.addEventListener('input', e => {
     state.ui.searchQuery = e.target.value;
     commit();
+});
+
+els.clearChecksBtn.addEventListener('click', () => {
+    if (state.cartItemIds.length === 0) return;
+    clearCartChecks(state);
+    commit();
+    showToast('Cleared shopping list check marks');
 });
 
 /* --- Add Aisle --- */
@@ -134,20 +160,6 @@ els.addAisleForm.addEventListener('submit', e => {
     els.addAisleForm.classList.add('hidden');
     commit();
     showToast(`Added aisle "${name}"`);
-});
-
-/* --- Shopping Cart Bar --- */
-els.cartClearBtn.addEventListener('click', () => {
-    state.cartItemIds = [];
-    commit();
-});
-
-els.cartCommitBtn.addEventListener('click', () => {
-    const count = commitCartToInventory(state);
-    commit();
-    if (count > 0) {
-        showToast(`Updated inventory for ${count} purchased item${count === 1 ? '' : 's'}`);
-    }
 });
 
 /* --- Inventory Voice & Command Input --- */
@@ -280,14 +292,20 @@ els.voiceMicBtn.addEventListener('click', () => {
 
 /* --- Render --- */
 function render() {
-    const isStore = state.ui.mode === 'store';
-    els.modeStoreBtn.classList.toggle('active', isStore);
-    els.modeStoreBtn.setAttribute('aria-pressed', String(isStore));
-    els.modeInventoryBtn.classList.toggle('active', !isStore);
-    els.modeInventoryBtn.setAttribute('aria-pressed', String(!isStore));
+    const tab = state.ui.tab;
+    const isAll = tab === 'all';
+    const isShopping = tab === 'shopping';
+    const isInventory = tab === 'inventory';
 
-    els.storeView.classList.toggle('hidden', !isStore);
-    els.inventoryView.classList.toggle('hidden', isStore);
+    els.tabAllBtn.classList.toggle('active', isAll);
+    els.tabAllBtn.setAttribute('aria-pressed', String(isAll));
+    els.tabShoppingBtn.classList.toggle('active', isShopping);
+    els.tabShoppingBtn.setAttribute('aria-pressed', String(isShopping));
+    els.tabInventoryBtn.classList.toggle('active', isInventory);
+    els.tabInventoryBtn.setAttribute('aria-pressed', String(isInventory));
+
+    els.storeView.classList.toggle('hidden', isInventory);
+    els.inventoryView.classList.toggle('hidden', !isInventory);
 
     // Pending badge on Inventory tab
     const unresolvedCount = state.inventoryEntries.filter(e => e.status !== 'matched').length;
@@ -298,18 +316,18 @@ function render() {
     const toBuyCount = getTotalToBuyItemsCount(state);
     els.shoppingCountBadge.textContent = String(toBuyCount);
 
-    if (isStore) {
-        renderStoreMode();
+    if (!isInventory) {
+        renderStoreView(isShopping);
     } else {
         renderInventoryMode();
     }
 }
 
-function renderStoreMode() {
-    const isShopping = state.ui.storeView === 'shopping';
-    els.viewAllBtn.classList.toggle('active', !isShopping);
-    els.viewShoppingBtn.classList.toggle('active', isShopping);
+function renderStoreView(isShopping) {
     els.addAisleOpenBtn.classList.toggle('hidden', isShopping);
+    els.clearChecksBtn.classList.toggle('hidden', !isShopping);
+    els.clearChecksBtn.disabled = state.cartItemIds.length === 0;
+
     if (isShopping) {
         els.addAisleForm.classList.add('hidden');
     }
@@ -326,11 +344,11 @@ function renderStoreMode() {
 }
 
 function renderAllStoreAisles() {
-    els.shoppingCartBar.classList.add('hidden');
     const container = els.storeAislesContainer;
     container.innerHTML = '';
 
     const haveMap = getHaveQtyMap(state);
+    const showStockStatus = state.settings.showAllItemsStockStatus;
     const q = (state.ui.searchQuery || '').trim().toLowerCase();
 
     if (state.aisles.length === 0) {
@@ -498,24 +516,26 @@ function renderAllStoreAisles() {
                     main.appendChild(nameBtn);
                 }
 
-                const haveQty = haveMap[item.id] || 0;
-                const needQty = Math.max(0, item.wantQty - haveQty);
-                const meta = document.createElement('div');
-                meta.className = 'item-meta';
+                if (showStockStatus) {
+                    const haveQty = haveMap[item.id] || 0;
+                    const needQty = Math.max(0, item.wantQty - haveQty);
+                    const meta = document.createElement('div');
+                    meta.className = 'item-meta';
 
-                const pill = document.createElement('span');
-                if (item.wantQty === 0) {
-                    pill.className = 'stock-pill';
-                    pill.textContent = `Have ${haveQty}`;
-                } else if (needQty === 0) {
-                    pill.className = 'stock-pill stocked';
-                    pill.textContent = `Stocked (${haveQty}/${item.wantQty})`;
-                } else {
-                    pill.className = 'stock-pill need';
-                    pill.textContent = `Have ${haveQty} · Need ${needQty}`;
+                    const pill = document.createElement('span');
+                    if (item.wantQty === 0) {
+                        pill.className = 'stock-pill';
+                        pill.textContent = `Have ${haveQty}`;
+                    } else if (needQty === 0) {
+                        pill.className = 'stock-pill stocked';
+                        pill.textContent = `Stocked (${haveQty}/${item.wantQty})`;
+                    } else {
+                        pill.className = 'stock-pill need';
+                        pill.textContent = `Have ${haveQty} · Need ${needQty}`;
+                    }
+                    meta.appendChild(pill);
+                    main.appendChild(meta);
                 }
-                meta.appendChild(pill);
-                main.appendChild(meta);
 
                 const controls = document.createElement('div');
                 controls.className = 'item-controls';
@@ -595,6 +615,7 @@ function renderShoppingList() {
     container.innerHTML = '';
 
     const sections = getShoppingListByAisle(state, state.ui.searchQuery);
+    const showHaveWant = state.settings.showShoppingHaveWant;
 
     if (sections.length === 0) {
         const empty = document.createElement('div');
@@ -603,75 +624,76 @@ function renderShoppingList() {
             ? `<div class="empty-state-title">No matching items to buy</div><div>Try clearing your search filter.</div>`
             : `<div class="empty-state-title">You're all stocked up!</div><div>Every item in your store list already has enough at home.</div>`;
         container.appendChild(empty);
-    } else {
-        const cartSet = new Set(state.cartItemIds);
-        sections.forEach(({ aisle, items }) => {
-            const card = document.createElement('section');
-            card.className = 'aisle-card';
-            card.dataset.aisleId = aisle.id;
+        return;
+    }
 
-            const header = document.createElement('div');
-            header.className = 'aisle-header';
-            const titleGroup = document.createElement('div');
-            titleGroup.className = 'aisle-title-group';
-            const title = document.createElement('span');
-            title.className = 'aisle-name-btn';
-            title.textContent = aisle.name;
-            const count = document.createElement('span');
-            count.className = 'aisle-count';
-            count.textContent = String(items.length);
-            titleGroup.append(title, count);
-            header.appendChild(titleGroup);
-            card.appendChild(header);
+    const cartSet = new Set(state.cartItemIds);
+    sections.forEach(({ aisle, items }) => {
+        const card = document.createElement('section');
+        card.className = 'aisle-card';
+        card.dataset.aisleId = aisle.id;
 
-            const list = document.createElement('ul');
-            list.className = 'aisle-items';
+        const header = document.createElement('div');
+        header.className = 'aisle-header';
+        const titleGroup = document.createElement('div');
+        titleGroup.className = 'aisle-title-group';
+        const title = document.createElement('span');
+        title.className = 'aisle-name-btn';
+        title.textContent = aisle.name;
+        const count = document.createElement('span');
+        count.className = 'aisle-count';
+        count.textContent = String(items.length);
+        titleGroup.append(title, count);
+        header.appendChild(titleGroup);
+        card.appendChild(header);
 
-            items.forEach(item => {
-                const inCart = cartSet.has(item.id);
-                const li = document.createElement('li');
-                li.className = `shopping-row${inCart ? ' in-cart' : ''}`;
-                li.dataset.itemId = item.id;
-                li.addEventListener('click', () => {
-                    toggleCartItem(state, item.id);
-                    commit();
-                });
+        const list = document.createElement('ul');
+        list.className = 'aisle-items';
 
-                const left = document.createElement('div');
-                left.className = 'shopping-left';
+        items.forEach(item => {
+            const inCart = cartSet.has(item.id);
+            const li = document.createElement('li');
+            li.className = `shopping-row${inCart ? ' in-cart' : ''}`;
+            li.dataset.itemId = item.id;
+            li.addEventListener('click', () => {
+                toggleCartItem(state, item.id);
+                commit();
+            });
 
-                const check = document.createElement('span');
-                check.className = 'cart-check';
-                check.setAttribute('aria-hidden', 'true');
-                check.textContent = inCart ? '✓' : '';
+            const left = document.createElement('div');
+            left.className = 'shopping-left';
 
-                const textWrap = document.createElement('div');
-                const nameEl = document.createElement('div');
-                nameEl.className = 'shopping-item-name';
-                nameEl.textContent = item.name;
+            const check = document.createElement('span');
+            check.className = 'cart-check';
+            check.setAttribute('aria-hidden', 'true');
+            check.textContent = inCart ? '✓' : '';
 
+            const textWrap = document.createElement('div');
+            const nameEl = document.createElement('div');
+            nameEl.className = 'shopping-item-name';
+            nameEl.textContent = item.name;
+            textWrap.appendChild(nameEl);
+
+            if (showHaveWant) {
                 const subEl = document.createElement('div');
                 subEl.className = 'shopping-item-sub';
                 subEl.textContent = `Have ${item.haveQty} · Want ${item.wantQty}`;
-                textWrap.append(nameEl, subEl);
-                left.append(check, textWrap);
+                textWrap.appendChild(subEl);
+            }
 
-                const buyBadge = document.createElement('span');
-                buyBadge.className = 'buy-badge';
-                buyBadge.textContent = `Buy ${item.toBuy}`;
+            left.append(check, textWrap);
 
-                li.append(left, buyBadge);
-                list.appendChild(li);
-            });
+            const buyBadge = document.createElement('span');
+            buyBadge.className = 'buy-badge';
+            buyBadge.textContent = `Buy ${item.toBuy}`;
 
-            card.appendChild(list);
-            container.appendChild(card);
+            li.append(left, buyBadge);
+            list.appendChild(li);
         });
-    }
 
-    const cartCount = state.cartItemIds.length;
-    els.shoppingCartBar.classList.toggle('hidden', cartCount === 0);
-    els.cartBarCount.textContent = `${cartCount} in cart`;
+        card.appendChild(list);
+        container.appendChild(card);
+    });
 }
 
 function renderInventoryMode() {

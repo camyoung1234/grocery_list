@@ -27,9 +27,12 @@ export function createSeedState() {
         ],
         inventoryEntries: [],
         cartItemIds: [],
+        settings: {
+            showAllItemsStockStatus: true,
+            showShoppingHaveWant: true
+        },
         ui: {
-            mode: 'store',       // 'store' | 'inventory'
-            storeView: 'all',    // 'all' | 'shopping'
+            tab: 'all', // 'all' | 'shopping' | 'inventory'
             searchQuery: ''
         }
     };
@@ -60,12 +63,10 @@ export class AuthService {
     }
 
     async signIn() {
-        // Placeholder for future Firebase Auth sign-in
         return this._user;
     }
 
     async signOut() {
-        // Placeholder for future Firebase Auth sign-out
         return null;
     }
 }
@@ -123,15 +124,26 @@ export class LocalDataStore {
     _normalizeState(raw) {
         const seed = createSeedState();
         if (!raw || typeof raw !== 'object') return seed;
+
+        let tab = raw.ui?.tab;
+        if (!['all', 'shopping', 'inventory'].includes(tab)) {
+            if (raw.ui?.mode === 'inventory') tab = 'inventory';
+            else if (raw.ui?.storeView === 'shopping') tab = 'shopping';
+            else tab = 'all';
+        }
+
         return {
             version: 2,
             aisles: Array.isArray(raw.aisles) ? raw.aisles : seed.aisles,
             items: Array.isArray(raw.items) ? raw.items : seed.items,
             inventoryEntries: Array.isArray(raw.inventoryEntries) ? raw.inventoryEntries : [],
             cartItemIds: Array.isArray(raw.cartItemIds) ? raw.cartItemIds : [],
+            settings: {
+                showAllItemsStockStatus: raw.settings?.showAllItemsStockStatus ?? true,
+                showShoppingHaveWant: raw.settings?.showShoppingHaveWant ?? true
+            },
             ui: {
-                mode: raw.ui?.mode === 'inventory' ? 'inventory' : 'store',
-                storeView: raw.ui?.storeView === 'shopping' ? 'shopping' : 'all',
+                tab,
                 searchQuery: typeof raw.ui?.searchQuery === 'string' ? raw.ui.searchQuery : ''
             }
         };
