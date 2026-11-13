@@ -3,18 +3,17 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, shrink-to-fit=no, maximum-scale=1.0, user-scalable=no">
-    <title>Grocery List</title>
-    <link rel="stylesheet" href="style.css?v=14">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-        integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght,wdth@100..1000,25..150&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Grocery List — Store &amp; Voice Inventory</title>
+    <meta name="description" content="Organize groceries by store aisle, count home inventory with your voice, and generate a smart shopping list.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 
     <!-- PWA & Mobile Install Tags -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#166534">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Groceries">
@@ -22,323 +21,145 @@
 </head>
 
 <body>
-
-    <div class="app-container hidden">
-        <input type="file" id="import-input" accept=".json" class="hidden-input">
-
-        <header class="app-top-header" id="app-top-header">
-            <div class="top-header-row">
-                <div class="top-header-title-group">
-                    <h2 class="top-header-title" id="mode-header-title">Home Inventory</h2>
-                    <span class="top-header-badge" id="mode-header-badge">0 items</span>
+    <div class="app-shell">
+        <header class="app-header">
+            <div class="header-top">
+                <div class="brand">
+                    <span class="brand-mark" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                            <line x1="3" y1="6" x2="21" y2="6"/>
+                            <path d="M16 10a4 4 0 0 1-8 0"/>
+                        </svg>
+                    </span>
+                    <h1 class="brand-title">Grocery List</h1>
                 </div>
-                <div class="top-header-actions">
-                    <button type="button" class="header-pill-btn secondary hidden" id="reset-home-counts-btn" title="Zero all Have counts to start inventory from scratch" aria-label="Zero all Have counts">
-                        <i class="fas fa-rotate-left" aria-hidden="true"></i>
-                        <span>Zero All</span>
-                    </button>
-                    <button type="button" class="header-pill-btn hidden" id="quick-add-toggle-btn" title="Quick Add Item" aria-label="Quick Add Item">
-                        <i class="fas fa-plus" aria-hidden="true"></i>
-                        <span>Add</span>
+
+                <div class="header-right">
+                    <button type="button" id="auth-status-btn" class="auth-pill" title="Local storage mode (authentication ready)">
+                        <span class="auth-dot" aria-hidden="true"></span>
+                        <span id="auth-status-label">Local Mode</span>
                     </button>
                 </div>
             </div>
-            <div class="quick-search-wrap" id="quick-search-wrap">
-                <i class="fas fa-search quick-search-icon" aria-hidden="true"></i>
-                <input type="search" id="quick-search-input" class="quick-search-input" placeholder="Search items..." aria-label="Search items" autocomplete="off">
-                <button type="button" id="quick-search-clear" class="quick-search-clear hidden" aria-label="Clear search">
-                    <i class="fas fa-times" aria-hidden="true"></i>
+
+            <nav class="mode-switcher" aria-label="App Mode">
+                <button type="button" id="mode-store-btn" class="mode-tab active" data-mode="store" aria-pressed="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    <span>Store</span>
                 </button>
-            </div>
-            <div class="home-columns-header hidden" id="home-columns-header" aria-hidden="true">
-                <span class="col-label-item">Item</span>
-                <span class="col-label-qty">Have</span>
-                <span class="col-label-qty">Want</span>
-            </div>
+                <button type="button" id="mode-inventory-btn" class="mode-tab" data-mode="inventory" aria-pressed="false">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
+                    <span>Inventory</span>
+                    <span id="inventory-pending-badge" class="tab-badge hidden">0</span>
+                </button>
+            </nav>
         </header>
 
-        <div id="selection-bar" class="selection-bar hidden" role="region" aria-label="Selection actions">
-            <span id="selection-count-text" class="selection-count-text">0 selected</span>
-            <span class="selection-hint">Tap a section's <i class="fas fa-level-down-alt" aria-hidden="true"></i> to move</span>
-            <div class="selection-bar-actions">
-                <button type="button" id="selection-delete-btn" class="selection-bar-btn danger" aria-label="Delete selected items">
-                    <i class="fas fa-trash" aria-hidden="true"></i>
-                </button>
-                <button type="button" id="selection-clear-btn" class="selection-bar-btn" aria-label="Clear selection">
-                    <i class="fas fa-times" aria-hidden="true"></i>
-                </button>
-            </div>
-        </div>
-
-        <div id="voice-pending-queue" class="voice-pending-queue hidden" role="region" aria-label="Pending voice decisions"></div>
-
-        <ul id="grocery-list" class="grocery-list">
-            <!-- Items will be added here dynamically -->
-        </ul>
-
-        <div id="voice-bar" class="voice-bar hidden" role="region" aria-label="Voice input assistant">
-            <div class="voice-bar-header">
-                <button type="button" id="voice-mic-toggle" class="voice-mic-btn" aria-label="Toggle microphone listening">
-                    <i class="fas fa-microphone" aria-hidden="true"></i>
-                </button>
-                <div class="voice-mode-pills" role="group" aria-label="Voice input mode">
-                    <button type="button" class="voice-pill active" data-voice-mode="smart">Smart</button>
-                    <button type="button" class="voice-pill" data-voice-mode="inventory">Inventory</button>
-                    <button type="button" class="voice-pill" data-voice-mode="walk">Walk List</button>
+        <!-- STORE MODE -->
+        <main id="store-view" class="main-content" aria-label="Store Mode">
+            <div class="store-toolbar">
+                <div class="view-toggle" role="group" aria-label="Store View">
+                    <button type="button" id="view-all-btn" class="view-toggle-btn active" data-view="all">
+                        All Items
+                    </button>
+                    <button type="button" id="view-shopping-btn" class="view-toggle-btn" data-view="shopping">
+                        Shopping List
+                        <span id="shopping-count-badge" class="count-badge">0</span>
+                    </button>
                 </div>
-                <button type="button" id="voice-close-btn" class="voice-close-btn" aria-label="Close voice mode">
-                    <i class="fas fa-times" aria-hidden="true"></i>
-                </button>
-            </div>
-            <div id="voice-status" class="voice-status">Tap mic or type a command (e.g. "milk 2" or "a one one")</div>
-            <div id="voice-suggestions" class="voice-suggestions hidden"></div>
-            <form id="voice-text-form" class="voice-text-form">
-                <input type="text" id="voice-text-input" class="voice-text-input" placeholder='Say or type: "whole milk 2", "a one one"...' autocomplete="off" aria-label="Type voice command">
-                <button type="submit" class="voice-send-btn" aria-label="Run command">
-                    <i class="fas fa-arrow-up" aria-hidden="true"></i>
-                </button>
-            </form>
-        </div>
 
-        <nav class="bottom-toolbar">
-            <div id="toolbar-main">
-                <div class="list-picker-container">
-                    <div id="lists-menu" class="lists-menu" role="menu"></div>
-                    <button class="list-picker-btn" id="toolbar-lists" title="Manage Lists" aria-label="Manage Lists" aria-haspopup="true">
-                        <div class="list-swatch" id="current-list-swatch" aria-hidden="true"></div>
-                        <span id="current-list-name">Loading...</span>
-                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M6 10L12 16L18 10"></path>
+                <div class="toolbar-controls">
+                    <div class="search-field">
+                        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                         </svg>
-                    </button>
-                </div>
-
-                <div class="toolbar-actions">
-                    <button class="toolbar-btn" id="toolbar-clear-shop" title="Clear Shopping Progress" aria-label="Clear Shopping Progress">
-                        <i class="fas fa-eraser" aria-hidden="true"></i>
-                    </button>
-                    <button class="toolbar-btn" id="toolbar-voice" title="Voice Input Mode" aria-label="Voice Input Mode">
-                        <i class="fas fa-microphone" aria-hidden="true"></i>
-                    </button>
-                    <button class="toolbar-btn" id="toolbar-mode" title="Toggle Mode" aria-label="Toggle Mode">
-                        <i class="fas fa-list-check" aria-hidden="true"></i>
-                    </button>
-                    <button class="toolbar-btn" id="toolbar-reorder" title="Toggle Edit Mode" aria-label="Toggle Edit Mode">
-                        <i class="fas fa-pen" aria-hidden="true"></i>
-                    </button>
-                    <button class="toolbar-btn" id="toolbar-sync" title="Cloud Sync" aria-label="Cloud Sync">
-                        <span id="sync-icon" class="sync-icon" aria-hidden="true"></span>
+                        <input type="search" id="store-search-input" class="search-input" placeholder="Search items or aisles..." aria-label="Search items or aisles" autocomplete="off">
+                    </div>
+                    <button type="button" id="add-aisle-open-btn" class="btn-secondary">
+                        + Aisle
                     </button>
                 </div>
             </div>
 
-            <div id="toolbar-numpad">
-                <div class="numpad-grid">
-                    <button class="numpad-btn" data-key="1">1</button>
-                    <button class="numpad-btn" data-key="2">2</button>
-                    <button class="numpad-btn" data-key="3">3</button>
-                    <button class="numpad-btn" data-key="4">4</button>
-                    <button class="numpad-btn" data-key="5">5</button>
-                    <button class="numpad-btn" data-key="6">6</button>
-                    <button class="numpad-btn" data-key="7">7</button>
-                    <button class="numpad-btn" data-key="8">8</button>
-                    <button class="numpad-btn" data-key="9">9</button>
-                    <button class="numpad-btn" data-key="backspace" aria-label="Backspace"><i class="fas fa-backspace"></i></button>
-                    <button class="numpad-btn" data-key="0">0</button>
-                    <button class="numpad-btn" data-key="enter" aria-label="Next or Done"><i class="fas fa-arrow-right"></i></button>
-                </div>
-            </div>
-        </nav>
-    </div>
-
-    <!-- Custom Modal -->
-    <div id="modal-overlay" class="modal-overlay">
-        <div class="modal">
-            <h3 id="modal-title">Enter Text</h3>
-
-            <div class="form-group" id="modal-input-group">
-                <label for="modal-input" class="modal-label">Name</label>
-                <input type="text" id="modal-input" placeholder="Type here..." autocomplete="off">
-            </div>
-
-            <div class="form-group" id="modal-display-group">
-                <label class="modal-label">Display Mode</label>
-                <div class="custom-theme-dropdown" id="display-dropdown">
-                    <div class="theme-trigger" id="display-trigger">
-                        <div class="theme-swatch" id="current-display-swatch" style="display: flex; align-items: center; justify-content: center; background: transparent;">
-                            <i class="fas fa-circle-half-stroke" style="font-size: 0.9rem;"></i>
-                        </div>
-                        <span id="current-display-name">Auto</span>
-                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 10L12 16L18 10"></path>
-                        </svg>
-                    </div>
-                    <div class="theme-options" id="display-options">
-                        <!-- Options injected by JS -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group form-group-row" id="modal-true-black-group">
-                <label class="modal-label" for="true-black-toggle">True Black Dark Mode</label>
-                <label class="switch">
-                    <input type="checkbox" id="true-black-toggle">
-                    <span class="slider"></span>
-                </label>
-            </div>
-
-            <div class="form-group" id="modal-theme-group">
-                <label class="modal-label">Theme</label>
-                <div class="custom-theme-dropdown" id="theme-dropdown">
-                    <div class="theme-trigger" id="theme-trigger">
-                        <div class="theme-swatch" id="current-theme-swatch"></div>
-                        <span id="current-theme-name">Blue</span>
-                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 10L12 16L18 10"></path>
-                        </svg>
-                    </div>
-                    <div class="theme-options" id="theme-options">
-                        <!-- Options injected by JS -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group" id="modal-accent-group">
-                <label class="modal-label">Accent Color</label>
-                <div class="custom-theme-dropdown" id="accent-dropdown">
-                    <div class="theme-trigger" id="accent-trigger">
-                        <div class="theme-swatch" id="current-accent-swatch"></div>
-                        <span id="current-accent-name">Amber</span>
-                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 10L12 16L18 10"></path>
-                        </svg>
-                    </div>
-                    <div class="theme-options" id="accent-options">
-                        <!-- Options injected by JS -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-actions">
-                <button id="modal-delete-btn" class="modal-btn delete"
-                    style="margin-right: auto; display: none;">Delete</button>
-                <button id="modal-cancel-btn" class="modal-btn cancel">Cancel</button>
-                <button id="modal-save-btn" class="modal-btn save">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div id="delete-modal-overlay" class="modal-overlay">
-        <div class="modal">
-            <h3 class="text-danger" id="delete-modal-title">Delete?</h3>
-            <p>This action cannot be undone. Are you sure you want to delete <strong id="delete-match-name"></strong>?
-            </p>
-            <div class="modal-actions">
-                <button id="delete-cancel-btn" class="modal-btn cancel">Cancel</button>
-                <button id="delete-confirm-btn" class="modal-btn delete">Confirm Delete</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Section Delete Confirmation Modal -->
-    <div id="section-delete-modal-overlay" class="modal-overlay">
-        <div class="modal">
-            <h3 class="text-danger" id="section-delete-modal-title">Delete Section?</h3>
-            <p id="section-delete-modal-text"></p>
-            <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
-                <button id="section-delete-only-btn" class="modal-btn delete" style="width: 100%;">Delete Section
-                    Only</button>
-                <button id="section-delete-all-btn" class="modal-btn delete" style="width: 100%;">Delete Section &
-                    Items</button>
-                <button id="section-delete-cancel-btn" class="modal-btn cancel" style="width: 100%;">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sync / Auth Modal -->
-    <div id="sync-modal-overlay" class="modal-overlay visible">
-        <div class="modal">
-            <h3 id="sync-modal-title">Sign In</h3>
-
-            <div id="sync-error" class="text-danger hidden" style="margin-bottom: 1rem; font-size: 0.9rem; text-align: center;"></div>
-            <div id="sync-message" class="hidden" style="margin-bottom: 1rem; font-size: 0.9rem; text-align: center; color: var(--success-color);"></div>
-
-            <div id="sync-logged-out">
-                <p>Login or Sign Up to sync your lists across devices.</p>
-                <div class="form-group">
-                    <label for="sync-email" class="modal-label">Email</label>
-                    <input type="email" id="sync-email" placeholder="email@example.com" autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label for="sync-password" class="modal-label">Password</label>
-                    <input type="password" id="sync-password" placeholder="••••••••" autocomplete="off">
-                </div>
-                <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
-                    <button id="sync-login-btn" class="modal-btn save" style="width: 100%;">Login</button>
-                    <button id="sync-signup-btn" class="modal-btn cancel" style="width: 100%;">Sign Up</button>
-                </div>
-            </div>
-
-            <div id="sync-logged-in" class="hidden">
-                <p>Logged in as: <strong id="sync-user-email"></strong></p>
-                <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
-                    <button id="sync-logout-btn" class="modal-btn delete" style="width: 100%;">Logout</button>
-                    <button id="sync-cancel-btn" class="modal-btn cancel" style="width: 100%;">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Add Item Modal -->
-    <div id="quick-add-modal-overlay" class="modal-overlay">
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-modal-title">
-            <h3 id="quick-add-modal-title">Quick Add Item</h3>
-            <form id="quick-add-form">
-                <div class="form-group">
-                    <label for="quick-add-name" class="modal-label">Item Name</label>
-                    <input type="text" id="quick-add-name" placeholder="e.g. Whole Milk" autocomplete="off" required>
-                </div>
-                <div class="quick-add-grid">
-                    <div class="form-group">
-                        <label for="quick-add-have" class="modal-label">Have</label>
-                        <input type="number" id="quick-add-have" min="0" value="0" inputmode="numeric">
-                    </div>
-                    <div class="form-group">
-                        <label for="quick-add-want" class="modal-label">Want</label>
-                        <input type="number" id="quick-add-want" min="0" value="1" inputmode="numeric">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="quick-add-home-section" class="modal-label">Home Location</label>
-                    <select id="quick-add-home-section" class="modal-select"></select>
-                </div>
-                <div class="form-group">
-                    <label for="quick-add-shop-section" class="modal-label">Store Aisle</label>
-                    <select id="quick-add-shop-section" class="modal-select"></select>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" id="quick-add-cancel-btn" class="modal-btn cancel">Cancel</button>
-                    <button type="submit" id="quick-add-save-btn" class="modal-btn save">Add Item</button>
+            <!-- Inline Add Aisle Form (toggled) -->
+            <form id="add-aisle-form" class="add-aisle-card hidden">
+                <input type="text" id="new-aisle-input" class="text-input" placeholder="New aisle name (e.g. Frozen, Bakery)..." aria-label="New aisle name" autocomplete="off">
+                <div class="add-aisle-actions">
+                    <button type="submit" class="btn-primary">Add Aisle</button>
+                    <button type="button" id="add-aisle-cancel-btn" class="btn-ghost">Cancel</button>
                 </div>
             </form>
-        </div>
+
+            <div id="store-aisles-container" class="aisles-container">
+                <!-- Rendered dynamically -->
+            </div>
+
+            <div id="shopping-cart-bar" class="cart-bar hidden" role="region" aria-label="Shopping trip cart">
+                <div class="cart-bar-info">
+                    <span id="cart-bar-count" class="cart-bar-count">0 in cart</span>
+                </div>
+                <div class="cart-bar-actions">
+                    <button type="button" id="cart-clear-btn" class="btn-ghost-sm">Clear</button>
+                    <button type="button" id="cart-commit-btn" class="btn-primary-sm">Finish Trip &amp; Update Inventory</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- INVENTORY MODE -->
+        <main id="inventory-view" class="main-content hidden" aria-label="Inventory Mode">
+            <section class="voice-card" aria-label="Voice and Quick Inventory Entry">
+                <div class="voice-card-header">
+                    <div>
+                        <h2 class="voice-card-title">Take Inventory</h2>
+                        <p class="voice-card-subtitle">Say or type <code>&lt;item&gt; &lt;count&gt;</code> — e.g. <em>&ldquo;wipes 3&rdquo;</em> or <em>&ldquo;milk 2&rdquo;</em></p>
+                    </div>
+                    <button type="button" id="voice-mic-btn" class="mic-btn" aria-label="Start voice input" aria-pressed="false">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                        <span id="voice-mic-label">Speak</span>
+                    </button>
+                </div>
+
+                <form id="inventory-command-form" class="command-form">
+                    <input type="text" id="inventory-command-input" class="command-input" placeholder='Type or speak: "wipes 3", "bananas 4"...' aria-label="Inventory item and count" autocomplete="off">
+                    <button type="submit" id="inventory-command-submit" class="btn-primary">Add</button>
+                </form>
+
+                <div id="voice-feedback" class="voice-feedback" role="status" aria-live="polite">
+                    Ready — tap Speak or type an item &amp; count.
+                </div>
+            </section>
+
+            <section class="inventory-list-section" aria-label="Inventory Entries">
+                <div class="inventory-list-header">
+                    <div class="inventory-summary" id="inventory-summary">0 entries</div>
+                    <button type="button" id="clear-inventory-btn" class="btn-ghost-danger hidden">Clear All</button>
+                </div>
+
+                <ul id="inventory-entries-list" class="inventory-entries-list">
+                    <!-- Rendered dynamically -->
+                </ul>
+            </section>
+        </main>
     </div>
 
-    <!-- Restore State Confirmation Modal -->
-    <div id="restore-modal-overlay" class="modal-overlay">
-        <div class="modal">
-            <h3 id="restore-modal-title">Update App State?</h3>
-            <p>A shared list has been detected. Would you like to update your local list with the shared one? Your current changes will be overwritten.</p>
-            <div class="modal-actions">
-                <button id="restore-cancel-btn" class="modal-btn cancel">No</button>
-                <button id="restore-confirm-btn" class="modal-btn save">Yes, Update</button>
-            </div>
-        </div>
-    </div>
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
     <script type="module" src="app.js"></script>
-    <div class="viewport-mask"></div>
 </body>
 
 </html>

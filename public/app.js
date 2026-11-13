@@ -1,4146 +1,900 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { parseVoiceCommand, matchGroceryItems } from "./voice.js";
+import { authService, dataStore } from './js/storage.js';
+import {
+    getHaveQtyMap,
+    getEntryCountMap,
+    getShoppingListByAisle,
+    getTotalToBuyItemsCount,
+    addAisle,
+    renameAisle,
+    deleteAisle,
+    moveAisle,
+    toggleAisleCollapsed,
+    addItem,
+    updateItemName,
+    updateItemWantQty,
+    deleteItem,
+    processInventoryCommand,
+    resolveAmbiguousEntry,
+    addStoreItemAndResolveEntry,
+    updateInventoryEntryCount,
+    deleteInventoryEntry,
+    clearInventory,
+    toggleCartItem,
+    commitCartToInventory
+} from './js/state.js';
 
-const firebaseConfig = {
-    apiKey: "AIzaSyA8hTcqZ_I3zIsSC9Vq_XEg6T6KWaUav20",
-    authDomain: "grocery-list-a5729.firebaseapp.com",
-    projectId: "grocery-list-a5729",
-    storageBucket: "grocery-list-a5729.firebasestorage.app",
-    messagingSenderId: "114178464356",
-    appId: "1:114178464356:web:7511e575c26f7681985d71",
-    measurementId: "G-SGT26GXZT0"
+let state = dataStore.loadState();
+let editingAisleId = null;
+let editingItemId = null;
+let isListening = false;
+let recognition = null;
+
+// DOM Elements
+const els = {
+    authStatusBtn: document.getElementById('auth-status-btn'),
+    authStatusLabel: document.getElementById('auth-status-label'),
+    modeStoreBtn: document.getElementById('mode-store-btn'),
+    modeInventoryBtn: document.getElementById('mode-inventory-btn'),
+    inventoryPendingBadge: document.getElementById('inventory-pending-badge'),
+
+    storeView: document.getElementById('store-view'),
+    inventoryView: document.getElementById('inventory-view'),
+
+    viewAllBtn: document.getElementById('view-all-btn'),
+    viewShoppingBtn: document.getElementById('view-shopping-btn'),
+    shoppingCountBadge: document.getElementById('shopping-count-badge'),
+    storeSearchInput: document.getElementById('store-search-input'),
+    addAisleOpenBtn: document.getElementById('add-aisle-open-btn'),
+    addAisleForm: document.getElementById('add-aisle-form'),
+    newAisleInput: document.getElementById('new-aisle-input'),
+    addAisleCancelBtn: document.getElementById('add-aisle-cancel-btn'),
+    storeAislesContainer: document.getElementById('store-aisles-container'),
+
+    shoppingCartBar: document.getElementById('shopping-cart-bar'),
+    cartBarCount: document.getElementById('cart-bar-count'),
+    cartClearBtn: document.getElementById('cart-clear-btn'),
+    cartCommitBtn: document.getElementById('cart-commit-btn'),
+
+    voiceMicBtn: document.getElementById('voice-mic-btn'),
+    voiceMicLabel: document.getElementById('voice-mic-label'),
+    inventoryCommandForm: document.getElementById('inventory-command-form'),
+    inventoryCommandInput: document.getElementById('inventory-command-input'),
+    voiceFeedback: document.getElementById('voice-feedback'),
+    inventorySummary: document.getElementById('inventory-summary'),
+    clearInventoryBtn: document.getElementById('clear-inventory-btn'),
+    inventoryEntriesList: document.getElementById('inventory-entries-list'),
+
+    toastContainer: document.getElementById('toast-container')
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+function commit() {
+    dataStore.saveState(state);
+    render();
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    els.toastContainer.appendChild(toast);
+    setTimeout(() => {
+        toast.remove();
+    }, 2600);
+}
+
+/* --- Auth-Ready Subscription --- */
+authService.onAuthStateChanged(user => {
+    els.authStatusLabel.textContent = user?.displayName || 'Local Mode';
 });
 
-const SYNC_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>`;
-const SYNC_SLASH_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
+/* --- Top-level Mode & View Switching --- */
+els.modeStoreBtn.addEventListener('click', () => {
+    if (isListening) stopVoiceListening();
+    state.ui.mode = 'store';
+    commit();
+});
 
-// Ensure these are globally accessible for tests if needed
-window.appAuth = auth;
+els.modeInventoryBtn.addEventListener('click', () => {
+    state.ui.mode = 'inventory';
+    commit();
+});
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // --- State ---
-    let appState = {
-        lists: [],
-        currentListId: null,
-        mode: 'home',
-        editMode: true,
-        updatedAt: 0
+els.viewAllBtn.addEventListener('click', () => {
+    state.ui.storeView = 'all';
+    commit();
+});
+
+els.viewShoppingBtn.addEventListener('click', () => {
+    state.ui.storeView = 'shopping';
+    commit();
+});
+
+els.storeSearchInput.addEventListener('input', e => {
+    state.ui.searchQuery = e.target.value;
+    commit();
+});
+
+/* --- Add Aisle --- */
+els.addAisleOpenBtn.addEventListener('click', () => {
+    els.addAisleForm.classList.remove('hidden');
+    els.newAisleInput.focus();
+});
+
+els.addAisleCancelBtn.addEventListener('click', () => {
+    els.addAisleForm.classList.add('hidden');
+    els.newAisleInput.value = '';
+});
+
+els.addAisleForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = els.newAisleInput.value.trim();
+    if (!name) return;
+    addAisle(state, name);
+    els.newAisleInput.value = '';
+    els.addAisleForm.classList.add('hidden');
+    commit();
+    showToast(`Added aisle "${name}"`);
+});
+
+/* --- Shopping Cart Bar --- */
+els.cartClearBtn.addEventListener('click', () => {
+    state.cartItemIds = [];
+    commit();
+});
+
+els.cartCommitBtn.addEventListener('click', () => {
+    const count = commitCartToInventory(state);
+    commit();
+    if (count > 0) {
+        showToast(`Updated inventory for ${count} purchased item${count === 1 ? '' : 's'}`);
+    }
+});
+
+/* --- Inventory Voice & Command Input --- */
+els.inventoryCommandForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = els.inventoryCommandInput.value.trim();
+    if (!text) return;
+    els.inventoryCommandInput.value = '';
+    handleVoiceOrTextCommand(text);
+});
+
+els.clearInventoryBtn.addEventListener('click', () => {
+    if (state.inventoryEntries.length === 0) return;
+    clearInventory(state);
+    els.voiceFeedback.textContent = 'Inventory cleared. Ready for a fresh count.';
+    commit();
+});
+
+function handleVoiceOrTextCommand(rawText) {
+    const result = processInventoryCommand(state, rawText);
+    if (result.action === 'empty') return;
+    if (result.action === 'nav' && result.navAction === 'stop') {
+        stopVoiceListening();
+        els.voiceFeedback.textContent = 'Stopped listening.';
+        return;
+    }
+
+    const { entry, classification } = result;
+    if (classification.status === 'matched') {
+        els.voiceFeedback.textContent = `Logged "${classification.item.name}" × ${entry.count}`;
+    } else if (classification.status === 'ambiguous') {
+        els.voiceFeedback.textContent = `Multiple matches for "${entry.rawQuery}" × ${entry.count} — tap the right one below.`;
+    } else {
+        els.voiceFeedback.textContent = `"${entry.rawQuery}" isn't in your store list yet — add it below.`;
+    }
+
+    commit();
+}
+
+function initSpeechRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return null;
+
+    const rec = new SpeechRecognition();
+    rec.lang = 'en-US';
+    rec.continuous = true;
+    rec.interimResults = true;
+
+    rec.onresult = event => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript.trim();
+            if (event.results[i].isFinal) {
+                handleVoiceOrTextCommand(transcript);
+            } else {
+                interim += (interim ? ' ' : '') + transcript;
+            }
+        }
+        if (interim) {
+            els.voiceFeedback.textContent = `Hearing: "${interim}"...`;
+        }
     };
 
-    let currentMode = 'home'; // 'home' or 'shop'
-    let editMode = true;
-    let listsMenuOpen = false;
-    let draggedElement = null;
-    let dragType = null;
-    let touchGhost = null;
-    let placeholder = document.createElement('li');
-    placeholder.className = 'drag-placeholder active-ph';
-    let dragOffset = { x: 0, y: 0 };
-    let isDragStarted = false;
-    let reorderUpdateFrame = null;
-    let lastDragPos = { x: 0, y: 0 };
-    let scrollAnimationFrame = null;
-    let scrollSpeed = 0;
-    let relevantSiblings = []; // Performance: cache relevant elements for FLIP
-    let isSectionRestoration = false; // Flag to trigger drop animations
-    let currentShopFilter = 'unbought'; // 'unbought' or 'all'
-    let shopSelectionMode = false; // Tracks whether we're selecting items in shop mode
-    let selectedShopItems = new Set(); // Tracks currently selected item IDs
-    let newlyDeletedIds = new Set(); // Tracks items that just entered undo state to trigger animation
-    let pendingDeletions = new Map(); // Tracks timeout IDs for items in "Undo" state
-    let precomputedSameNameItems = new Map(); // id -> [items]
-    const shopDefId = 'sec-s-def'; // Default Uncategorized ID for Shop Mode
-    let selectionRenderTimeout = null;
-    let unsubscribeFirestore = null;
-    let searchQuery = '';
-    let voiceBarOpen = false;
-    let voiceSubMode = 'smart'; // 'smart' | 'walk'
-    let voiceListening = false;
-    let speechRecognition = null;
-    let walkCursorId = null;
-    let inventoriedItemIds = new Set();
-    let pendingVoiceItem = null;
-    let pendingVoiceTimer = null;
-    let pendingVoiceDecisions = [];
-
-    // --- DOM Elements ---
-    const groceryList = document.getElementById('grocery-list');
-    const appContainer = document.querySelector('.app-container');
-    const listsMenu = document.getElementById('lists-menu');
-    const bottomToolbar = document.querySelector('.bottom-toolbar');
-    const toolbarMain = document.getElementById('toolbar-main');
-    const toolbarNumpad = document.getElementById('toolbar-numpad');
-    const modeHeaderTitle = document.getElementById('mode-header-title');
-    const modeHeaderBadge = document.getElementById('mode-header-badge');
-    const resetHomeCountsBtn = document.getElementById('reset-home-counts-btn');
-    const quickAddToggleBtn = document.getElementById('quick-add-toggle-btn');
-    const quickSearchWrap = document.getElementById('quick-search-wrap');
-    const quickSearchInput = document.getElementById('quick-search-input');
-    const quickSearchClear = document.getElementById('quick-search-clear');
-    const homeColumnsHeader = document.getElementById('home-columns-header');
-    const selectionBar = document.getElementById('selection-bar');
-    const selectionCountText = document.getElementById('selection-count-text');
-    const selectionDeleteBtn = document.getElementById('selection-delete-btn');
-    const selectionClearBtn = document.getElementById('selection-clear-btn');
-    const voiceBar = document.getElementById('voice-bar');
-    const voicePendingQueue = document.getElementById('voice-pending-queue');
-    const toolbarVoiceBtn = document.getElementById('toolbar-voice');
-    const voiceMicToggle = document.getElementById('voice-mic-toggle');
-    const voiceCloseBtn = document.getElementById('voice-close-btn');
-    const voiceStatus = document.getElementById('voice-status');
-    const voiceSuggestions = document.getElementById('voice-suggestions');
-    const voiceTextForm = document.getElementById('voice-text-form');
-    const voiceTextInput = document.getElementById('voice-text-input');
-    const quickAddModalOverlay = document.getElementById('quick-add-modal-overlay');
-    const quickAddForm = document.getElementById('quick-add-form');
-    const quickAddNameInput = document.getElementById('quick-add-name');
-    const quickAddHaveInput = document.getElementById('quick-add-have');
-    const quickAddWantInput = document.getElementById('quick-add-want');
-    const quickAddHomeSelect = document.getElementById('quick-add-home-section');
-    const quickAddShopSelect = document.getElementById('quick-add-shop-section');
-    const quickAddCancelBtn = document.getElementById('quick-add-cancel-btn');
-
-    // --- Intersection Observer for Performance ---
-    const inViewportSet = new Set();
-    const viewportObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            const isRelevant = entry.target.classList.contains('grocery-item') || entry.target.classList.contains('section-header');
-            if (entry.isIntersecting) {
-                entry.target.classList.add('in-view');
-                if (isRelevant) inViewportSet.add(entry.target);
-            } else {
-                entry.target.classList.remove('in-view');
-                inViewportSet.delete(entry.target);
-            }
-        });
-    }, {
-        root: null, // use viewport
-        rootMargin: '100px', // start animating slightly before they enter
-        threshold: 0
-    });
-
-    // --- Delegation Handlers ---
-    groceryList.addEventListener('click', (e) => {
-        const target = e.target;
-
-        // Item Delete
-        const deleteBtn = target.closest('.item-delete-btn');
-        if (deleteBtn) {
-            e.stopPropagation();
-            const li = deleteBtn.closest('.grocery-item');
-            if (li) deleteItem(li.dataset.id);
-            return;
+    rec.onerror = event => {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            stopVoiceListening();
+            els.voiceFeedback.textContent = 'Microphone access denied. You can type commands below.';
+        } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            els.voiceFeedback.textContent = `Voice error (${event.error}). Try again or type below.`;
         }
-
-        // Section Delete
-        const secDeleteBtn = target.closest('.section-delete-btn');
-        if (secDeleteBtn) {
-            e.stopPropagation();
-            const container = secDeleteBtn.closest('.section-container');
-            const title = container.querySelector('.section-title').textContent;
-            showSectionDeleteModal(container.dataset.id, title, currentMode === 'home');
-            return;
-        }
-
-        // Undo Delete
-        const undoBtn = target.closest('.undo-btn-inline');
-        if (undoBtn) {
-            e.stopPropagation();
-            const li = undoBtn.closest('.grocery-item');
-            if (li) undoDeleteItem(li.dataset.id);
-            return;
-        }
-
-        // Section Sort A-Z
-        const sortAzBtn = target.closest('.section-sort-az-btn');
-        if (sortAzBtn) {
-            e.stopPropagation();
-            const container = sortAzBtn.closest('.section-container');
-            if (container) sortSectionAlphabetically(container.dataset.id, currentMode === 'home');
-            return;
-        }
-
-        // Section Move Up / Down
-        const moveUpBtn = target.closest('.section-move-up-btn');
-        if (moveUpBtn) {
-            e.stopPropagation();
-            const container = moveUpBtn.closest('.section-container');
-            if (container) moveSectionByOffset(container.dataset.id, -1, currentMode === 'home');
-            return;
-        }
-        const moveDownBtn = target.closest('.section-move-down-btn');
-        if (moveDownBtn) {
-            e.stopPropagation();
-            const container = moveDownBtn.closest('.section-container');
-            if (container) moveSectionByOffset(container.dataset.id, 1, currentMode === 'home');
-            return;
-        }
-
-        // Move Here (Selection Mode in Home or Shop)
-        const moveHereBtn = target.closest('.move-here-btn');
-        if (moveHereBtn) {
-            e.stopPropagation();
-            const container = moveHereBtn.closest('.section-container');
-            if (selectedShopItems.size > 0 && container) {
-                const currentList = getCurrentList();
-                const isHome = currentMode === 'home';
-                const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-                const indexKey = isHome ? 'homeIndex' : 'shopIndex';
-                const targetSecId = container.dataset.id;
-
-                let maxIdx = currentList.items
-                    .filter(i => i[sectionIdKey] === targetSecId)
-                    .reduce((max, i) => Math.max(max, i[indexKey] || 0), -1);
-
-                currentList.items.forEach(item => {
-                    if (selectedShopItems.has(item.id)) {
-                        item[sectionIdKey] = targetSecId;
-                        item[indexKey] = ++maxIdx;
-                    }
-                });
-                saveAppState();
-                clearSelection();
-                renderList();
-            }
-            return;
-        }
-
-        // Add Item Plus Icon
-        const addItemPlus = target.closest('.add-item-row .add-row-plus');
-        if (addItemPlus) {
-            const row = addItemPlus.closest('.add-item-row');
-            row.querySelector('.add-item-input').focus();
-            return;
-        }
-
-        // Add Section Plus Icon
-        const addSecPlus = target.closest('.add-section-row .add-row-plus');
-        if (addSecPlus) {
-            const row = addSecPlus.closest('.add-section-row');
-            row.querySelector('.add-section-input').focus();
-            return;
-        }
-
-        // Shop Chip Toggle / Selection
-        const shopChip = target.closest('.shop-chip');
-        if (shopChip && !target.closest('.drag-handle') && !target.closest('.quantity-controls') && !target.closest('.item-delete-btn')) {
-            const id = shopChip.dataset.id;
-            const item = getCurrentList().items.find(i => i.id === id);
-            if (!item) return;
-
-            if (shopSelectionMode || editMode) {
-                // Selection Mode
-                const wasSelected = selectedShopItems.has(id);
-                if (wasSelected) {
-                    selectedShopItems.delete(id);
-                    if (selectedShopItems.size === 0) {
-                        shopSelectionMode = false;
-                    }
-                } else {
-                    shopSelectionMode = true;
-                    selectedShopItems.add(id);
-                }
-
-                // Manual DOM updates to trigger CSS transitions immediately
-                shopChip.classList.toggle('selected', !wasSelected);
-                groceryList.classList.toggle('shop-selection-mode', shopSelectionMode);
-                updateSelectionBar();
-
-                // Update neighbors for rounded corners (sel-top/sel-bottom)
-                const neighbors = [shopChip, shopChip.previousElementSibling, shopChip.nextElementSibling];
-                neighbors.forEach(el => {
-                    if (el && el.classList.contains('shop-chip')) {
-                        const elId = el.dataset.id;
-                        const isElSelected = selectedShopItems.has(elId);
-
-                        const prev = el.previousElementSibling;
-                        const next = el.nextElementSibling;
-                        const isPrevSelected = prev && prev.classList.contains('shop-chip') && selectedShopItems.has(prev.dataset.id);
-                        const isNextSelected = next && next.classList.contains('shop-chip') && selectedShopItems.has(next.dataset.id);
-
-                        el.classList.toggle('sel-top', isElSelected && isPrevSelected);
-                        el.classList.toggle('sel-bottom', isElSelected && isNextSelected);
-                    }
-                });
-
-                // Defer renderList to allow transitions to complete
-                if (selectionRenderTimeout) clearTimeout(selectionRenderTimeout);
-                selectionRenderTimeout = setTimeout(() => {
-                    renderList();
-                    selectionRenderTimeout = null;
-                }, 300);
-            } else {
-                // Regular Shop Mode: toggle completion
-                toggleShopCompleted(id);
-            }
-            return;
-        }
-
-        // Home Mode item tap handling (Edit Mode multi-select, Walk List cursor, or non-edit show-controls)
-        const groceryItem = target.closest('.grocery-item');
-        if (groceryItem && currentMode === 'home' && !groceryItem.classList.contains('add-item-row') && !groceryItem.classList.contains('add-section-row') && !groceryItem.classList.contains('undo-row')) {
-            const id = groceryItem.dataset.id;
-            const item = getCurrentList().items.find(i => i.id === id);
-            if (!item) return;
-
-            if (editMode && !target.closest('.drag-handle') && !target.closest('.item-delete-btn') && !target.closest('.inline-edit-input')) {
-                e.stopPropagation();
-                toggleItemSelection(id, groceryItem);
-                return;
-            }
-
-            if (voiceBarOpen && voiceSubMode === 'walk' && !target.closest('.qty-input') && !target.closest('.item-delete-btn')) {
-                walkCursorId = id;
-                updateWalkHighlight();
-                return;
-            }
-
-            if (!editMode) {
-                // If item text clicked while controls are already shown, start inline edit
-                const isTextClick = target.classList.contains('item-text');
-                if (isTextClick && groceryItem.classList.contains('show-controls')) {
-                    e.stopPropagation();
-                    startInlineItemEdit(item, groceryItem.querySelector('.item-info'), target);
-                    return;
-                }
-
-                // Otherwise, just toggle controls
-                if (!groceryItem.classList.contains('show-controls')) {
-                    e.stopPropagation();
-                    // Deactivate others
-                    groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
-                    groceryItem.classList.add('show-controls');
-                }
-            }
-        }
-    });
-
-    groceryList.addEventListener('focus', (e) => {
-        if (e.target.classList.contains('qty-input')) {
-            // Deactivate any item controls
-            groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
-
-            // Blur any active inline name editing field
-            const activeInlineInput = document.querySelector('.inline-edit-input');
-            if (activeInlineInput && activeInlineInput !== e.target) {
-                // Capture state to restore focus if renderList is called
-                const itemRow = e.target.closest('.grocery-item');
-                const focusedId = itemRow?.dataset.id;
-                const wasType = e.target.closest('.have-stepper') ? 'have' : 'want';
-
-                activeInlineInput.blur();
-
-                // If blur caused a re-render (which it does via saveName), restore focus
-                if (focusedId && (!e.target.isConnected || document.activeElement !== e.target)) {
-                    const newInput = document.querySelector(`.grocery-item[data-id="${focusedId}"] .${wasType}-stepper .qty-input`);
-                    if (newInput) {
-                        newInput.focus();
-                        newInput.dataset.isFresh = 'true';
-                    }
-                }
-            }
-        }
-    }, true);
-
-    groceryList.addEventListener('submit', (e) => {
-        const target = e.target;
-
-        // Add Item Form
-        if (target.closest('.add-item-row form')) {
-            e.preventDefault();
-            const row = target.closest('.add-item-row');
-            const input = row.querySelector('.add-item-input');
-            addItemToSection(row.dataset.sectionId, input.value, currentMode === 'home');
-            return;
-        }
-
-        // Add Section Form
-        if (target.closest('.add-section-row form')) {
-            e.preventDefault();
-            const input = target.querySelector('.add-section-input');
-            const val = input.value.trim();
-            if (val) {
-                addSection(val, currentMode === 'home');
-                input.value = '';
-            }
-            return;
-        }
-    });
-
-    // Double tap delegation for item and section titles
-    onDoubleTap(groceryList, (e) => {
-        if (!editMode) return;
-        const target = e.target;
-
-        // Item Title Double Tap
-        if (target.classList.contains('item-text') && currentMode === 'home') {
-            e.stopPropagation();
-            const li = target.closest('.grocery-item');
-            const id = li.dataset.id;
-            const item = getCurrentList().items.find(i => i.id === id);
-            if (item) {
-                startInlineItemEdit(item, li.querySelector('.item-info'), target);
-            }
-            return;
-        }
-
-        // Section Title Double Tap
-        if (target.classList.contains('section-title')) {
-            e.stopPropagation();
-            const container = target.closest('.section-container');
-            const section = getCurrentList().homeSections.find(s => s.id === container.dataset.id) ||
-                            getCurrentList().shopSections.find(s => s.id === container.dataset.id);
-
-            if (section && (currentMode === 'home' || section.id !== shopDefId)) {
-                const header = target.closest('.section-header');
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.autocomplete = 'off';
-                input.value = section.name;
-                input.className = 'inline-section-input';
-                applyManualSelection(input);
-
-                const saveSectionName = () => {
-                    const newName = input.value.trim();
-                    if (newName && newName !== section.name) {
-                        section.name = newName;
-                        saveAppState();
-                    }
-                    renderList();
-                };
-
-                input.addEventListener('blur', saveSectionName);
-                input.addEventListener('keydown', (ke) => {
-                    if (ke.key === 'Enter') {
-                        input.blur();
-                    } else if (ke.key === 'Escape') {
-                        renderList();
-                    }
-                });
-
-                header.replaceChild(input, target);
-                input.focus();
-            }
-            return;
-        }
-    });
-
-    // Drag start delegation
-    groceryList.addEventListener('dragstart', (e) => {
-        const target = e.target;
-        const handle = target.closest('.drag-handle');
-        if (!handle) return;
-
-        const li = handle.closest('li.grocery-item, li.section-container');
-        if (!li) return;
-
-        const type = li.classList.contains('section-container') ? 'section' : 'item';
-        handleDragStart(e, li, type);
-    });
-
-    groceryList.addEventListener('touchstart', (e) => {
-        const target = e.target;
-        const handle = target.closest('.drag-handle');
-        if (!handle) return;
-
-        const li = handle.closest('li.grocery-item, li.section-container');
-        if (!li) return;
-
-        const type = li.classList.contains('section-container') ? 'section' : 'item';
-        handleTouchStart(e, li, type);
-    }, { passive: false });
-
-    // Toolbar Elements
-    const toolbarSyncBtn = document.getElementById('toolbar-sync');
-    const toolbarListsBtn = document.getElementById('toolbar-lists');
-    const currentListSwatch = document.getElementById('current-list-swatch');
-    const toolbarModeBtn = document.getElementById('toolbar-mode');
-    const toolbarClearShopBtn = document.getElementById('toolbar-clear-shop');
-    const toolbarReorderBtn = document.getElementById('toolbar-reorder');
-    const toolbarShareBtn = document.getElementById('toolbar-share');
-    const currentListNameSpan = document.getElementById('current-list-name');
-
-    // Modal Elements
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalTitle = document.getElementById('modal-title');
-    const modalInput = document.getElementById('modal-input');
-    const modalCancelBtn = document.getElementById('modal-cancel-btn');
-    const modalSaveBtn = document.getElementById('modal-save-btn');
-    const modalDeleteBtn = document.getElementById('modal-delete-btn');
-    const modalDisplayGroup = document.getElementById('modal-display-group');
-    const displayDropdown = document.getElementById('display-dropdown');
-    const displayTrigger = document.getElementById('display-trigger');
-    const displayOptions = document.getElementById('display-options');
-    const currentDisplaySwatch = document.getElementById('current-display-swatch');
-    const currentDisplayName = document.getElementById('current-display-name');
-    const trueBlackGroup = document.getElementById('modal-true-black-group');
-    const trueBlackToggle = document.getElementById('true-black-toggle');
-
-    const modalThemeGroup = document.getElementById('modal-theme-group');
-    const themeDropdown = document.getElementById('theme-dropdown');
-    const themeTrigger = document.getElementById('theme-trigger');
-    const themeOptions = document.getElementById('theme-options');
-    const currentThemeSwatch = document.getElementById('current-theme-swatch');
-    const currentThemeName = document.getElementById('current-theme-name');
-
-    const modalAccentGroup = document.getElementById('modal-accent-group');
-    const accentDropdown = document.getElementById('accent-dropdown');
-    const accentTrigger = document.getElementById('accent-trigger');
-    const accentOptions = document.getElementById('accent-options');
-    const currentAccentSwatch = document.getElementById('current-accent-swatch');
-    const currentAccentName = document.getElementById('current-accent-name');
-
-    // Import / Export Elements
-    const importBtn = document.getElementById('import-btn');
-    const exportBtn = document.getElementById('export-btn');
-    const importInput = document.getElementById('import-input');
-
-    // Delete Modal Elements
-    const deleteModalOverlay = document.getElementById('delete-modal-overlay');
-    const deleteMatchName = document.getElementById('delete-match-name');
-    const deleteModalTitle = document.getElementById('delete-modal-title');
-    const deleteCancelBtn = document.getElementById('delete-cancel-btn');
-    const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
-
-    // Section Delete Modal Elements
-    const sectionDeleteModalOverlay = document.getElementById('section-delete-modal-overlay');
-    const sectionDeleteModalTitle = document.getElementById('section-delete-modal-title');
-    const sectionDeleteModalText = document.getElementById('section-delete-modal-text');
-    const sectionDeleteOnlyBtn = document.getElementById('section-delete-only-btn');
-    const sectionDeleteAllBtn = document.getElementById('section-delete-all-btn');
-    const sectionDeleteCancelBtn = document.getElementById('section-delete-cancel-btn');
-
-    // Restore Modal Elements
-    const restoreModalOverlay = document.getElementById('restore-modal-overlay');
-    const restoreCancelBtn = document.getElementById('restore-cancel-btn');
-    const restoreConfirmBtn = document.getElementById('restore-confirm-btn');
-
-    // Sync Modal Elements
-    const syncModalOverlay = document.getElementById('sync-modal-overlay');
-    const syncLoggedOutDiv = document.getElementById('sync-logged-out');
-    const syncLoggedInDiv = document.getElementById('sync-logged-in');
-    const syncEmailInput = document.getElementById('sync-email');
-    const syncPasswordInput = document.getElementById('sync-password');
-    const syncLoginBtn = document.getElementById('sync-login-btn');
-    const syncSignupBtn = document.getElementById('sync-signup-btn');
-    const syncLogoutBtn = document.getElementById('sync-logout-btn');
-    const syncCancelBtn = document.getElementById('sync-cancel-btn');
-    const syncUserEmailSpan = document.getElementById('sync-user-email');
-    const syncErrorDiv = document.getElementById('sync-error');
-    const syncMessageDiv = document.getElementById('sync-message');
-    const syncIcon = document.getElementById('sync-icon');
-
-
-    // --- Helpers ---
-    const applyManualSelection = (input) => {
-        input.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (document.activeElement !== input) {
-                input.focus();
-            }
-        });
-        input.addEventListener('focus', () => {
-            if (input.tagName === 'INPUT' || input.tagName === 'TEXTAREA') {
-                input.setSelectionRange(0, input.value.length);
-            } else {
-                const range = document.createRange();
-                range.selectNodeContents(input);
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
-        });
     };
 
-    applyManualSelection(modalInput);
-
-    const escapeHTML = (str) => {
-        if (typeof str !== 'string') return str;
-        return str.replace(/[&<>"']/g, (m) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
-        })[m]);
+    rec.onend = () => {
+        if (isListening) {
+            try {
+                rec.start();
+            } catch {
+                stopVoiceListening();
+            }
+        }
     };
 
-    // Modal State
-    let currentDeleteCallback = null;
-    let currentSectionDeleteOnlyCallback = null;
-    let currentSectionDeleteAllCallback = null;
+    return rec;
+}
 
-    // --- URL Hash State Sync ---
-    async function generateHash() {
+function startVoiceListening() {
+    if (!recognition) {
+        recognition = initSpeechRecognition();
+    }
+    if (!recognition) {
+        els.voiceFeedback.textContent = 'Voice recognition is not supported in this browser. Type "<item> <count>" below.';
+        els.inventoryCommandInput.focus();
+        return;
+    }
+
+    isListening = true;
+    els.voiceMicBtn.classList.add('listening');
+    els.voiceMicBtn.setAttribute('aria-pressed', 'true');
+    els.voiceMicLabel.textContent = 'Listening...';
+    els.voiceFeedback.textContent = 'Listening — say "<item> <count>" (e.g. "wipes 3")...';
+    try {
+        recognition.start();
+    } catch {
+        // Already started
+    }
+}
+
+function stopVoiceListening() {
+    isListening = false;
+    els.voiceMicBtn.classList.remove('listening');
+    els.voiceMicBtn.setAttribute('aria-pressed', 'false');
+    els.voiceMicLabel.textContent = 'Speak';
+    if (recognition) {
         try {
-            const payload = JSON.stringify({
-                appState: appState,
-                mode: currentMode
-            });
-            const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'));
-            const compressed = await new Response(stream).arrayBuffer();
-            const bytes = new Uint8Array(compressed);
-
-            // Optimized conversion to binary string using chunks and array joining for efficiency
-            const chunks = [];
-            const CHUNK_SIZE = 0x8000;
-            for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-                chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE)));
-            }
-
-            return btoa(chunks.join(''));
-        } catch (e) {
-            console.warn('Failed to generate state URL hash:', e);
-            return '';
+            recognition.stop();
+        } catch {
+            // Ignore
         }
     }
+}
 
-    // Restore state from URL hash (if present)
-    async function restoreFromHash() {
-        try {
-            const hash = window.location.hash.slice(1);
-            if (!hash) return;
-            const binary = atob(hash);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
-            const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-            const decompressed = await new Response(stream).text();
-            const data = JSON.parse(decompressed);
-            if (data && data.appState && data.appState.lists) {
-                // If hash state matches current state, skip prompt
-                if (JSON.stringify(data.appState) === JSON.stringify(appState)) {
-                    return;
-                }
+els.voiceMicBtn.addEventListener('click', () => {
+    if (isListening) {
+        stopVoiceListening();
+        els.voiceFeedback.textContent = 'Paused listening.';
+    } else {
+        startVoiceListening();
+    }
+});
 
-                restoreModalOverlay.classList.add('visible');
+/* --- Render --- */
+function render() {
+    const isStore = state.ui.mode === 'store';
+    els.modeStoreBtn.classList.toggle('active', isStore);
+    els.modeStoreBtn.setAttribute('aria-pressed', String(isStore));
+    els.modeInventoryBtn.classList.toggle('active', !isStore);
+    els.modeInventoryBtn.setAttribute('aria-pressed', String(!isStore));
 
-                return new Promise((resolve) => {
-                    restoreConfirmBtn.onclick = () => {
-                        appState = data.appState;
-                        if (data.mode) {
-                            currentMode = data.mode;
-                        }
-                        saveAppState(true);
-                        restoreModalOverlay.classList.remove('visible');
-                        resolve();
-                    };
-                    restoreCancelBtn.onclick = () => {
-                        restoreModalOverlay.classList.remove('visible');
-                        resolve();
-                    };
-                });
-            }
-        } catch (e) {
-            console.warn('Failed to restore state from URL hash:', e);
-        }
+    els.storeView.classList.toggle('hidden', !isStore);
+    els.inventoryView.classList.toggle('hidden', isStore);
+
+    // Pending badge on Inventory tab
+    const unresolvedCount = state.inventoryEntries.filter(e => e.status !== 'matched').length;
+    els.inventoryPendingBadge.textContent = String(unresolvedCount);
+    els.inventoryPendingBadge.classList.toggle('hidden', unresolvedCount === 0);
+
+    // Shopping list badge
+    const toBuyCount = getTotalToBuyItemsCount(state);
+    els.shoppingCountBadge.textContent = String(toBuyCount);
+
+    if (isStore) {
+        renderStoreMode();
+    } else {
+        renderInventoryMode();
+    }
+}
+
+function renderStoreMode() {
+    const isShopping = state.ui.storeView === 'shopping';
+    els.viewAllBtn.classList.toggle('active', !isShopping);
+    els.viewShoppingBtn.classList.toggle('active', isShopping);
+    els.addAisleOpenBtn.classList.toggle('hidden', isShopping);
+    if (isShopping) {
+        els.addAisleForm.classList.add('hidden');
     }
 
-    let isAppRunning = false;
-    async function startApp(user) {
-        if (isAppRunning) {
-            return;
-        }
-        isAppRunning = true;
-        localStorage.setItem('grocery-logged-in', 'true');
-
-        syncLoggedOutDiv.classList.add('hidden');
-        syncLoggedInDiv.classList.remove('hidden');
-        syncUserEmailSpan.textContent = user.email || 'Guest';
-        if (syncIcon) syncIcon.innerHTML = SYNC_ICON_SVG;
-
-        // Show app immediately with current state
-        appContainer.classList.remove('hidden');
-        syncModalOverlay.classList.remove('visible');
-        updateModeUI();
-        renderListsMenu();
-        renderList();
-
-        firstSync = true;
-        syncWithFirestore(user);
+    if (els.storeSearchInput.value !== state.ui.searchQuery) {
+        els.storeSearchInput.value = state.ui.searchQuery;
     }
 
-    function stopApp() {
-        if (isAppRunning) {
-            // Reset state on logout
-            const defaultListId = Date.now().toString();
-            appState = {
-                lists: [{
-                    id: defaultListId,
-                    name: 'Grocery List',
-                    theme: 'var(--theme-blue)',
-                    accent: 'var(--theme-amber)',
-                    homeSections: [],
-                    shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                    items: []
-                }],
-                currentListId: defaultListId,
-                mode: 'home',
-                editMode: true,
-                updatedAt: 0
-            };
-            localStorage.removeItem('grocery-app-state');
-            localStorage.removeItem('grocery-mode');
-            localStorage.removeItem('grocery-edit-mode');
-            localStorage.setItem('grocery-logged-in', 'false');
-        }
+    if (isShopping) {
+        renderShoppingList();
+    } else {
+        renderAllStoreAisles();
+    }
+}
 
-        isAppRunning = false;
-        if (unsubscribeFirestore) {
-            unsubscribeFirestore();
-            unsubscribeFirestore = null;
-        }
-        syncLoggedOutDiv.classList.remove('hidden');
-        syncLoggedInDiv.classList.add('hidden');
-        if (syncIcon) syncIcon.innerHTML = SYNC_SLASH_ICON_SVG;
+function renderAllStoreAisles() {
+    els.shoppingCartBar.classList.add('hidden');
+    const container = els.storeAislesContainer;
+    container.innerHTML = '';
 
-        appContainer.classList.add('hidden');
-        syncModalOverlay.classList.add('visible');
+    const haveMap = getHaveQtyMap(state);
+    const q = (state.ui.searchQuery || '').trim().toLowerCase();
 
-        updateModeUI();
-        renderListsMenu();
-        renderList();
+    if (state.aisles.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `
+            <div class="empty-state-title">No store aisles yet</div>
+            <div>Click <strong>+ Aisle</strong> above to create your first section (e.g. Produce, Dairy).</div>
+        `;
+        container.appendChild(empty);
+        return;
     }
 
-    // --- Initialization ---
-    async function init() {
-        // 0. Assume logged in if they were last time
-        if (localStorage.getItem('grocery-logged-in') === 'true') {
-            appContainer.classList.remove('hidden');
-            syncModalOverlay.classList.remove('visible');
-        }
+    let renderedCount = 0;
 
-        // 1. Load local state if it exists
-        const savedState = localStorage.getItem('grocery-app-state');
-        if (savedState) {
-            try {
-                const parsed = JSON.parse(savedState);
-                if (parsed && parsed.lists) {
-                    appState = parsed;
-                    // Migration: Ensure all lists have a displayMode
-                    appState.lists.forEach(l => {
-                        if (!l.displayMode) l.displayMode = 'auto';
-                    });
-                    currentMode = localStorage.getItem('grocery-mode') || 'home';
-                    editMode = localStorage.getItem('grocery-edit-mode') === 'true';
-                }
-            } catch (e) {
-                console.error("Failed to load local state:", e);
-            }
-        }
+    state.aisles.forEach((aisle, aisleIndex) => {
+        const aisleItems = state.items.filter(i => i.aisleId === aisle.id);
+        const filteredItems = q
+            ? aisleItems.filter(i => i.name.toLowerCase().includes(q) || aisle.name.toLowerCase().includes(q))
+            : aisleItems;
 
-        // If no state was loaded, initialize with defaults
-        if (!appState.lists || appState.lists.length === 0) {
-            const defaultListId = Date.now().toString();
-            appState.lists = [{
-                id: defaultListId,
-                name: 'Grocery List',
-                theme: 'var(--theme-blue)',
-                accent: 'var(--theme-amber)',
-                displayMode: 'auto',
-                homeSections: [],
-                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                items: []
-            }];
-            appState.currentListId = defaultListId;
-            appState.mode = 'home';
-            appState.editMode = true;
-        }
-
-        // Apply initial UI
-        updateModeUI();
-        renderListsMenu();
-        renderList();
-
-        // 2. Set up auth listener
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                await startApp(user);
-            } else {
-                stopApp();
-            }
-        });
-
-        await restoreFromHash();
-
-        // Final UI refresh only if app isn't already running
-        if (!isAppRunning) {
-            updateModeUI();
-            renderListsMenu();
-            renderList();
-        }
-    }
-
-    // --- Mode Switching ---
-    function autoSortShopItems(currentList) {
-        // Auto-sort logic: group checked items by shopSectionId, sort them by shopCheckOrder, and assign them sorted shopIndex values
-        const sectionsMap = new Map();
-        currentList.items.forEach(item => {
-            if (item.shopCompleted) {
-                if (!sectionsMap.has(item.shopSectionId)) {
-                    sectionsMap.set(item.shopSectionId, []);
-                }
-                sectionsMap.get(item.shopSectionId).push(item);
-            }
-        });
-
-        sectionsMap.forEach(checkedItems => {
-            // Sort by check order (ascending - older checks first)
-            checkedItems.sort((a, b) => (a.shopCheckOrder || 0) - (b.shopCheckOrder || 0));
-
-            // Extract their current indices and sort numerically
-            const indices = checkedItems.map(i => i.shopIndex).sort((a, b) => a - b);
-
-            // Re-assign sorted indices back to the items based on their check order
-            checkedItems.forEach((item, i) => {
-                item.shopIndex = indices[i];
-            });
-        });
-    }
-
-    function animateModeSwitch(doSwitchCallback) {
-        // Mode fade transition: out → scroll & switch → in
-        const fadeOutClass = 'mode-fade-out';
-        const fadeInClass = 'mode-fade-in';
-
-        groceryList.classList.add(fadeOutClass);
-        groceryList.addEventListener('animationend', function onOut() {
-            groceryList.removeEventListener('animationend', onOut);
-            groceryList.classList.remove(fadeOutClass);
-
-            // Scroll to top when current content is faded out
-            window.scrollTo(0, 0);
-            if (appContainer) appContainer.scrollTop = 0;
-
-            doSwitchCallback();
-
-            groceryList.classList.add(fadeInClass);
-            groceryList.addEventListener('animationend', function onIn() {
-                groceryList.removeEventListener('animationend', onIn);
-                groceryList.classList.remove(fadeInClass);
-            }, { once: true });
-        }, { once: true });
-    }
-
-    function switchMode(newMode, animate = false) {
-        if (newMode === currentMode) return;
-
-        const doSwitch = () => {
-            // Auto-sort when switching FROM Shop TO Home
-            if (currentMode === 'shop' && newMode === 'home') {
-                autoSortShopItems(getCurrentList());
-                saveAppState();
-            }
-
-            // Clear selection mode & voice bar on any mode switch
-            clearSelection();
-            if (newMode !== 'home' && voiceBarOpen) {
-                toggleVoiceBar(false);
-            }
-
-            currentMode = newMode;
-            saveMode();
-            updateModeUI();
-            renderList();
-        };
-
-        if (!animate) {
-            doSwitch();
+        if (q && filteredItems.length === 0 && !aisle.name.toLowerCase().includes(q)) {
             return;
         }
 
-        animateModeSwitch(doSwitch);
-    }
-
-    // --- Toolbar Interactions ---
-    if (toolbarSyncBtn) {
-        toolbarSyncBtn.addEventListener('click', () => {
-            if (syncErrorDiv) {
-                syncErrorDiv.textContent = '';
-                syncErrorDiv.classList.add('hidden');
-            }
-            syncModalOverlay.classList.add('visible');
-        });
-    }
-
-    const showSyncError = (msg) => {
-        if (syncErrorDiv) {
-            syncErrorDiv.textContent = msg;
-            syncErrorDiv.classList.remove('hidden');
-        }
-        if (syncMessageDiv) {
-            syncMessageDiv.classList.add('hidden');
-        }
-    };
-
-    const showSyncMessage = (msg) => {
-        if (syncMessageDiv) {
-            syncMessageDiv.textContent = msg;
-            syncMessageDiv.classList.remove('hidden');
-        }
-        if (syncErrorDiv) {
-            syncErrorDiv.classList.add('hidden');
-        }
-    };
-
-    if (syncLoginBtn) {
-        syncLoginBtn.addEventListener('click', async () => {
-            const email = syncEmailInput.value.trim();
-            const password = syncPasswordInput.value;
-            if (!email || !password) {
-                showSyncError("Please enter both email and password.");
-                return;
-            }
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (e) {
-                showSyncError(e.message);
-            }
-        });
-    }
-
-    if (syncCancelBtn) {
-        syncCancelBtn.addEventListener('click', () => {
-            if (isAppRunning) {
-                syncModalOverlay.classList.remove('visible');
-            }
-        });
-    }
-
-    if (syncModalOverlay) {
-        syncModalOverlay.addEventListener('mousedown', (e) => {
-            if (e.target === syncModalOverlay && isAppRunning) {
-                syncModalOverlay.classList.remove('visible');
-            }
-        });
-    }
-
-    if (syncSignupBtn) {
-        syncSignupBtn.addEventListener('click', async () => {
-            const email = syncEmailInput.value.trim();
-            const password = syncPasswordInput.value;
-            if (!email || !password) {
-                showSyncError("Please enter both email and password.");
-                return;
-            }
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                // Auth listener will handle the rest
-            } catch (e) {
-                showSyncError(e.message);
-            }
-        });
-    }
-
-    if (syncLogoutBtn) {
-        syncLogoutBtn.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-                syncModalOverlay.classList.remove('visible');
-            } catch (e) {
-                showSyncError(e.message);
-            }
-        });
-    }
-
-    if (toolbarListsBtn) {
-        toolbarListsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-
-            // Calculate tap position relative to the menu for the circular reveal
-            const menuRect = listsMenu.getBoundingClientRect();
-            // Default to bottom center if event coordinates are missing (e.g. keyboard)
-            const x = e.clientX ? e.clientX - menuRect.left : menuRect.width / 2;
-            const y = e.clientY ? e.clientY - menuRect.top : menuRect.height;
-
-            listsMenu.style.setProperty('--reveal-x', `${x}px`);
-            listsMenu.style.setProperty('--reveal-y', `${y}px`);
-
-            toggleListsMenu();
-        });
-
-        onLongPress(toolbarListsBtn, (e) => {
-            e.stopPropagation();
-            renameList(appState.currentListId);
-        }, 300, { allowOnButtons: true });
-
-        if (currentListNameSpan) {
-            onDoubleTap(currentListNameSpan, (e) => {
-                if (!editMode) return;
-                e.stopPropagation();
-                renameList(appState.currentListId);
-            });
-        }
-    }
-
-    if (toolbarModeBtn) {
-        toolbarModeBtn.addEventListener('click', () => {
-            const newMode = currentMode === 'home' ? 'shop' : 'home';
-            switchMode(newMode, true);
-        });
-    }
-
-    if (toolbarClearShopBtn) {
-        toolbarClearShopBtn.addEventListener('click', () => {
-            const currentList = getCurrentList();
-
-            const totalHaveMap = new Map();
-            const itemsLen = currentList.items.length;
-            const trimmedNames = new Array(itemsLen);
-
-            for (let i = 0; i < itemsLen; i++) {
-                const item = currentList.items[i];
-                const name = item.text.trim();
-                trimmedNames[i] = name;
-                totalHaveMap.set(name, (totalHaveMap.get(name) || 0) + item.haveCount);
-            }
-
-            for (let i = 0; i < itemsLen; i++) {
-                const item = currentList.items[i];
-                const totalHave = totalHaveMap.get(trimmedNames[i]);
-                const toBuy = Math.max(0, item.wantCount - totalHave);
-                if (toBuy > 0) {
-                    item.shopCompleted = false;
-                    item.shopCheckOrder = null;
-                }
-            }
-            saveAppState();
-            renderList();
-        });
-    }
-
-    if (toolbarReorderBtn) {
-        toolbarReorderBtn.addEventListener('click', () => {
-            // Find the row currently at the top of the viewport
-            let topRow = null;
-            let topOffset = Infinity;
-
-            // Optimization: Only scan visible rows using the IntersectionObserver's tracked Set
-            for (const row of inViewportSet) {
-                const rect = row.getBoundingClientRect();
-                if (rect.bottom > 0 && rect.top < topOffset) {
-                    topRow = row;
-                    topOffset = rect.top;
-                }
-            }
-
-            // In case no valid row was found (e.g. empty list or layout quirk), fallback gracefully
-            if (!topRow) topOffset = 0;
-
-            editMode = !editMode;
-            saveMode();
-            updateModeUI();
-            renderList();
-
-            // Maintain scroll position for the top row
-            if (topRow) {
-                const newRect = topRow.getBoundingClientRect();
-                const scrollDelta = newRect.top - topOffset;
-                window.scrollBy(0, scrollDelta);
-                if (appContainer) appContainer.scrollBy(0, scrollDelta);
-            }
-        });
-    }
-
-    if (toolbarShareBtn) {
-        toolbarShareBtn.addEventListener('click', async () => {
-            try {
-                const hash = await generateHash();
-                const shareUrl = window.location.origin + window.location.pathname + '#' + hash;
-                await navigator.clipboard.writeText(shareUrl);
-                const icon = toolbarShareBtn.querySelector('i');
-                const originalClass = icon.className;
-                icon.className = 'fas fa-check';
-                setTimeout(() => {
-                    icon.className = originalClass;
-                }, 2000);
-            } catch (err) {
-                console.error('Failed to copy: ', err);
-            }
-        });
-    }
-
-    // --- Import / Export Logic ---
-    if (exportBtn) exportBtn.addEventListener('click', () => {
-        const dataStr = JSON.stringify(appState, null, 2);
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        // Use full date and time, replacing colons to ensure valid filenames on all OS
-        a.download = `${new Date().toISOString().split('.')[0].replace(/:/g, '-')}.json`;
-        document.body.appendChild(a);
-        a.click();
-
-        // Cleanup
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    });
-
-    if (importBtn) importBtn.addEventListener('click', () => {
-        importInput.click();
-    });
-
-    importInput.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const importedData = JSON.parse(e.target.result);
-
-                // Very basic validation to ensure it looks like our appState
-                if (importedData && Array.isArray(importedData.lists)) {
-                    appState = importedData;
-                    // Ensure currentListId is valid
-                    if (!appState.lists.find(l => l.id === appState.currentListId)) {
-                        appState.currentListId = appState.lists[0] ? appState.lists[0].id : null;
-                    }
-                    saveAppState();
-                    renderListsMenu();
-                    updateModeUI();
-                    renderList();
-                } else {
-                    alert("Invalid backup file format.");
-                }
-            } catch (error) {
-                console.error("Error importing data:", error);
-                alert("Failed to parse backup file. Please ensure it is a valid JSON file.");
-            }
-            // Reset the input so the same file can be selected again if needed
-            importInput.value = '';
-        };
-        reader.readAsText(file);
-    });
-
-    // --- Custom Theme Dropdown Logic ---
-    const themes = [
-        { name: 'Red', value: 'var(--theme-red)' },
-        { name: 'Pink', value: 'var(--theme-pink)' },
-        { name: 'Purple', value: 'var(--theme-purple)' },
-        { name: 'Deep Purple', value: 'var(--theme-deep-purple)' },
-        { name: 'Indigo', value: 'var(--theme-indigo)' },
-        { name: 'Blue', value: 'var(--theme-blue)' },
-        { name: 'Light Blue', value: 'var(--theme-light-blue)' },
-        { name: 'Cyan', value: 'var(--theme-cyan)' },
-        { name: 'Teal', value: 'var(--theme-teal)' },
-        { name: 'Green', value: 'var(--theme-green)' },
-        { name: 'Light Green', value: 'var(--theme-light-green)' },
-        { name: 'Lime', value: 'var(--theme-lime)' },
-        { name: 'Yellow', value: 'var(--theme-yellow)' },
-        { name: 'Amber', value: 'var(--theme-amber)' },
-        { name: 'Orange', value: 'var(--theme-orange)' },
-        { name: 'Deep Orange', value: 'var(--theme-deep-orange)' },
-        { name: 'Brown', value: 'var(--theme-brown)' },
-        { name: 'Grey', value: 'var(--theme-grey)' },
-        { name: 'Blue Grey', value: 'var(--theme-blue-grey)' }
-    ];
-
-    const displayModes = [
-        { name: 'Auto', value: 'auto', icon: 'fa-circle-half-stroke' },
-        { name: 'Light', value: 'light', icon: 'fa-sun' },
-        { name: 'Dark', value: 'dark', icon: 'fa-moon' }
-    ];
-
-    let selectedThemeValue = 'var(--theme-blue)';
-    let selectedAccentValue = 'var(--theme-amber)';
-    let selectedDisplayModeValue = 'auto';
-
-    function initDisplayModeDropdown() {
-        displayOptions.innerHTML = '';
-        displayModes.forEach(mode => {
-            const option = document.createElement('div');
-            option.className = 'theme-option';
-            option.dataset.value = mode.value;
-            option.innerHTML = `
-                <div class="option-swatch" style="display: flex; align-items: center; justify-content: center; background: transparent;">
-                    <i class="fas ${mode.icon}" style="font-size: 0.9rem;"></i>
-                </div>
-                <span>${mode.name}</span>
-            `;
-            option.addEventListener('click', () => {
-                selectDisplayMode(mode.value);
-                displayDropdown.classList.remove('open');
-            });
-            displayOptions.appendChild(option);
-        });
-    }
-
-    function selectDisplayMode(value) {
-        const mode = displayModes.find(m => m.value === value) || displayModes[0];
-        selectedDisplayModeValue = mode.value;
-        currentDisplaySwatch.innerHTML = `<i class="fas ${mode.icon}" style="font-size: 0.9rem;"></i>`;
-        currentDisplayName.textContent = mode.name;
-
-        // Update selected class in display options
-        displayOptions.querySelectorAll('.theme-option').forEach(opt => {
-            opt.classList.toggle('selected', opt.dataset.value === value);
-        });
-
-        // Show/hide true black toggle based on display mode
-        if (value === 'light') {
-            trueBlackGroup.classList.add('hidden');
-        } else {
-            trueBlackGroup.classList.remove('hidden');
-        }
-
-        // Trigger live preview
-        document.documentElement.classList.remove('dark-mode', 'light-mode');
-        if (value === 'dark') document.documentElement.classList.add('dark-mode');
-        if (value === 'light') document.documentElement.classList.add('light-mode');
-    }
-
-    function initColorDropdown(type) {
-        const optionsContainer = type === 'theme' ? themeOptions : accentOptions;
-        const dropdown = type === 'theme' ? themeDropdown : accentDropdown;
-
-        optionsContainer.innerHTML = '';
-        themes.forEach(theme => {
-            const option = document.createElement('div');
-            option.className = 'theme-option';
-            option.dataset.value = theme.value;
-            option.innerHTML = `
-                <div class="option-swatch" style="background: ${theme.value}"></div>
-                <span>${theme.name}</span>
-            `;
-            option.addEventListener('click', () => {
-                if (type === 'theme') {
-                    selectTheme(theme.value);
-                } else {
-                    selectAccent(theme.value);
-                }
-                dropdown.classList.remove('open');
-            });
-            optionsContainer.appendChild(option);
-        });
-    }
-
-    function selectTheme(value) {
-        const theme = themes.find(t => t.value === value) || themes[5]; // Default to blue
-        selectedThemeValue = theme.value;
-        currentThemeSwatch.style.background = theme.value;
-        currentThemeName.textContent = theme.name;
-
-        // Update selected class in theme options
-        themeOptions.querySelectorAll('.theme-option').forEach(opt => {
-            opt.classList.toggle('selected', opt.dataset.value === value);
-        });
-
-        // Trigger live preview
-        document.documentElement.style.setProperty('--primary-color', theme.value);
-    }
-
-    function selectAccent(value) {
-        const theme = themes.find(t => t.value === value) || themes[13]; // Default to Amber
-        selectedAccentValue = theme.value;
-        currentAccentSwatch.style.background = theme.value;
-        currentAccentName.textContent = theme.name;
-
-        // Update selected class in accent options
-        accentOptions.querySelectorAll('.theme-option').forEach(opt => {
-            opt.classList.toggle('selected', opt.dataset.value === value);
-        });
-
-        // Trigger live preview
-        document.documentElement.style.setProperty('--accent-color', theme.value);
-    }
-
-    displayTrigger.addEventListener('click', (e) => {
-        e.stopPropagation();
-        displayDropdown.classList.toggle('open');
-        themeDropdown.classList.remove('open');
-        accentDropdown.classList.remove('open');
-    });
-
-    themeTrigger.addEventListener('click', (e) => {
-        e.stopPropagation();
-        themeDropdown.classList.toggle('open');
-        accentDropdown.classList.remove('open');
-        displayDropdown.classList.remove('open');
-    });
-
-    accentTrigger.addEventListener('click', (e) => {
-        e.stopPropagation();
-        accentDropdown.classList.toggle('open');
-        themeDropdown.classList.remove('open');
-        displayDropdown.classList.remove('open');
-    });
-
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!themeDropdown.contains(e.target)) {
-            themeDropdown.classList.remove('open');
-        }
-        if (!accentDropdown.contains(e.target)) {
-            accentDropdown.classList.remove('open');
-        }
-        if (!displayDropdown.contains(e.target)) {
-            displayDropdown.classList.remove('open');
-        }
-    });
-
-    initDisplayModeDropdown();
-    initColorDropdown('theme');
-    initColorDropdown('accent');
-
-
-    let currentModalCallback = null;
-    let currentDeleteActionCallback = null;
-
-    function showModal(title, initialValue, showTheme, initialTheme, initialAccent, initialDisplayMode, initialTrueBlack, callback, deleteCallback) {
-        modalTitle.textContent = title;
-        modalInput.value = initialValue || '';
-
-        if (showTheme) {
-            modalDisplayGroup.classList.remove('hidden');
-            modalThemeGroup.classList.remove('hidden');
-            modalAccentGroup.classList.remove('hidden');
-            selectDisplayMode(initialDisplayMode || 'auto');
-            selectTheme(initialTheme || 'var(--theme-blue)');
-            selectAccent(initialAccent || 'var(--theme-amber)');
-            trueBlackToggle.checked = !!initialTrueBlack;
-            document.documentElement.classList.toggle('true-black', !!initialTrueBlack);
-        } else {
-            modalDisplayGroup.classList.add('hidden');
-            modalThemeGroup.classList.add('hidden');
-            modalAccentGroup.classList.add('hidden');
-            trueBlackGroup.classList.add('hidden');
-        }
-
-        if (deleteCallback) {
-            modalDeleteBtn.style.display = 'block';
-            currentDeleteActionCallback = deleteCallback;
-        } else {
-            modalDeleteBtn.style.display = 'none';
-            currentDeleteActionCallback = null;
-        }
-
-        currentModalCallback = callback;
-        modalOverlay.classList.add('visible');
-
-    }
-
-    function hideModal() {
-        modalOverlay.classList.remove('visible');
-        displayDropdown.classList.remove('open');
-        themeDropdown.classList.remove('open');
-        accentDropdown.classList.remove('open');
-        trueBlackToggle.checked = false;
-        currentModalCallback = null;
-        currentDeleteActionCallback = null;
-        updateModeUI(); // Restore original theme
-    }
-
-    modalCancelBtn.addEventListener('click', hideModal);
-
-    modalDeleteBtn.addEventListener('click', () => {
-        if (currentDeleteActionCallback) {
-            currentDeleteActionCallback();
-        }
-        hideModal();
-    });
-
-    trueBlackToggle.addEventListener('change', () => {
-        document.documentElement.classList.toggle('true-black', trueBlackToggle.checked);
-    });
-
-    modalSaveBtn.addEventListener('click', () => {
-        const val = modalInput.value.trim();
-        const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
-        const accent = !modalAccentGroup.classList.contains('hidden') ? selectedAccentValue : null;
-        const displayMode = !modalDisplayGroup.classList.contains('hidden') ? selectedDisplayModeValue : null;
-        const trueBlack = !trueBlackGroup.classList.contains('hidden') ? trueBlackToggle.checked : false;
-        if (currentModalCallback) {
-            currentModalCallback(val, theme, accent, displayMode, trueBlack);
-        }
-        hideModal();
-    });
-
-    // Save when clicking outside the modal
-    modalOverlay.addEventListener('mousedown', (e) => {
-        // Only trigger if clicking exactly on the overlay (not its children)
-        if (e.target === modalOverlay) {
-            const val = modalInput.value.trim();
-            const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
-            const accent = !modalAccentGroup.classList.contains('hidden') ? selectedAccentValue : null;
-            const displayMode = !modalDisplayGroup.classList.contains('hidden') ? selectedDisplayModeValue : null;
-            const trueBlack = !trueBlackGroup.classList.contains('hidden') ? trueBlackToggle.checked : false;
-            if (currentModalCallback) {
-                currentModalCallback(val, theme, accent, displayMode, trueBlack);
-            }
-            hideModal();
-        }
-    });
-
-    modalInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const val = modalInput.value.trim();
-            const theme = !modalThemeGroup.classList.contains('hidden') ? selectedThemeValue : null;
-            const accent = !modalAccentGroup.classList.contains('hidden') ? selectedAccentValue : null;
-            const displayMode = !modalDisplayGroup.classList.contains('hidden') ? selectedDisplayModeValue : null;
-            if (currentModalCallback) {
-                currentModalCallback(val, theme, accent, displayMode);
-            }
-            hideModal();
-        }
-    });
-
-
-    // --- Delete Modal Logic ---
-    function showDeleteModal(title, matchName, callback) {
-        currentDeleteCallback = callback;
-        deleteModalTitle.textContent = title;
-        deleteMatchName.textContent = matchName;
-
-        deleteModalOverlay.classList.add('visible');
-    }
-
-    function hideDeleteModal() {
-        deleteModalOverlay.classList.remove('visible');
-        currentDeleteCallback = null;
-    }
-
-    deleteConfirmBtn.addEventListener('click', () => {
-        if (currentDeleteCallback) {
-            currentDeleteCallback();
-        }
-        hideDeleteModal();
-    });
-
-    deleteCancelBtn.addEventListener('click', hideDeleteModal);
-
-    // --- Section Delete Modal Logic ---
-    function showSectionDeleteModal(sectionId, sectionName, isHome) {
-        const currentList = getCurrentList();
-        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-        const itemsInSection = currentList.items.filter(i => i[sectionIdKey] === sectionId).length;
-
-        sectionDeleteModalTitle.textContent = `Delete ${sectionName}?`;
-        sectionDeleteModalText.textContent = `This section contains ${itemsInSection} item${itemsInSection === 1 ? '' : 's'}. What would you like to do?`;
-
-        currentSectionDeleteOnlyCallback = () => deleteSection(sectionId, false, isHome);
-        currentSectionDeleteAllCallback = () => deleteSection(sectionId, true, isHome);
-
-        sectionDeleteModalOverlay.classList.add('visible');
-    }
-
-    function hideSectionDeleteModal() {
-        sectionDeleteModalOverlay.classList.remove('visible');
-        currentSectionDeleteOnlyCallback = null;
-        currentSectionDeleteAllCallback = null;
-    }
-
-    function deleteSection(sectionId, deleteAllItems, isHome) {
-        const currentList = getCurrentList();
-        const sectionsKey = isHome ? 'homeSections' : 'shopSections';
-        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
-
-        if (deleteAllItems) {
-            currentList.items = currentList.items.filter(i => i[sectionIdKey] !== sectionId);
-        } else {
-            const fallbackSection = getOrCreateUncategorizedSection(isHome);
-            currentList.items.forEach(i => {
-                if (i[sectionIdKey] === sectionId) {
-                    i[sectionIdKey] = fallbackSection.id;
-                }
-            });
-            // Re-index target section
-            const targetItems = currentList.items.filter(i => i[sectionIdKey] === fallbackSection.id);
-            targetItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
-            targetItems.forEach((item, idx) => { item[indexKey] = idx; });
-        }
-
-        currentList[sectionsKey] = currentList[sectionsKey].filter(s => s.id !== sectionId);
-
-        saveAppState();
-        renderList();
-        hideSectionDeleteModal();
-    }
-
-    sectionDeleteOnlyBtn.addEventListener('click', () => {
-        if (currentSectionDeleteOnlyCallback) currentSectionDeleteOnlyCallback();
-    });
-    sectionDeleteAllBtn.addEventListener('click', () => {
-        if (currentSectionDeleteAllCallback) currentSectionDeleteAllCallback();
-    });
-    sectionDeleteCancelBtn.addEventListener('click', hideSectionDeleteModal);
-    sectionDeleteModalOverlay.addEventListener('mousedown', (e) => {
-        if (e.target === sectionDeleteModalOverlay) hideSectionDeleteModal();
-    });
-
-
-    // --- Helper ---
-    function onDoubleTap(element, callback) {
-        let lastTapTime = 0;
-        let lastTapElementId = null;
-
-        element.addEventListener('click', (e) => {
-            const target = e.target;
-            // Identify the relevant element (item or section)
-            const row = target.closest('.grocery-item, .section-header');
-            const elementId = row ? (row.dataset.id || row.querySelector('[data-id]')?.dataset.id) : null;
-
-            const currentTime = Date.now();
-            const timeDiff = currentTime - lastTapTime;
-
-            if (timeDiff < 400 && timeDiff > 0 && elementId === lastTapElementId) {
-                e.preventDefault();
-                callback(e);
-                lastTapTime = 0; // reset
-                lastTapElementId = null;
-            } else {
-                lastTapTime = currentTime;
-                lastTapElementId = elementId;
-            }
-        });
-
-        // Prevent native dblclick to avoid duplicate triggers if browser fires it natively
-        element.addEventListener('dblclick', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-    }
-
-    function onLongPress(element, callback, duration = 300, options = {}) {
-        let pressTimer;
-        let isPressing = false;
-        let startX, startY;
-
-        const startPress = (e) => {
-            if (e.type === 'mousedown' && e.button !== 0) return;
-            if (!options.allowOnButtons && (e.target.closest('button') || e.target.closest('input'))) return;
-
-            isPressing = true;
-            if (e.type === 'mousedown') {
-                startX = e.clientX;
-                startY = e.clientY;
-            } else if (e.touches && e.touches.length > 0) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }
-
-            pressTimer = setTimeout(() => {
-                if (isPressing) {
-                    isPressing = false;
-                    callback(e);
-                }
-            }, duration);
-        };
-
-        const cancelPress = () => {
-            isPressing = false;
-            clearTimeout(pressTimer);
-        };
-
-        const checkScrollCancel = (e) => {
-            if (!isPressing) return;
-            if (e.touches && e.touches.length > 0) {
-                const curX = e.touches[0].clientX;
-                const curY = e.touches[0].clientY;
-                if (Math.abs(curX - startX) + Math.abs(curY - startY) > 10) cancelPress();
-            } else if (e.type === 'mousemove') {
-                if (Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) > 10) cancelPress();
-            }
-        };
-
-        element.addEventListener('mousedown', startPress);
-        element.addEventListener('touchstart', startPress, { passive: true });
-        element.addEventListener('mouseup', cancelPress);
-        element.addEventListener('mouseleave', cancelPress);
-        element.addEventListener('mousemove', checkScrollCancel, { passive: true });
-        element.addEventListener('touchend', cancelPress);
-        element.addEventListener('touchmove', checkScrollCancel, { passive: true });
-    }
-
-    function getCurrentList() {
-        return appState.lists.find(l => l.id === appState.currentListId);
-    }
-
-    let firstSync = true;
-    async function syncWithFirestore(user) {
-        if (!user) return;
-        const docRef = doc(db, "users", user.uid);
-        unsubscribeFirestore = onSnapshot(docRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const remoteState = docSnap.data();
-                if (firstSync) {
-                    firstSync = false;
-                    const cloudHasItems = remoteState.lists && remoteState.lists.some(l => l.items && l.items.length > 0);
-                    const localHasItems = appState.lists && appState.lists.some(l => l.items && l.items.length > 0);
-
-                    if (cloudHasItems) {
-                        // Cloud version of data should be used
-                        appState = remoteState;
-                        currentMode = remoteState.mode || 'home';
-                        editMode = remoteState.editMode !== undefined ? remoteState.editMode : true;
-                        renderListsMenu();
-                        updateModeUI();
-                        renderList();
-                        return;
-                    } else if (localHasItems) {
-                        // Cloud exists but is empty, push local data
-                        saveAppState(true);
-                        return;
-                    }
-                }
-
-                if (remoteState.updatedAt > appState.updatedAt) {
-                    appState = remoteState;
-                    currentMode = remoteState.mode || 'home';
-                    editMode = remoteState.editMode !== undefined ? remoteState.editMode : true;
-                    renderListsMenu();
-                    updateModeUI();
-                    renderList();
-                }
-            } else if (firstSync) {
-                firstSync = false;
-                // Cloud document doesn't exist, push local data if any
-                saveAppState(true);
-            }
-        });
-    }
-
-    // --- List Management ---
-    function addNewList(name, theme, accent, displayMode, trueBlack) {
-        const newList = {
-            id: Date.now().toString(),
-            name: name,
-            theme: theme || 'var(--theme-blue)',
-            accent: accent || 'var(--theme-amber)',
-            displayMode: displayMode || 'auto',
-            trueBlack: !!trueBlack,
-            homeSections: [], // Start with no sections in Home Mode
-            shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-            items: []
-        };
-        appState.lists.push(newList);
-        appState.currentListId = newList.id;
-        saveAppState();
-        renderListsMenu();
-        updateModeUI(); // Update theme color
-        renderList();
-    }
-
-    function switchList(id) {
-        if (appState.currentListId === id) return; // Fix double tap bug by preventing instantly unmounting the target 
-
-        appState.currentListId = id;
-        saveAppState();
-        renderListsMenu();
-        updateModeUI(); // Apply the theme of the new list
-        renderList();
-    }
-
-    function renameList(id) {
-        const list = appState.lists.find(l => l.id === id);
-        if (!list) return;
-
-        showModal('Edit List', list.name, true, list.theme, list.accent, list.displayMode, list.trueBlack, (newName, newTheme, newAccent, newDisplayMode, newTrueBlack) => {
-            if (newName) {
-                list.name = newName;
-                if (newTheme) list.theme = newTheme;
-                if (newAccent) list.accent = newAccent;
-                if (newDisplayMode) list.displayMode = newDisplayMode;
-                list.trueBlack = !!newTrueBlack;
-                saveAppState();
-                renderListsMenu();
-                updateModeUI(); // Re-apply theme if current list changed
-            }
-        }, () => deleteListWithConfirmation(id, list.name));
-    }
-
-    function startInlineItemEdit(item, info, nameSpan, onSave) {
-        // Turn into text input
-        const container = document.createElement('div');
-        container.className = 'dynamic-edit-container item-edit-container';
-
-        const mirror = document.createElement('span');
-        mirror.className = 'inline-mirror-span item-mirror';
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.autocomplete = 'off';
-        input.value = item.text;
-        input.size = 1;
-        input.className = 'inline-edit-input';
-        applyManualSelection(input);
-
-        const syncMirror = () => {
-            mirror.textContent = input.value || ' ';
-        };
-        input.addEventListener('input', syncMirror);
-        syncMirror(); // Initial sync
-
-        const saveName = () => {
-            const newName = input.value.trim();
-            if (newName && newName !== item.text) {
-                if (onSave) {
-                    onSave(newName);
-                } else {
-                    const currentList = getCurrentList();
-                    const existing = currentList.items.find(i => i.text.trim() === newName && i.id !== item.id);
-                    if (existing) {
-                        item.wantCount = existing.wantCount;
-                    }
-                    item.text = newName;
-                    saveAppState();
-                }
-            }
-            renderList();
-        };
-
-        input.addEventListener('blur', saveName);
-        input.addEventListener('keydown', (ke) => {
-            if (ke.key === 'Enter') {
-                input.blur();
-            } else if (ke.key === 'Escape') {
-                renderList();
-            }
-        });
-
-        container.appendChild(mirror);
-        container.appendChild(input);
-        info.replaceChild(container, nameSpan);
-        input.focus();
-    }
-
-    function addSection(name, isHome) {
-        const currentList = getCurrentList();
-        const trimmedName = name.trim();
-        if (!trimmedName) return;
-
-        const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
-
-        const newSection = {
-            id: 'sec-' + Date.now().toString(),
-            name: trimmedName
-        };
-
-        sectionArray.push(newSection);
-
-        saveAppState();
-        renderList();
-    }
-
-    function deleteListWithConfirmation(id, name) {
-        if (appState.lists.length <= 1) {
-            alert("You must have at least one list.");
-            return;
-        }
-
-        showDeleteModal('Delete List?', name, () => {
-            appState.lists = appState.lists.filter(l => l.id !== id);
-            if (appState.currentListId === id) {
-                appState.currentListId = appState.lists[0].id;
-            }
-            saveAppState();
-            renderListsMenu();
-            updateModeUI();
-            renderList();
-        });
-    }
-
-
-    function getOrCreateUncategorizedSection(isHome) {
-        const currentList = getCurrentList();
-        const sectionArray = isHome ? currentList.homeSections : currentList.shopSections;
-        const defId = isHome ? 'sec-h-def' : 'sec-s-def';
-        let uncategorized = sectionArray.find(s => s.id === defId);
-        if (!uncategorized) {
-            uncategorized = {
-                id: defId,
-                name: 'Uncategorized'
-            };
-            sectionArray.unshift(uncategorized);
-        }
-        return uncategorized;
-    }
-
-    // --- Core Functions ---
-
-    function addItemToSection(sectionId, textValue, isHome) {
-        const text = textValue ? textValue.trim() : '';
-        if (!text) return;
-
-        const currentList = getCurrentList();
-
-        let targetSectionId = sectionId;
-
-        // Ensure the item has a section in both modes.
-        // If the target mode (Home or Shop) has no sections, create "Uncategorized" as a fallback.
-        if (isHome && currentList.homeSections.length === 0) {
-            const uncategorized = getOrCreateUncategorizedSection(true);
-            targetSectionId = uncategorized.id;
-        } else if (!isHome && currentList.homeSections.length === 0) {
-            // Adding in Shop mode, but Home mode has no sections. 
-            // Create "Uncategorized" in Home so the item is visible there.
-            getOrCreateUncategorizedSection(true);
-        }
-
-        const existing = currentList.items.find(i => i.text.trim() === text);
-
-        const newItem = {
-            id: Date.now().toString(),
-            text: text,
-            homeSectionId: isHome ? targetSectionId : currentList.homeSections[0].id,
-            shopSectionId: !isHome ? targetSectionId : 'sec-s-def',
-            homeIndex: currentList.items.length,
-            shopIndex: currentList.items.length,
-            haveCount: 0,
-            wantCount: existing ? existing.wantCount : 1,
-            shopCompleted: false
-        };
-
-        currentList.items.push(newItem);
-        saveAppState();
-        renderList();
-
-        const newInlineInput = document.querySelector(`.section-items-list[data-section-id="${sectionId}"] .inline-item-input`);
-        if (newInlineInput) newInlineInput.focus();
-    }
-
-    function createSparks(x, y) {
-        const count = 8;
-        const color = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
-
-        for (let i = 0; i < count; i++) {
-            const spark = document.createElement('div');
-            spark.className = 'spark-particle';
-            spark.style.backgroundColor = color;
-            spark.style.left = x + 'px';
-            spark.style.top = y + 'px';
-            
-            document.body.appendChild(spark);
-            
-            const angle = (i / count) * Math.PI * 2;
-            const velocity = 30 + Math.random() * 40;
-            const destinationX = Math.cos(angle) * velocity;
-            const destinationY = Math.sin(angle) * velocity;
-
-            spark.animate([
-                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
-                { transform: `translate(calc(-50% + ${destinationX}px), calc(-50% + ${destinationY}px)) scale(0)`, opacity: 0 }
-            ], {
-                duration: 600,
-                easing: 'cubic-bezier(0, .9, .57, 1)',
-                fill: 'forwards'
-            }).onfinish = () => spark.remove();
-        }
-    }
-
-
-    let animatingItems = new Map(); // id -> 'completing' | 'undoing'
-    async function toggleShopCompleted(id) {
-        const currentList = getCurrentList();
-        const sameNameItems = precomputedSameNameItems.get(id) || [];
-        const item = sameNameItems.find(i => i.id === id);
-        if (!item) return;
-
-        if (sameNameItems.some(i => animatingItems.has(i.id))) return;
-
-        const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
-        const toBuy = Math.max(0, item.wantCount - totalHave);
-
-        // Disable unchecking when the quantity to buy is 0
-        if (item.shopCompleted && toBuy <= 0) return;
-
-        const newState = !item.shopCompleted;
-
-        try {
-            const itemElements = new Map();
-            sameNameItems.forEach(i => {
-                itemElements.set(i.id, document.querySelector(`.grocery-item[data-id="${i.id}"]`));
-            });
-
-            sameNameItems.forEach(i => animatingItems.set(i.id, newState ? 'completing' : 'undoing'));
-
-            sameNameItems.forEach(i => {
-                const el = itemElements.get(i.id);
-                if (el) {
-                    if (newState) {
-                        el.classList.add('is-completing');
-                    } else {
-                        el.classList.add('is-undoing');
-                        el.classList.remove('completed');
-                    }
-                }
-            });
-
-            if (newState) {
-                // Completion sequence
-                // Both animations start immediately:
-                // 1. Circle fills (check icon appears) takes 0.3s
-                // 2. Strike-through takes 0.4s
-                // Total duration: 0.4s
-                await new Promise(r => setTimeout(r, 300));
-
-                // Trigger sparks after circle fill
-                sameNameItems.forEach(i => {
-                    const el = itemElements.get(i.id);
-                    if (el) {
-                        const circle = el.querySelector('.shop-check-area');
-                        if (circle) {
-                            const rect = circle.getBoundingClientRect();
-                            createSparks(rect.left + rect.width / 2, rect.top + rect.height / 2);
-                        }
-                    }
-                });
-
-                // Wait for strike-through to complete (0.1s more)
-                await new Promise(r => setTimeout(r, 100));
-
-                sameNameItems.forEach((i, idx) => {
-                    i.shopCompleted = true;
-                    i.shopCheckOrder = Date.now();
-
-                    // Manually update classes to maintain state without renderList()
-                    const el = itemElements.get(i.id);
-                    if (el) {
-                        el.classList.remove('is-completing');
-                        el.classList.add('completed');
-                    }
-                });
-
-            } else {
-                // Undo sequence
-                await new Promise(r => setTimeout(r, 300));
-
-                sameNameItems.forEach(i => {
-                    i.shopCompleted = false;
-                    i.shopCheckOrder = null;
-
-                    // Manually update classes
-                    const el = itemElements.get(i.id);
-                    if (el) {
-                        el.classList.remove('is-undoing', 'completed');
-                    }
-                });
-            }
-        } finally {
-            sameNameItems.forEach(i => animatingItems.delete(i.id));
-        }
-
-        saveAppState();
-
-        renderList();
-    }
-
-    function deleteItem(id) {
-        const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
-        if (!item) return;
-
-        // Mark as pending delete
-        item.pendingDelete = true;
-        newlyDeletedIds.add(id);
-
-        // Save state immediately - items with pendingDelete will be filtered out during save
-        saveAppState();
-
-        // Clear any existing timer just in case
-        if (pendingDeletions.has(id)) {
-            clearTimeout(pendingDeletions.get(id));
-        }
-
-        // Set timer for final removal
-        const timerId = setTimeout(() => {
-            finalizeDeleteItem(id);
-        }, 5000);
-
-        pendingDeletions.set(id, timerId);
-
-        renderList();
-    }
-
-    function undoDeleteItem(id) {
-        const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
-        if (!item) return;
-
-        if (pendingDeletions.has(id)) {
-            clearTimeout(pendingDeletions.get(id));
-            pendingDeletions.delete(id);
-        }
-
-        item.pendingDelete = false;
-        saveAppState();
-        renderList();
-    }
-
-    function finalizeDeleteItem(id) {
-        const row = document.querySelector(`.grocery-item[data-id="${id}"]`);
-        if (row) {
-            row.classList.add('collapsing');
-            setTimeout(() => {
-                actuallyRemoveItem(id);
-            }, 300);
-        } else {
-            actuallyRemoveItem(id);
-        }
-    }
-
-    function actuallyRemoveItem(id) {
-        const currentList = getCurrentList();
-        if (!currentList) return;
-        currentList.items = currentList.items.filter(i => i.id !== id);
-        pendingDeletions.delete(id);
-        saveAppState();
-        renderList();
-    }
-
-    function updateTotalBadgesForItem(id) {
-        const sameNameItems = precomputedSameNameItems.get(id) || [];
-        if (sameNameItems.length <= 1) return;
-        const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
-        const want = sameNameItems[0].wantCount;
-        sameNameItems.forEach(i => {
-            const badge = document.querySelector(`.grocery-item[data-id="${i.id}"] .total-badge`);
-            if (badge) {
-                badge.textContent = `∑ ${totalHave}/${want}`;
-                badge.classList.toggle('stocked', totalHave >= want);
-                badge.classList.toggle('needed', totalHave < want);
-            }
-        });
-    }
-
-    function setHave(id, value) {
-        const currentList = getCurrentList();
-        const item = currentList.items.find(i => i.id === id);
-        if (item) {
-            item.haveCount = Math.max(0, parseInt(value) || 0);
-            saveAppState();
-            updateTotalBadgesForItem(id);
-            updateHeaderSummary();
-            // Optimization: Update only the relevant input if possible
-            const stepper = document.querySelector(`.grocery-item[data-id="${id}"] .have-stepper`);
-            if (stepper) {
-                const input = stepper.querySelector('.qty-input');
-                if (input) {
-                    if (input.tagName === 'INPUT') input.value = item.haveCount;
-                    else input.textContent = item.haveCount;
-                    input.classList.remove('pop-animate');
-                    void input.offsetWidth;
-                    input.classList.add('pop-animate');
-                    return;
-                }
-            }
-            renderList();
-        }
-    }
-
-    function setWant(id, value) {
-        const currentList = getCurrentList();
-        const sameNameItems = precomputedSameNameItems.get(id) || [];
-        const item = sameNameItems.find(i => i.id === id);
-        if (item) {
-            const newWant = Math.max(0, parseInt(value) || 0);
-            sameNameItems.forEach(i => i.wantCount = newWant);
-            saveAppState();
-            updateTotalBadgesForItem(id);
-            updateHeaderSummary();
-
-            if (currentMode === 'shop' && !editMode) {
-                renderList();
-            } else {
-                sameNameItems.forEach(i => {
-                    const stepper = document.querySelector(`.grocery-item[data-id="${i.id}"] .want-stepper`);
-                    if (stepper) {
-                        const input = stepper.querySelector('.qty-input');
-                        if (input) {
-                            if (input.tagName === 'INPUT') input.value = i.wantCount;
-                            else input.textContent = i.wantCount;
-                            input.classList.remove('pop-animate');
-                            void input.offsetWidth;
-                            input.classList.add('pop-animate');
-                        }
-                    }
-                    const circle = document.querySelector(`.grocery-item[data-id="${i.id}"] .shop-check-area`);
-                    if (circle) {
-                        const qtyNum = circle.querySelector('.qty-number');
-                        if (qtyNum) {
-                            const toBuy = Math.max(0, i.wantCount - i.haveCount);
-                            qtyNum.textContent = toBuy;
-                        }
-                    }
-                });
-            }
-
-            return;
-        }
-    }
-
-    function updateModeUI() {
-        const currentList = getCurrentList();
-        const themeColor = currentList && currentList.theme ? currentList.theme : 'var(--theme-blue)';
-        const accentColor = currentList && currentList.accent ? currentList.accent : 'var(--theme-amber)';
-        document.documentElement.style.setProperty('--primary-color', themeColor);
-        document.documentElement.style.setProperty('--accent-color', accentColor);
-
-        // Apply display mode
-        document.documentElement.classList.remove('dark-mode', 'light-mode', 'true-black');
-        if (currentList) {
-            const displayMode = currentList.displayMode || 'auto';
-            if (displayMode === 'dark') document.documentElement.classList.add('dark-mode');
-            if (displayMode === 'light') document.documentElement.classList.add('light-mode');
-            if (currentList.trueBlack) document.documentElement.classList.add('true-black');
-        }
-
-        // Update theme-color meta tag
-        const themeMeta = document.querySelector('meta[name="theme-color"]');
-        if (themeMeta) {
-            // Wait a frame for CSS variables to apply, then read computed background
-            requestAnimationFrame(() => {
-                const bgColor = getComputedStyle(document.body).backgroundColor;
-                themeMeta.setAttribute('content', bgColor);
-            });
-        }
-
-        // Update list picker name and swatch
-        if (currentList) {
-            if (currentListNameSpan) currentListNameSpan.textContent = currentList.name;
-            if (currentListSwatch) currentListSwatch.style.background = currentList.theme || 'var(--theme-blue)';
-        }
-
-        // Update toolbar mode CTA
-        if (toolbarModeBtn) {
-            toolbarModeBtn.classList.toggle('active', currentMode === 'shop');
-            toolbarModeBtn.title = currentMode === 'shop' ? 'Switch to Home Mode' : 'Switch to Store Mode';
-        }
-
-        if (toolbarClearShopBtn) {
-            toolbarClearShopBtn.style.display = currentMode === 'shop' ? 'flex' : 'none';
-        }
-
-        if (toolbarVoiceBtn) {
-            toolbarVoiceBtn.style.display = currentMode === 'home' ? 'flex' : 'none';
-            toolbarVoiceBtn.classList.toggle('active', voiceBarOpen && currentMode === 'home');
-        }
-
-        if (toolbarReorderBtn) {
-            toolbarReorderBtn.classList.toggle('active', editMode);
-            toolbarReorderBtn.title = editMode ? 'Exit Edit Mode' : 'Enter Edit Mode';
-        }
-
-        // Update zero-qty visibility classes
-        const isHome = currentMode === 'home';
-        if (appContainer) {
-            appContainer.classList.remove('hide-zero-qty');
-            appContainer.classList.toggle('hide-drag-handles', !editMode);
-            appContainer.classList.toggle('home-mode', isHome);
-            appContainer.classList.toggle('shop-mode', !isHome);
-        }
-
-        if (resetHomeCountsBtn) {
-            resetHomeCountsBtn.classList.toggle('hidden', !isHome);
-        }
-        if (quickAddToggleBtn) {
-            quickAddToggleBtn.classList.toggle('hidden', !isHome);
-        }
-        if (quickSearchWrap) {
-            quickSearchWrap.classList.toggle('hidden', !isHome);
-        }
-        if (homeColumnsHeader) {
-            homeColumnsHeader.classList.toggle('hidden', !isHome || editMode);
-        }
-        updateHeaderSummary();
-        renderVoicePendingQueue();
-    }
-
-    function updateHeaderSummary() {
-        const currentList = getCurrentList();
-        const isHome = currentMode === 'home';
-        if (modeHeaderTitle) {
-            modeHeaderTitle.textContent = isHome ? 'Home Inventory' : 'Shopping List';
-        }
-        if (!modeHeaderBadge || !currentList) return;
-
-        if (isHome) {
-            const count = currentList.items.filter(i => !i.pendingDelete).length;
-            modeHeaderBadge.textContent = `${count} item${count === 1 ? '' : 's'}`;
-        } else {
-            // Count unique items to buy
-            const grouped = new Map();
-            currentList.items.forEach(item => {
-                if (item.pendingDelete) return;
-                const name = item.text.trim();
-                const g = grouped.get(name) || { have: 0, want: item.wantCount };
-                g.have += item.haveCount;
-                g.want = item.wantCount;
-                grouped.set(name, g);
-            });
-            let toBuyCount = 0;
-            grouped.forEach(g => {
-                if (g.want - g.have > 0) toBuyCount++;
-            });
-            modeHeaderBadge.textContent = toBuyCount === 0 ? 'All stocked' : `${toBuyCount} to buy`;
-        }
-    }
-
-
-    async function saveAppState(updateTimestamp = true) {
-        if (updateTimestamp) {
-            appState.updatedAt = Date.now();
-        }
-        appState.mode = currentMode;
-        appState.editMode = editMode;
-
-        // Save locally first
-        localStorage.setItem('grocery-app-state', JSON.stringify(appState));
-        localStorage.setItem('grocery-mode', currentMode);
-        localStorage.setItem('grocery-edit-mode', editMode.toString());
-
-        // Clone appState for saving, filtering out items that are currently pending deletion
-        const stateToSave = JSON.parse(JSON.stringify(appState));
-        stateToSave.lists.forEach(list => {
-            list.items = list.items.filter(item => !item.pendingDelete);
-        });
-
-        // Sync with Firestore if logged in
-        if (auth.currentUser) {
-            try {
-                await setDoc(doc(db, "users", auth.currentUser.uid), stateToSave);
-            } catch (e) {
-                console.error("Error syncing with Firestore:", e);
-            }
-        }
-    }
-
-    function saveMode() {
-        saveAppState(false);
-    }
-
-    function renderListsMenu() {
-        if (!listsMenu) return;
-        listsMenu.innerHTML = '';
-
-        const addBtn = document.createElement('div');
-        addBtn.className = 'menu-item';
-        addBtn.innerHTML = '<i class="fas fa-plus" style="width: 12px; text-align: center;"></i> <span class="create-list-text">Create New List</span>';
-        addBtn.addEventListener('click', () => {
-            showModal('Create New List', 'New List', true, 'var(--theme-blue)', 'var(--theme-amber)', 'auto', false, (name, theme, accent, displayMode, trueBlack) => {
-                if (name) addNewList(name, theme, accent, displayMode, trueBlack);
-            });
-            toggleListsMenu(false);
-        });
-        listsMenu.appendChild(addBtn);
-
-        const otherLists = appState.lists.filter(l => l.id !== appState.currentListId);
-
-        if (otherLists.length > 0) {
-            const divider = document.createElement('div');
-            divider.className = 'menu-divider';
-            listsMenu.appendChild(divider);
-
-            otherLists.forEach((list) => {
-                const item = document.createElement('div');
-                item.className = 'menu-item';
-
-                const swatch = document.createElement('div');
-                swatch.className = 'list-swatch';
-                swatch.style.background = list.theme || 'var(--theme-blue)';
-
-                const text = document.createElement('span');
-                text.textContent = list.name;
-
-                item.appendChild(swatch);
-                item.appendChild(text);
-
-                item.addEventListener('click', () => {
-                    switchList(list.id);
-                    toggleListsMenu(false);
-                });
-
-                onLongPress(item, (e) => {
-                    e.stopPropagation();
-                    renameList(list.id);
-                });
-
-                onDoubleTap(text, (e) => {
-                    if (!editMode) return;
-                    e.stopPropagation();
-                    renameList(list.id);
-                });
-
-                listsMenu.appendChild(item);
-            });
-        }
-    }
-
-    function toggleListsMenu(force) {
-        listsMenuOpen = force !== undefined ? force : !listsMenuOpen;
-        if (listsMenu) {
-            listsMenu.classList.toggle('open', listsMenuOpen);
-        }
-        if (toolbarListsBtn) {
-            toolbarListsBtn.classList.toggle('open', listsMenuOpen);
-        }
-    }
-    function createDragHandle() {
-        const handle = document.createElement('div');
-        handle.className = 'drag-handle';
-        handle.innerHTML = '<i class="fas fa-grip-vertical"></i>';
-        handle.draggable = true;
-        return handle;
-    }
-
-    function renderList() {
-        const fragment = document.createDocumentFragment();
-        const currentList = getCurrentList();
-        if (!currentList) {
-            groceryList.innerHTML = '';
-            return;
-        }
-
-        // Precompute same name items for O(1) lookups
-        precomputedSameNameItems.clear();
-        const nameMap = new Map();
-        currentList.items.forEach(item => {
-            const name = item.text.trim();
-            let arr = nameMap.get(name);
-            if (!arr) {
-                arr = [];
-                nameMap.set(name, arr);
-            }
-            arr.push(item);
-        });
-        currentList.items.forEach(item => {
-            precomputedSameNameItems.set(item.id, nameMap.get(item.text.trim()));
-        });
-
-        const isHome = currentMode === 'home';
-        const sectionsKey = isHome ? 'homeSections' : 'shopSections';
-        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
-
-        const sections = currentList[sectionsKey] || [];
-
-        // Toggle global reorder/selection classes
-        if (shopSelectionMode) {
-            groceryList.classList.add('shop-selection-mode');
-        } else {
-            groceryList.classList.remove('shop-selection-mode');
-        }
-
-        const activeSearch = isHome ? searchQuery.trim().toLowerCase() : '';
-
-
-        // Pre-group items for shop mode
-        const groupedMap = new Map();
-        const nameToSection = new Map();
-        if (!isHome) {
-            currentList.items.forEach(item => {
-                const name = item.text.trim();
-                if (!groupedMap.has(name)) {
-                    groupedMap.set(name, {
-                        id: item.id,
-                        text: name,
-                        wantCount: 0,
-                        haveCount: 0,
-                        shopCompleted: true,
-                        shopSectionId: item.shopSectionId,
-                        shopIndex: item.shopIndex,
-                        allIds: []
-                    });
-                    nameToSection.set(name, item.shopSectionId);
-                }
-                const group = groupedMap.get(name);
-                group.wantCount = item.wantCount;
-                group.haveCount += item.haveCount;
-                group.allIds.push(item.id);
-                if (item.shopCompleted === false) group.shopCompleted = false;
-            });
-
-            // Enforce "zero left to buy = checked" for the group
-            groupedMap.forEach(group => {
-                if (group.haveCount >= group.wantCount) {
-                    group.shopCompleted = true;
-                }
-            });
-        }
-
-        let totalVisibleStoreItems = 0;
-
-        sections.forEach((section, secIdx) => {
-            // items for this section 
-            let sectionItems;
-            if (isHome) {
-                sectionItems = currentList.items.filter(i => i[sectionIdKey] === section.id);
-                if (activeSearch) {
-                    sectionItems = sectionItems.filter(i => i.text.toLowerCase().includes(activeSearch));
-                    if (sectionItems.length === 0) return;
-                }
-            } else {
-                // Filter groups for this section
-                sectionItems = [];
-                groupedMap.forEach(group => {
-                    if (nameToSection.get(group.text) === section.id) {
-                        // In shop mode, hide items with 0 quantity to buy unless editing
-                        const toBuy = Math.max(0, group.wantCount - group.haveCount);
-                        if (editMode || toBuy > 0) {
-                            sectionItems.push(group);
-                        }
-                    }
-                });
-
-                // Add pending delete items for this section (should not be grouped)
-                currentList.items.forEach(item => {
-                    if (item.pendingDelete && item.shopSectionId === section.id) {
-                        sectionItems.push(item);
-                    }
-                });
-                totalVisibleStoreItems += sectionItems.length;
-            }
-
-
-            const sectionLi = document.createElement('li');
-            sectionLi.className = 'section-container';
-            sectionLi.dataset.id = section.id;
-            sectionLi.dataset.type = 'section';
-
-
-            // Section Header
-            const header = document.createElement('div');
-            header.className = 'section-header';
-
-            const canRename = isHome || section.id !== shopDefId;
-            const canMoveUp = canRename && (isHome ? secIdx > 0 : secIdx > 1);
-            const canMoveDown = canRename && secIdx < sections.length - 1;
-            const dragHandleHTML = canRename
-                ? `<div class="left-action"><div class="drag-handle section-drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div>`
-                : `<div class="left-action"><div class="drag-handle section-drag-handle disabled" draggable="false"><i class="fas fa-grip-vertical"></i></div></div>`;
-
-            const sortAzHTML = `<button class="section-sort-az-btn" title="Sort section A-Z" aria-label="Sort ${escapeHTML(section.name)} alphabetically"><i class="fas fa-arrow-down-a-z"></i></button>`;
-            const moveUpHTML = canRename
-                ? `<button class="section-move-up-btn" ${canMoveUp ? '' : 'disabled'} title="Move section up" aria-label="Move ${escapeHTML(section.name)} up"><i class="fas fa-chevron-up"></i></button>`
-                : '';
-            const moveDownHTML = canRename
-                ? `<button class="section-move-down-btn" ${canMoveDown ? '' : 'disabled'} title="Move section down" aria-label="Move ${escapeHTML(section.name)} down"><i class="fas fa-chevron-down"></i></button>`
-                : '';
-
-            const sectionDeleteHTML = canRename
-                ? `<button class="section-delete-btn" aria-label="Delete section"><i class="fas fa-times"></i></button>`
-                : '';
-
-            const moveHereHTML = `<button class="move-here-btn" aria-label="Move selected items here"><i class="fas fa-level-down-alt"></i></button>`;
-
-            header.innerHTML = `${dragHandleHTML}<h3 class="section-title" data-id="${section.id}">${escapeHTML(section.name)}</h3><div class="section-actions">${sortAzHTML}${moveUpHTML}${moveDownHTML}${sectionDeleteHTML}${moveHereHTML}</div>`;
-
-            sectionLi.appendChild(header);
-
-            // Nested UL for items
-            const itemsUl = document.createElement('ul');
-            itemsUl.className = 'section-items-list';
-            itemsUl.dataset.sectionId = section.id;
-            itemsUl.dataset.type = 'item-placeholder'; // Allow empty UL to receive drops
-
-            sectionItems.sort((a, b) => a[indexKey] - b[indexKey]);
-
-            if (!isHome) {
-                itemsUl.classList.add('shop-mode');
-            }
-
-
-            sectionItems.forEach((item, idx) => {
-                const li = document.createElement('li');
-                const isAnimating = animatingItems.get(item.id);
-                const isCompleted = item.shopCompleted;
-
-                // when editing in store mode reset visual indicator even for 0-qty items
-                const showAsCompleted = isCompleted && !isHome && !(currentMode === 'shop' && editMode);
-
-                li.className = `grocery-item ${isHome ? '' : 'shop-chip'} ${showAsCompleted ? 'completed' : ''}`;
-                if (isAnimating === 'completing') li.classList.add('is-completing');
-                if (isAnimating === 'undoing') li.classList.add('is-undoing');
-
-
-                if (!item.pendingDelete && (editMode || !isHome)) {
-                    const isSelected = selectedShopItems.has(item.id);
-                    if (isSelected) {
-                        li.classList.add('selected');
-                        const prevItem = sectionItems[idx - 1];
-                        const nextItem = sectionItems[idx + 1];
-                        if (prevItem && selectedShopItems.has(prevItem.id)) li.classList.add('sel-top');
-                        if (nextItem && selectedShopItems.has(nextItem.id)) li.classList.add('sel-bottom');
-                    }
-                }
-
-                if (isHome && voiceBarOpen && voiceSubMode === 'walk' && walkCursorId === item.id) {
-                    li.classList.add('voice-active-row');
-                }
-
-                if (isSectionRestoration) li.classList.add('restoring-item');
-                li.dataset.id = item.id;
-                li.dataset.type = 'item';
-                li.dataset.sectionId = section.id;
-
-                if (item.pendingDelete) {
-                    li.classList.add('undo-row');
-                    if (newlyDeletedIds.has(item.id)) {
-                        li.classList.add('undo-row-animate');
-                    }
-
-                    if (isHome) {
-                        const prevItem = sectionItems[idx - 1];
-                        const nextItem = sectionItems[idx + 1];
-                        if (prevItem && prevItem.pendingDelete) li.classList.add('sel-top');
-                        if (nextItem && nextItem.pendingDelete) li.classList.add('sel-bottom');
-                    }
-
-                    li.dataset.id = item.id;
-                    li.dataset.type = 'item';
-                    li.dataset.sectionId = section.id;
-
-                    li.innerHTML = `<div class="left-action"></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><button class="undo-btn-inline" aria-label="Undo deletion">Undo</button>`;
-
-                    itemsUl.appendChild(li);
-                    return;
-                }
-
-
-
-                li.dataset.id = item.id;
-                li.dataset.type = 'item';
-                li.dataset.sectionId = section.id;
-
-                if (isHome) {
-                    const sameNameItems = precomputedSameNameItems.get(item.id) || [item];
-                    let totalBadgeHTML = '';
-                    if (sameNameItems.length > 1) {
-                        const totalHave = sameNameItems.reduce((sum, i) => sum + i.haveCount, 0);
-                        const statusClass = totalHave >= item.wantCount ? 'stocked' : 'needed';
-                        totalBadgeHTML = `<span class="total-badge ${statusClass}" title="Total across ${sameNameItems.length} locations">∑ ${totalHave}/${item.wantCount}</span>`;
-                    }
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span>${totalBadgeHTML}</div><div class="quantity-controls"></div><button class="item-delete-btn" aria-label="Delete item"><i class="fas fa-times"></i></button>`;
-                    const controls = li.querySelector('.quantity-controls');
-                    controls.appendChild(createQtyStepper(item, 'have'));
-                    controls.appendChild(createQtyStepper(item, 'want'));
-                } else {
-                    const toBuy = Math.max(0, item.wantCount - item.haveCount);
-                    li.innerHTML = `<div class="left-action"><div class="drag-handle" draggable="true"><i class="fas fa-grip-vertical"></i></div><div class="shop-check-area"><span class="qty-number">${toBuy}</span><svg class="check-svg" viewBox="0 0 24 24"><path class="check-path" d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="item-info"><span class="item-text">${escapeHTML(item.text)}</span></div><div class="quantity-controls"></div>`;
-                    li.querySelector('.quantity-controls').appendChild(createQtyStepper(item, 'want'));
-                }
-
-                itemsUl.appendChild(li);
-            });
-
-
-            // Add "Add item" row for this section
-            if (isHome) {
-                const addRow = document.createElement('li');
-                addRow.className = 'grocery-item add-item-row';
-                if (isSectionRestoration) addRow.classList.add('restoring-item');
-                addRow.dataset.type = 'item-placeholder';
-                addRow.dataset.sectionId = section.id;
-                addRow.innerHTML = `<div class="left-action"><button class="drag-handle add-row-plus" type="button" aria-label="Add item to ${escapeHTML(section.name)}"><i class="fas fa-plus" aria-hidden="true"></i></button></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" class="inline-item-input add-item-input" placeholder="Add item" aria-label="New item name for ${escapeHTML(section.name)}" autocomplete="off"></form></div>`;
-                itemsUl.appendChild(addRow);
-            }
-            sectionLi.appendChild(itemsUl);
-
-            fragment.appendChild(sectionLi);
-        });
-
-
-        if (!isHome && !editMode && totalVisibleStoreItems === 0) {
-            const emptyState = document.createElement('li');
-            emptyState.className = 'store-empty-state';
-            emptyState.innerHTML = `<i class="fas fa-check-circle" aria-hidden="true"></i><div class="empty-title">All stocked up!</div><div class="empty-sub">Switch to Home mode to update inventory or desired quantities.</div>`;
-            fragment.appendChild(emptyState);
-        }
-
-        // Add "Add a section..." element at the bottom
-        const addSecRow = document.createElement('li');
-        addSecRow.className = 'grocery-item add-section-row';
-        addSecRow.dataset.type = 'section-placeholder';
-        addSecRow.innerHTML = `<div class="left-action"><button class="drag-handle add-row-plus" type="button" aria-label="Add new section"><i class="fas fa-plus" aria-hidden="true"></i></button></div><div class="item-info"><form class="input-group inline-input-group"><input type="text" placeholder="Add section" aria-label="New section name" class="inline-item-input add-section-input" autocomplete="off"></form></div>`;
-
-        fragment.appendChild(addSecRow);
-
-        groceryList.innerHTML = '';
-        groceryList.appendChild(fragment);
-
-        // Update intersection observer
-        viewportObserver.disconnect();
-        inViewportSet.clear();
-        const rows = groceryList.querySelectorAll('.grocery-item, .section-container, .section-header');
-        rows.forEach(row => viewportObserver.observe(row));
-
-        // Apply manual selection to dynamically added inputs
-        groceryList.querySelectorAll('.add-item-input, .add-section-input').forEach(applyManualSelection);
-
-        newlyDeletedIds.clear();
-        adjustItemFontWidths();
-        updateHeaderSummary();
-        updateSelectionBar();
-    }
-
-    let activeQtyInput = null;
-
-    function focusNextQtyInput(currentInput) {
-        const allInputs = Array.from(document.querySelectorAll('.qty-input'));
-        const visibleInputs = allInputs.filter(inp => {
-            const parent = inp.parentElement;
-            // Check if element or its parent is hidden
-            return parent && parent.offsetParent !== null && window.getComputedStyle(parent).visibility !== 'hidden';
-        });
-        const idx = visibleInputs.indexOf(currentInput);
-        if (idx !== -1 && idx < visibleInputs.length - 1) {
-            visibleInputs[idx + 1].focus();
-        } else {
-            currentInput.blur();
-        }
-    }
-
-    function handleNumpadClick(key) {
-        if (!activeQtyInput) return;
-
-        let val = activeQtyInput.tagName === 'INPUT' ? activeQtyInput.value : activeQtyInput.textContent;
-        const isFresh = activeQtyInput.dataset.isFresh === 'true';
-
-        if (key === 'backspace') {
-            if (isFresh) {
-                val = '';
-            } else {
-                val = val.slice(0, -1);
-            }
-        } else if (key === 'enter') {
-            focusNextQtyInput(activeQtyInput);
-            return;
-        } else {
-            // If value is currently "0" or it's fresh, replace it unless we're adding more digits
-            if (val === '0' || isFresh) val = key;
-            else val += key;
-        }
-
-        activeQtyInput.dataset.isFresh = 'false';
-        if (activeQtyInput.tagName === 'INPUT') activeQtyInput.value = val;
-        else activeQtyInput.textContent = val;
-
-        // Trigger input event to sync state
-        activeQtyInput.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    // Set up numpad listeners once
-    document.querySelectorAll('.numpad-btn').forEach(btn => {
-        const handleInteraction = (e) => {
-            e.preventDefault(); // Prevent focus loss from input
-            handleNumpadClick(btn.dataset.key);
-        };
-        btn.addEventListener('mousedown', handleInteraction);
-        btn.addEventListener('touchstart', handleInteraction, { passive: false });
-    });
-
-    function createQtyStepper(item, type) {
-        const group = document.createElement('div');
-        group.className = `qty-stepper ${type}-stepper`;
-
-        const input = document.createElement('div');
-        input.className = 'qty-input';
-        input.tabIndex = 0;
-        input.role = 'textbox';
-        input.textContent = type === 'have' ? item.haveCount : item.wantCount;
-
-        group.appendChild(input);
-        applyManualSelection(input);
-        input.addEventListener('contextmenu', (e) => e.preventDefault());
-
-        const handleFocus = () => {
-            input.dataset.isFresh = 'true';
-            activeQtyInput = input;
-            bottomToolbar.classList.add('numpad-active');
-            document.body.classList.add('numpad-open');
-
-            // Auto-scroll to ensure input is visible above the numpad
-            setTimeout(() => {
-                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 150);
-        };
-
-        input.addEventListener('focus', handleFocus);
-        input.addEventListener('click', () => {
-            input.dataset.isFresh = 'true';
-        });
-
-        input.addEventListener('blur', () => {
-            // Small delay to check if focus moved to another qty-input
-            setTimeout(() => {
-                if (!document.activeElement || !document.activeElement.classList.contains('qty-input')) {
-                    activeQtyInput = null;
-                    bottomToolbar.classList.remove('numpad-active');
-                    document.body.classList.remove('numpad-open');
-                }
-            }, 50);
-        });
-
-        input.addEventListener('input', () => {
-            const val = input.textContent;
-            if (type === 'have') {
-                setHave(item.id, val);
-            } else {
-                setWant(item.id, val);
-            }
-        });
-
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                focusNextQtyInput(input);
-            } else if (e.key === 'Backspace') {
-                e.preventDefault();
-                handleNumpadClick('backspace');
-            } else if (/^[0-9]$/.test(e.key)) {
-                e.preventDefault();
-                handleNumpadClick(e.key);
-            }
-        });
-
-        return group;
-    }
-
-    // Close menus on outside click
-    document.addEventListener('click', (e) => {
-        if (listsMenuOpen && !listsMenu.contains(e.target) && !toolbarListsBtn.contains(e.target)) {
-            toggleListsMenu(false);
-        }
-
-        // Deactivate item controls when clicking outside the row
-        const groceryItem = e.target.closest('.grocery-item');
-        if (!groceryItem || !groceryItem.classList.contains('show-controls')) {
-            groceryList.querySelectorAll('.grocery-item.show-controls').forEach(el => el.classList.remove('show-controls'));
-        }
-    });
-
-    function flattenList() {
-        const sections = Array.from(groceryList.querySelectorAll('.section-container'));
-        sections.forEach(section => {
-            const header = section.querySelector('.section-header');
-            const list = section.querySelector('.section-items-list');
-            const items = Array.from(list.querySelectorAll('.grocery-item, .add-item-row, .drag-placeholder'));
-            
-            // Mark items with their parent section ID for restoration
-            if (header) {
-                header.dataset.originalSectionId = section.dataset.id;
-                groceryList.appendChild(header);
-            }
-            
-            items.forEach(item => {
-                item.dataset.originalSectionId = section.dataset.id;
-                groceryList.appendChild(item);
-            });
-            
-            section.style.display = 'none';
-        });
-        groceryList.appendChild(document.querySelector('.add-section-row'));
-    }
-
-    function handleDragStart(e, element, type) {
-        if (!editMode && !element.classList.contains("show-controls")) {
-            e.preventDefault();
-            return;
-        }
-        if (currentMode !== 'home' && type === 'section' && element.dataset.id === shopDefId) {
-            e.preventDefault();
-            return;
-        }
-        draggedElement = element;
-        dragType = type;
-
-        if (e.dataTransfer) {
-            e.dataTransfer.setData('text/plain', element.dataset.id || '');
-            e.dataTransfer.effectAllowed = 'move';
-
-            // Hide native ghost so we can use our manual one
-            const emptyImg = new Image();
-            emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-            e.dataTransfer.setDragImage(emptyImg, 0, 0);
-        }
-
-        const startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-
-        // Capture initial positions for FLIP animation (headers)
-        let headerInitialTops = new Map();
-        if (type === 'section') {
-            document.querySelectorAll('.section-header').forEach(h => {
-                headerInitialTops.set(h, h.getBoundingClientRect().top);
-            });
-        }
-
-        // For mouse events, create the ghost immediately
-        if (e.type === 'dragstart') {
-            createDragVisual(e, element, type);
-        }
-
-        const startDragging = () => {
-            if (draggedElement !== element) return;
-            
-            isDragStarted = true;
-            document.documentElement.classList.add('is-dragging');
-
-            if (type === 'item') {
-                flattenList();
-            }
-
-            if (type === 'section') {
-                document.querySelectorAll('.section-items-list').forEach(el => {
-                    el.innerHTML = '';
-                    el.classList.add('collapsed');
-                });
-                document.querySelectorAll('.add-item-row').forEach(el => {
-                    el.classList.add('collapsed');
-                });
-            }
-
-            // Force reflow after DOM changes
-            void document.documentElement.offsetHeight;
-            void groceryList.offsetHeight;
-
-            groceryList.classList.add('no-transition');
-            document.body.style.overflow = 'hidden';
-
-            // Initialize placeholder at starting position
-            element.before(placeholder);
-
-            // Force another reflow to ensure placeholder and siblings are correctly positioned in the parent
-            void groceryList.offsetHeight;
-
-            // Performance: cache relevant siblings once at drag start
-            // Use a more robust filter that doesn't rely solely on offsetHeight which can be buggy during DOM moves
-            relevantSiblings = Array.from(groceryList.children).filter(el => {
-                if (el.nodeType !== 1 || el === draggedElement || el === placeholder) return false;
-                if (el.classList.contains('collapsed')) return false;
-
-                // For items, siblings are headers and other items (section containers are hidden)
-                if (dragType === 'item') {
-                    if (el.classList.contains('section-container')) return false;
-                }
-
-                // For sections, siblings are other section containers and the add-section row
-                if (dragType === 'section') {
-                    if (!el.classList.contains('section-container') && !el.classList.contains('add-section-row')) return false;
-                }
-
-                return getComputedStyle(el).display !== 'none';
-            });
-
-            element.classList.add('dragging');
-            element.classList.add('collapsed');
-            element.style.pointerEvents = 'none'; // Prevent interfering with target detection
-
-            if (type === 'section') {
-                // Align the placeholder with the finger
-                groceryList.style.paddingTop = '60vh';
-                groceryList.style.paddingBottom = '60vh';
-                
-                // Use the placeholder as the anchor for alignment
-                const phRect = placeholder.getBoundingClientRect();
-                const desiredPhTop = startY - dragOffset.y;
-                window.scrollBy(0, phRect.top - desiredPhTop);
-
-                // FLIP Animation for headers
-                document.querySelectorAll('.section-header').forEach(h => {
-                    if (headerInitialTops.has(h)) {
-                        const newTop = h.getBoundingClientRect().top;
-                        const oldTop = headerInitialTops.get(h);
-                        const delta = oldTop - newTop;
-                        if (delta !== 0) {
-                            h.animate([
-                                { transform: `translateY(${delta}px)` },
-                                { transform: 'translateY(0)' }
-                            ], {
-                                duration: 400,
-                                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
-                            });
-                        }
-                    }
-                });
-            }
-        };
-
-        if (e.type === 'touchstart') {
-            startDragging();
-        } else {
-            // Use a small timeout to allow the browser to capture the drag image before we rearrange the DOM.
-            setTimeout(startDragging, 0);
-        }
-    }
-
-    function animatePlaceholderMove(target, isBefore) {
-        if (isBefore && target.previousElementSibling === placeholder) return;
-        if (!isBefore && target.nextElementSibling === placeholder) return;
-
-        // Use cached siblings for faster measurement
-        const initialPositions = new Map();
-        relevantSiblings.forEach(el => {
-            initialPositions.set(el, el.getBoundingClientRect().top);
-        });
-
-        if (isBefore) {
-            target.before(placeholder);
-        } else {
-            target.after(placeholder);
-        }
-
-        // Batch reads before writes to avoid layout thrashing
-        const newPositions = new Map();
-        relevantSiblings.forEach(el => {
-            newPositions.set(el, el.getBoundingClientRect().top);
-        });
-
-        relevantSiblings.forEach(el => {
-            const newTop = newPositions.get(el);
-            const oldTop = initialPositions.get(el);
-            const delta = oldTop - newTop;
-
-            if (delta !== 0) {
-                el.animate([
-                    { transform: `translateY(${delta}px)` },
-                    { transform: 'translateY(0)' }
-                ], {
-                    duration: 400,
-                    easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
-                });
-            }
-        });
-    }
-
-    function handleAutoScrollLoop() {
-        if (scrollSpeed === 0) {
-            scrollAnimationFrame = null;
-            return;
-        }
-        window.scrollBy(0, scrollSpeed);
-        scrollAnimationFrame = requestAnimationFrame(handleAutoScrollLoop);
-    }
-
-    function updateAutoScroll(clientY) {
-        const threshold = 100;
-        const maxSpeed = 20;
-        let speed = 0;
-
-        if (clientY < threshold) {
-            speed = -maxSpeed * (1 - Math.max(0, clientY) / threshold);
-        } else if (clientY > window.innerHeight - threshold) {
-            speed = maxSpeed * (1 - Math.max(0, window.innerHeight - clientY) / threshold);
-        }
-
-        scrollSpeed = speed;
-        if (scrollSpeed !== 0 && !scrollAnimationFrame) {
-            scrollAnimationFrame = requestAnimationFrame(handleAutoScrollLoop);
-        }
-    }
-
-    function stopAutoScroll() {
-        scrollSpeed = 0;
-        if (scrollAnimationFrame) {
-            cancelAnimationFrame(scrollAnimationFrame);
-            scrollAnimationFrame = null;
-        }
-    }
-
-    groceryList.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        if (!draggedElement || !isDragStarted) return;
-
-        if (touchGhost) {
-            touchGhost.style.top = (e.clientY - dragOffset.y) + 'px';
-        }
-
-        updateAutoScroll(e.clientY);
-
-        if (reorderUpdateFrame) return;
-        reorderUpdateFrame = requestAnimationFrame(() => {
-            reorderUpdateFrame = null;
-            if (!draggedElement) return;
-
-            let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
-
-            // For desktop dragover, ALWAYS use center point for target detection to match touch behavior
-            // and solve edge/gutter glitches.
-            const listRect = groceryList.getBoundingClientRect();
-            const centerX = listRect.left + listRect.width / 2;
-            const viewportY = Math.max(0, Math.min(window.innerHeight - 1, e.clientY));
-            const elAtCenter = document.elementFromPoint(centerX, viewportY);
-            let target = elAtCenter ? elAtCenter.closest(targetSelector) : null;
-
-            if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
-
-            if (dragType === 'item') {
-                // Use offsetTop to get the stable layout position, avoiding jitter from active animations
-                const listRect = groceryList.getBoundingClientRect();
-                const relativeY = e.clientY - listRect.top + window.scrollY;
-                const midpoint = target.offsetTop + target.offsetHeight / 2;
-                let isBefore = relativeY < midpoint;
-                
-                if (target.classList.contains('add-item-row')) isBefore = true;
-                if (target.classList.contains('section-header')) isBefore = false;
-
-                if (target.classList.contains('add-section-row')) {
-                    target = target.previousElementSibling;
-                    while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
-                    if (!target) return;
-                    isBefore = true;
-                }
-
-                animatePlaceholderMove(target, isBefore);
-            } else {
-                // Section reordering: Prevent dropping below "Add section" row
-                if (target.classList.contains('add-section-row')) {
-                    // Do nothing - the placeholder shouldn't move to/below the stationary delete target
-                } else {
-                    const rect = target.getBoundingClientRect();
-                    const midpoint = rect.top + rect.height / 2;
-                    let isBefore = e.clientY < midpoint;
-
-                    // Shop Mode anchor: Cannot drop before Uncategorized
-                    if (currentMode !== 'home' && target.dataset.id === shopDefId && isBefore) {
-                        isBefore = false; // Force snap AFTER
-                    }
-
-                    animatePlaceholderMove(target, isBefore);
-                }
-            }
-        });
-    });
-
-    groceryList.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (!draggedElement) return;
-
-        const isHome = currentMode === 'home';
-        const currentList = getCurrentList();
-
-        if (dragType === 'section') {
-            const sectionsKey = isHome ? 'homeSections' : 'shopSections';
-            const sections = currentList[sectionsKey];
-            const movedId = draggedElement.dataset.id;
-
-            // Find new index based on placeholder position
-            const children = Array.from(groceryList.children).filter(el => (el.classList.contains('section-container') && el !== draggedElement) || el === placeholder);
-            let newIdx = children.indexOf(placeholder);
-            const oldIdx = sections.findIndex(s => s.id === movedId);
-
-            if (oldIdx !== -1 && newIdx !== -1) {
-                const [moved] = sections.splice(oldIdx, 1);
-
-                // Ensure Uncategorized stays at top in Shop Mode
-                if (!isHome) {
-                    newIdx = Math.max(1, newIdx);
-                }
-
-                sections.splice(newIdx, 0, moved);
-            }
-        } else {
-            // Item reordering
-            const movedId = draggedElement.dataset.id;
-            
-            const elements = Array.from(groceryList.children).filter(el => 
-                (el.classList.contains('grocery-item') && el !== draggedElement) || 
-                el === placeholder || 
-                el.classList.contains('section-header')
-            );
-            
-            const placeholderIdx = elements.indexOf(placeholder);
-            
-            // Find the current section by looking backwards at headers
-            let targetSectionId = null;
-            for (let i = placeholderIdx; i >= 0; i--) {
-                if (elements[i].classList.contains('section-header')) {
-                    targetSectionId = elements[i].dataset.originalSectionId;
-                    break;
-                }
-            }
-
-            if (targetSectionId) {
-                // Find anchor: the item immediately following the placeholder in the same section
-                let anchorId = null;
-                let isAtEnd = true;
-                
-                for (let i = placeholderIdx + 1; i < elements.length; i++) {
-                    const el = elements[i];
-                    if (el.classList.contains('section-header')) break; // End of section
-                    if (el.classList.contains('grocery-item') && !el.classList.contains('add-item-row') && !el.classList.contains('add-section-row')) {
-                        anchorId = el.dataset.id;
-                        isAtEnd = false;
-                        break;
-                    }
-                }
-
-                updateOrderInState(movedId, anchorId, targetSectionId, isAtEnd);
-            }
-        }
-
-        handleDragEnd(true);
-    });
-
-    function createDragVisual(point, element, type, initialRect) {
-        if (touchGhost) touchGhost.remove();
-
-        const rect = initialRect || element.getBoundingClientRect();
-        dragOffset = {
-            x: point.clientX - rect.left,
-            y: point.clientY - rect.top
-        };
-
-        touchGhost = element.cloneNode(true);
-        touchGhost.classList.add('touch-ghost');
-        touchGhost.classList.remove('dragging', 'collapsed');
-
-        // Add current mode class to the ghost so mode-specific styles apply
-        touchGhost.classList.add(currentMode === 'home' ? 'home-mode' : 'shop-mode');
-
-        // Lock width and height
-        touchGhost.style.width = element.offsetWidth + 'px';
-        touchGhost.style.height = (type === 'section' ? 40 : element.offsetHeight) + 'px';
-
-        // Lock horizontal position based on the original element's rect
-        touchGhost.style.left = rect.left + 'px';
-        touchGhost.style.top = (point.clientY - dragOffset.y) + 'px';
-
-        appContainer.appendChild(touchGhost);
-    }
-
-    function handleTouchStart(e, element, type) {
-        const initialRect = element.getBoundingClientRect();
-        createDragVisual(e.touches[0], element, type, initialRect);
-        handleDragStart(e, element, type, initialRect);
-    }
-
-    groceryList.addEventListener('touchmove', (e) => {
-        if (!draggedElement || !isDragStarted) return;
-        const touch = e.touches[0];
-
-        if (touchGhost) {
-            touchGhost.style.top = (touch.clientY - dragOffset.y) + 'px';
-        }
-
-        updateAutoScroll(touch.clientY);
-
-        // Prevent scrolling during drag
-        if (e.cancelable) e.preventDefault();
-
-
-        requestAnimationFrame(() => {
-            if (!draggedElement) return;
-
-            // Disable pointer events so we can detect target behind it
-            const originalPointerEvents = draggedElement.style.pointerEvents;
-            draggedElement.style.pointerEvents = 'none';
-            if (touchGhost) touchGhost.style.pointerEvents = 'none';
-
-            const listRect = groceryList.getBoundingClientRect();
-            const centerX = listRect.left + listRect.width / 2;
-            let target = document.elementFromPoint(centerX, touch.clientY);
-
-            draggedElement.style.pointerEvents = originalPointerEvents;
-            if (touchGhost) touchGhost.style.pointerEvents = '';
-
-            let targetSelector = dragType === 'section' ? '.section-container, .add-section-row' : '.grocery-item, .section-header, .add-item-row, .add-section-row';
-            if (target) target = target.closest(targetSelector);
-
-            if (!target || target === draggedElement || target.classList.contains('drag-placeholder')) return;
-
-            if (dragType === 'item') {
-                const rect = target.getBoundingClientRect();
-                const midpoint = rect.top + rect.height / 2;
-                let isBefore = touch.clientY < midpoint;
-
-                if (target.classList.contains('add-item-row')) isBefore = true;
-                if (target.classList.contains('section-header')) isBefore = false;
-
-                if (target.classList.contains('add-section-row')) {
-                    target = target.previousElementSibling;
-                    while (target && target.classList.contains('collapsed')) target = target.previousElementSibling;
-                    if (!target) return;
-                    isBefore = true;
-                }
-
-                animatePlaceholderMove(target, isBefore);
-            } else {
-                // Section reordering: Prevent dropping below "Add section" row
-                if (target.classList.contains('add-section-row')) {
-                    // Do nothing - the placeholder shouldn't move to/below the stationary delete target
-                } else {
-                    const rect = target.getBoundingClientRect();
-                    const midpoint = rect.top + rect.height / 2;
-                    let isBefore = touch.clientY < midpoint;
-
-                    // Shop Mode anchor: Cannot drop before Uncategorized
-                    if (currentMode !== 'home' && target.dataset.id === shopDefId && isBefore) {
-                        isBefore = false; // Force snap AFTER
-                    }
-
-                    animatePlaceholderMove(target, isBefore);
-                }
-            }
-        });
-    }, { passive: false });
-
-    groceryList.addEventListener('touchend', (e) => {
-        if (!draggedElement) return;
-
-        // Reuse drop logic
-        const dropEvent = new Event('drop');
-        groceryList.dispatchEvent(dropEvent);
-    });
-
-    function handleDragEnd(wasDropped = false) {
-        const el = draggedElement;
-        const type = dragType;
-        const ghost = touchGhost;
-
-        if (!el) return;
-
-        document.documentElement.classList.remove('is-dragging');
-
-        // Null out globals immediately to prevent re-entry
-        draggedElement = null;
-        dragType = null;
-
-        const finalize = () => {
-            if (wasDropped === true) {
-                saveAppState();
-            }
-
-            // Capture headers one last time before clearing padding/DRAG state
-            let headerFinalDragTops = new Map();
-            if (type === 'section') {
-                document.querySelectorAll('.section-header').forEach(h => {
-                    const title = h.querySelector('.section-title')?.textContent;
-                    if (title) headerFinalDragTops.set(title, h.getBoundingClientRect().top);
-                });
-                isSectionRestoration = true;
-            }
-
-            groceryList.style.paddingTop = '';
-            groceryList.style.paddingBottom = '';
-
-            const collapsed = document.querySelectorAll('.collapsed');
-            collapsed.forEach(element => element.classList.remove('collapsed'));
-
-            renderList();
-            isSectionRestoration = false; // Reset
-
-            // Handoff: Wait one frame for the new list to be painted before removing the ghost
-            requestAnimationFrame(() => {
-                el.classList.remove('dragging', 'collapsed');
-                el.style.opacity = '';
-                el.style.height = '';
-                el.style.margin = '';
-                el.style.padding = '';
-                el.style.overflow = '';
-                el.style.pointerEvents = '';
-
-                if (ghost) {
-                    ghost.remove();
-                    if (touchGhost === ghost) touchGhost = null;
-                }
-                isDragStarted = false;
-
-                if (dragUpdateFrame) {
-                    cancelAnimationFrame(dragUpdateFrame);
-                    reorderUpdateFrame = null;
-                }
-
-                lastDragPos = { x: 0, y: 0 };
-                stopAutoScroll();
-                placeholder.classList.remove('active'); placeholder.remove();
-            });
-
-            if (type === 'section' && headerFinalDragTops.size > 0) {
-                const postHeaders = Array.from(document.querySelectorAll('.section-header'));
-                postHeaders.forEach(h => {
-                    const title = h.querySelector('.section-title')?.textContent;
-                    const oldTop = headerFinalDragTops.get(title);
-                    if (oldTop !== undefined) {
-                        const newTop = h.getBoundingClientRect().top;
-                        const delta = oldTop - newTop;
-                        if (delta !== 0) {
-                            h.animate([
-                                { transform: `translateY(${delta}px)` },
-                                { transform: 'translateY(0)' }
-                            ], {
-                                duration: 400,
-                                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
-                            });
-                        }
-                    }
-                });
-
-                // Staggered fade-in for items
-                const restoringItems = Array.from(document.querySelectorAll('.restoring-item'));
-                restoringItems.forEach((item, idx) => {
-                    item.style.opacity = '0';
-                    item.style.transform = 'translateY(10px)';
-                    setTimeout(() => {
-                        item.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
-                        item.style.opacity = '1';
-                        item.style.transform = 'translateY(0)';
-                    }, idx * 15);
-                });
-            }
-
-            // Small delay to let browser process the new DOM before re-enabling transitions
-            requestAnimationFrame(() => {
-                groceryList.classList.remove('no-transition');
-                document.body.style.overflow = '';
-            });
-        };
-
-        if (ghost && placeholder.parentElement) {
-            const phRect = placeholder.getBoundingClientRect();
-            // Slide ghost to placeholder position
-            const anim = ghost.animate([
-                { top: ghost.style.top, left: ghost.style.left },
-                { top: phRect.top + 'px', left: phRect.left + 'px' }
-            ], {
-                duration: 250,
-                easing: 'cubic-bezier(0.2, 1, 0.3, 1)',
-                fill: 'forwards'
-            });
-            anim.onfinish = finalize;
-        } else {
-            finalize();
-        }
-    }
-
-    groceryList.addEventListener('dragend', handleDragEnd);
-
-    function adjustItemFontWidths() {
-        const itemTexts = groceryList.querySelectorAll('.item-text');
-        itemTexts.forEach(itemText => {
-            const itemInfo = itemText.closest('.item-info');
-            if (!itemInfo || itemText.closest('.undo-row')) return;
-
-            // Use getComputedStyle to ensure we have the most accurate layout info
-            const style = window.getComputedStyle(itemText);
-            if (style.display === 'none' || style.visibility === 'hidden') return;
-
-            // Reset to default to measure natural width
-            itemText.style.fontVariationSettings = "'wdth' 100";
-
-            // Use getBoundingClientRect for more precision if clientWidth is rounding
-            const containerWidth = itemInfo.getBoundingClientRect().width;
-
-            // Check if it actually overflows
-            if (itemText.scrollWidth <= containerWidth + 0.5) return;
-
-            // Binary search for the largest wdth (25-100) that fits
-            let low = 25;
-            let high = 100;
-            let optimalWidth = 25;
-
-            while (low <= high) {
-                const mid = Math.floor((low + high) / 2);
-                itemText.style.fontVariationSettings = `'wdth' ${mid}`;
-                // Using a small epsilon for subpixel layout issues
-                if (itemText.scrollWidth <= containerWidth + 0.5) {
-                    optimalWidth = mid;
-                    low = mid + 1;
-                } else {
-                    high = mid - 1;
-                }
-            }
-            itemText.style.fontVariationSettings = `'wdth' ${optimalWidth}`;
-        });
-    }
-
-    function updateOrderInState(movedId, anchorId, targetSectionId, isAtEnd) {
-        const currentList = getCurrentList();
-        const isHome = currentMode === 'home';
-        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
-
-        const movedItem = currentList.items.find(i => i.id === movedId);
-        if (!movedItem) return;
-
-        const oldSectionId = movedItem[sectionIdKey];
-
-        if (isAtEnd) {
-            movedItem[sectionIdKey] = targetSectionId;
-            let sectionItems = currentList.items.filter(i => i[sectionIdKey] === targetSectionId && i.id !== movedId);
-            sectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
-            sectionItems.push(movedItem);
-            sectionItems.forEach((item, idx) => { item[indexKey] = idx; });
-
-            if (oldSectionId !== targetSectionId) {
-                let oldSectionItems = currentList.items.filter(i => i[sectionIdKey] === oldSectionId);
-                oldSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
-                oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
-            }
-            return;
-        }
-
-        const anchorItem = currentList.items.find(i => i.id === anchorId);
-        if (!anchorItem) return;
-
-        const newSectionId = anchorItem[sectionIdKey];
-        movedItem[sectionIdKey] = newSectionId;
-
-        let oldSectionItems = currentList.items.filter(i => i[sectionIdKey] === oldSectionId);
-        oldSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
-
-        if (oldSectionId === newSectionId) {
-            const oldIdx = oldSectionItems.findIndex(i => i.id === movedId);
-            let newIdx = oldSectionItems.findIndex(i => i.id === anchorId);
-
-            if (oldIdx !== -1 && newIdx !== -1) {
-                const [moved] = oldSectionItems.splice(oldIdx, 1);
-                const finalNewIdx = oldSectionItems.findIndex(i => i.id === anchorId);
-                // Safety check: if anchor lost, append to end
-                if (finalNewIdx === -1) {
-                    oldSectionItems.push(moved);
-                } else {
-                    oldSectionItems.splice(finalNewIdx, 0, moved);
-                }
-                oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
-            }
-        } else {
-            // Moving ACROSS sections
-            oldSectionItems = oldSectionItems.filter(i => i.id !== movedId);
-            oldSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
-
-            let newSectionItems = currentList.items.filter(i => i[sectionIdKey] === newSectionId && i.id !== movedId);
-            newSectionItems.sort((a, b) => (a[indexKey] || 0) - (b[indexKey] || 0));
-
-            let insertIdx = newSectionItems.findIndex(i => i.id === anchorId);
-            if (insertIdx !== -1) {
-                newSectionItems.splice(insertIdx, 0, movedItem);
-            } else {
-                newSectionItems.push(movedItem);
-            }
-            newSectionItems.forEach((item, idx) => { item[indexKey] = idx; });
-        }
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-        adjustItemFontWidths();
-    });
-    resizeObserver.observe(groceryList);
-
-    // --- Selection, Quick Sort, Quick Search, Quick Add & Voice Mode ---
-
-    function clearSelection() {
-        shopSelectionMode = false;
-        selectedShopItems.clear();
-        groceryList.classList.remove('shop-selection-mode');
-        groceryList.querySelectorAll('.grocery-item.selected').forEach(el => {
-            el.classList.remove('selected', 'sel-top', 'sel-bottom');
-        });
-        updateSelectionBar();
-    }
-
-    function toggleItemSelection(id, rowEl) {
-        const wasSelected = selectedShopItems.has(id);
-        if (wasSelected) {
-            selectedShopItems.delete(id);
-            if (selectedShopItems.size === 0) shopSelectionMode = false;
-        } else {
-            shopSelectionMode = true;
-            selectedShopItems.add(id);
-        }
-
-        rowEl.classList.toggle('selected', !wasSelected);
-        groceryList.classList.toggle('shop-selection-mode', shopSelectionMode);
-
-        const neighbors = [rowEl, rowEl.previousElementSibling, rowEl.nextElementSibling];
-        neighbors.forEach(el => {
-            if (el && el.classList.contains('grocery-item') && !el.classList.contains('add-item-row')) {
-                const isElSel = selectedShopItems.has(el.dataset.id);
-                const prev = el.previousElementSibling;
-                const next = el.nextElementSibling;
-                const isPrevSel = prev && prev.classList.contains('grocery-item') && selectedShopItems.has(prev.dataset.id);
-                const isNextSel = next && next.classList.contains('grocery-item') && selectedShopItems.has(next.dataset.id);
-                el.classList.toggle('sel-top', isElSel && isPrevSel);
-                el.classList.toggle('sel-bottom', isElSel && isNextSel);
-            }
-        });
-        updateSelectionBar();
-    }
-
-    function updateSelectionBar() {
-        if (!selectionBar || !selectionCountText) return;
-        const count = selectedShopItems.size;
-        if (count > 0 && (editMode || currentMode === 'shop')) {
-            selectionCountText.textContent = `${count} selected`;
-            selectionBar.classList.remove('hidden');
-        } else {
-            selectionBar.classList.add('hidden');
-        }
-    }
-
-    if (selectionClearBtn) {
-        selectionClearBtn.addEventListener('click', () => {
-            clearSelection();
-            renderList();
-        });
-    }
-
-    if (selectionDeleteBtn) {
-        selectionDeleteBtn.addEventListener('click', () => {
-            if (selectedShopItems.size === 0) return;
-            const ids = Array.from(selectedShopItems);
-            clearSelection();
-            ids.forEach(id => deleteItem(id));
-        });
-    }
-
-    function sortSectionAlphabetically(sectionId, isHome) {
-        const currentList = getCurrentList();
-        if (!currentList) return;
-        const sectionIdKey = isHome ? 'homeSectionId' : 'shopSectionId';
-        const indexKey = isHome ? 'homeIndex' : 'shopIndex';
-        const items = currentList.items.filter(i => i[sectionIdKey] === sectionId && !i.pendingDelete);
-        items.sort((a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' }));
-        items.forEach((item, idx) => { item[indexKey] = idx; });
-        saveAppState();
-        renderList();
-    }
-
-    function moveSectionByOffset(sectionId, delta, isHome) {
-        const currentList = getCurrentList();
-        if (!currentList) return;
-        const sections = isHome ? currentList.homeSections : currentList.shopSections;
-        const idx = sections.findIndex(s => s.id === sectionId);
-        if (idx === -1) return;
-        const targetIdx = idx + delta;
-        const minIdx = isHome ? 0 : 1; // Keep Uncategorized pinned at 0 in Store mode
-        if (targetIdx < minIdx || targetIdx >= sections.length) return;
-        const [moved] = sections.splice(idx, 1);
-        sections.splice(targetIdx, 0, moved);
-        saveAppState();
-        renderList();
-    }
-
-    // Quick Search
-    if (quickSearchInput) {
-        quickSearchInput.addEventListener('input', () => {
-            searchQuery = quickSearchInput.value;
-            if (quickSearchClear) {
-                quickSearchClear.classList.toggle('hidden', !searchQuery);
-            }
-            renderList();
-        });
-
-        quickSearchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && searchQuery.trim()) {
-                e.preventDefault();
-                const currentList = getCurrentList();
-                const q = searchQuery.trim().toLowerCase();
-                const hasMatch = currentList && currentList.items.some(i => !i.pendingDelete && i.text.toLowerCase().includes(q));
-                if (!hasMatch) {
-                    openQuickAddModal(searchQuery.trim());
-                }
-            } else if (e.key === 'Escape') {
-                searchQuery = '';
-                quickSearchInput.value = '';
-                if (quickSearchClear) quickSearchClear.classList.add('hidden');
-                renderList();
-            }
-        });
-    }
-
-    if (quickSearchClear) {
-        quickSearchClear.addEventListener('click', () => {
-            searchQuery = '';
-            quickSearchInput.value = '';
-            quickSearchClear.classList.add('hidden');
-            renderList();
-            quickSearchInput.focus();
-        });
-    }
-
-    // Quick Add Modal
-    function openQuickAddModal(prefillName = '', prefillHave = 0, prefillWant = 1) {
-        const currentList = getCurrentList();
-        if (!currentList || !quickAddModalOverlay) return;
-
-        quickAddHomeSelect.innerHTML = '';
-        if (currentList.homeSections.length === 0) {
-            const opt = document.createElement('option');
-            opt.value = 'sec-h-def';
-            opt.textContent = 'Uncategorized';
-            quickAddHomeSelect.appendChild(opt);
-        } else {
-            currentList.homeSections.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = s.name;
-                quickAddHomeSelect.appendChild(opt);
-            });
-        }
-
-        quickAddShopSelect.innerHTML = '';
-        currentList.shopSections.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s.id;
-            opt.textContent = s.name;
-            quickAddShopSelect.appendChild(opt);
-        });
-
-        quickAddNameInput.value = prefillName;
-        quickAddHaveInput.value = prefillHave;
-        quickAddWantInput.value = prefillWant;
-        quickAddModalOverlay.classList.add('visible');
-        setTimeout(() => quickAddNameInput.focus(), 50);
-    }
-
-    function closeQuickAddModal() {
-        if (quickAddModalOverlay) quickAddModalOverlay.classList.remove('visible');
-    }
-
-    if (quickAddToggleBtn) {
-        quickAddToggleBtn.addEventListener('click', () => openQuickAddModal());
-    }
-    if (quickAddCancelBtn) {
-        quickAddCancelBtn.addEventListener('click', closeQuickAddModal);
-    }
-    if (quickAddModalOverlay) {
-        quickAddModalOverlay.addEventListener('mousedown', (e) => {
-            if (e.target === quickAddModalOverlay) closeQuickAddModal();
-        });
-    }
-    if (quickAddForm) {
-        quickAddForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = quickAddNameInput.value.trim();
-            if (!name) return;
-
-            const currentList = getCurrentList();
-            let homeSecId = quickAddHomeSelect.value;
-            if (currentList.homeSections.length === 0) {
-                const uncat = getOrCreateUncategorizedSection(true);
-                homeSecId = uncat.id;
-            }
-            const shopSecId = quickAddShopSelect.value || 'sec-s-def';
-            const have = Math.max(0, parseInt(quickAddHaveInput.value, 10) || 0);
-            const want = Math.max(0, parseInt(quickAddWantInput.value, 10) || 0);
-
-            const existingSameName = currentList.items.filter(i => i.text.trim() === name);
-            existingSameName.forEach(i => { i.wantCount = want; });
-
-            const newItem = {
-                id: Date.now().toString(),
-                text: name,
-                homeSectionId: homeSecId,
-                shopSectionId: shopSecId,
-                homeIndex: currentList.items.length,
-                shopIndex: currentList.items.length,
-                haveCount: have,
-                wantCount: want,
-                shopCompleted: false
-            };
-
-            currentList.items.push(newItem);
-            saveAppState();
-            closeQuickAddModal();
-            if (searchQuery) {
-                searchQuery = '';
-                if (quickSearchInput) quickSearchInput.value = '';
-                if (quickSearchClear) quickSearchClear.classList.add('hidden');
-            }
-            renderList();
-        });
-    }
-
-    // Voice Input Mode
-    function getOrderedHomeItems() {
-        const currentList = getCurrentList();
-        if (!currentList) return [];
-        const ordered = [];
-        currentList.homeSections.forEach(sec => {
-            const secItems = currentList.items
-                .filter(i => i.homeSectionId === sec.id && !i.pendingDelete)
-                .sort((a, b) => (a.homeIndex || 0) - (b.homeIndex || 0));
-            ordered.push(...secItems);
-        });
-        return ordered;
-    }
-
-    function updateWalkHighlight() {
-        groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
-        if (!voiceBarOpen || voiceSubMode !== 'walk' || !walkCursorId) return;
-        const row = groceryList.querySelector(`.grocery-item[data-id="${walkCursorId}"]`);
-        if (row) {
-            row.classList.add('voice-active-row');
-            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            const item = getCurrentList()?.items.find(i => i.id === walkCursorId);
-            if (item && voiceStatus) {
-                voiceStatus.textContent = `Walk List: "${item.text}" (Have: ${item.haveCount}) — say a number or "next"`;
-            }
-        }
-    }
-
-    function advanceWalkCursor(delta = 1) {
-        const ordered = getOrderedHomeItems();
-        if (ordered.length === 0) {
-            walkCursorId = null;
-            if (voiceStatus) voiceStatus.textContent = 'List is empty — say an item and count to add it.';
-            return;
-        }
-        const idx = ordered.findIndex(i => i.id === walkCursorId);
-        let nextIdx = idx === -1 ? 0 : idx + delta;
-        if (nextIdx >= ordered.length) {
-            walkCursorId = ordered[0].id;
-            updateWalkHighlight();
-            if (voiceStatus) voiceStatus.textContent = `Reached end — wrapped to "${ordered[0].text}"`;
-            return;
-        }
-        if (nextIdx < 0) nextIdx = 0;
-        walkCursorId = ordered[nextIdx].id;
-        updateWalkHighlight();
-    }
-
-    let resetConfirmTimer = null;
-    if (resetHomeCountsBtn) {
-        resetHomeCountsBtn.addEventListener('click', () => {
-            if (!resetHomeCountsBtn.dataset.confirming) {
-                resetHomeCountsBtn.dataset.confirming = 'true';
-                const label = resetHomeCountsBtn.querySelector('span');
-                if (label) label.textContent = 'Confirm Zero?';
-                resetConfirmTimer = setTimeout(() => {
-                    delete resetHomeCountsBtn.dataset.confirming;
-                    if (label) label.textContent = 'Zero All';
-                }, 3000);
-                return;
-            }
-            clearTimeout(resetConfirmTimer);
-            delete resetHomeCountsBtn.dataset.confirming;
-            const label = resetHomeCountsBtn.querySelector('span');
-            if (label) label.textContent = 'Zero All';
-
-            const currentList = getCurrentList();
-            if (!currentList) return;
-            currentList.items.forEach(item => { item.haveCount = 0; });
-            inventoriedItemIds.clear();
-            pendingVoiceItem = null;
-            saveAppState();
-            renderList();
-            if (voiceBarOpen && voiceStatus) {
-                voiceStatus.textContent = 'All Have counts reset to 0 — ready for inventory.';
-            }
-        });
-    }
-
-    function setVoiceSubMode(subMode) {
-        voiceSubMode = subMode;
-        pendingVoiceItem = null;
-        document.querySelectorAll('.voice-pill').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.voiceMode === subMode);
-        });
-        if (voiceSuggestions) voiceSuggestions.classList.add('hidden');
-        if (subMode === 'walk') {
-            const ordered = getOrderedHomeItems();
-            if (!walkCursorId || !ordered.some(i => i.id === walkCursorId)) {
-                walkCursorId = ordered.length > 0 ? ordered[0].id : null;
-            }
-            updateWalkHighlight();
-        } else if (subMode === 'inventory') {
-            groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
-            if (voiceStatus) voiceStatus.textContent = 'Inventory: say "<item> <count>" — repeat items prompt Set vs Add';
-        } else {
-            groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
-            if (voiceStatus) voiceStatus.textContent = 'Smart: say "<item> <count>" (e.g. "milk 2", "a one one")';
-        }
-    }
-
-    function applyVoiceItemUpdate(item, count, heardText = '') {
-        setHave(item.id, count);
-        inventoriedItemIds.add(item.id);
-        pendingVoiceItem = null;
-        const row = groceryList.querySelector(`.grocery-item[data-id="${item.id}"]`);
-        if (row) {
-            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            row.classList.remove('voice-flash');
-            void row.offsetWidth;
-            row.classList.add('voice-flash');
-        }
-        if (voiceStatus) {
-            const prefix = heardText ? `Heard "${heardText}" → ` : '';
-            voiceStatus.textContent = `${prefix}Updated "${item.text}" → Have: ${count}`;
-        }
-        if (voiceSuggestions) {
-            voiceSuggestions.innerHTML = '';
-            voiceSuggestions.classList.add('hidden');
-        }
-    }
-
-    function removeVoiceDecision(decisionId) {
-        pendingVoiceDecisions = pendingVoiceDecisions.filter(d => d.id !== decisionId);
-        renderVoicePendingQueue();
-    }
-
-    function enqueueVoiceDecision(prompt, actions) {
-        const id = 'vd-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-        pendingVoiceDecisions.push({ id, prompt, actions });
-        renderVoicePendingQueue();
-    }
-
-    function renderVoicePendingQueue() {
-        if (!voicePendingQueue) return;
-        if (currentMode !== 'home' || pendingVoiceDecisions.length === 0) {
-            voicePendingQueue.innerHTML = '';
-            voicePendingQueue.classList.add('hidden');
-            return;
-        }
-
-        voicePendingQueue.innerHTML = '';
+        renderedCount++;
+        const card = document.createElement('section');
+        card.className = `aisle-card${aisle.collapsed ? ' collapsed' : ''}`;
+        card.dataset.aisleId = aisle.id;
+
+        // Aisle Header
         const header = document.createElement('div');
-        header.className = 'voice-pending-header';
-        header.innerHTML = `<span>Pending Decisions (${pendingVoiceDecisions.length})</span>`;
-        const clearBtn = document.createElement('button');
-        clearBtn.type = 'button';
-        clearBtn.className = 'voice-pending-clear-btn';
-        clearBtn.textContent = 'Clear All';
-        clearBtn.addEventListener('click', () => {
-            pendingVoiceDecisions = [];
-            renderVoicePendingQueue();
+        header.className = 'aisle-header';
+
+        const titleGroup = document.createElement('div');
+        titleGroup.className = 'aisle-title-group';
+
+        const collapseBtn = document.createElement('button');
+        collapseBtn.type = 'button';
+        collapseBtn.className = 'aisle-collapse-btn';
+        collapseBtn.setAttribute('aria-label', aisle.collapsed ? `Expand ${aisle.name}` : `Collapse ${aisle.name}`);
+        collapseBtn.textContent = aisle.collapsed ? '▸' : '▾';
+        collapseBtn.addEventListener('click', () => {
+            toggleAisleCollapsed(state, aisle.id);
+            commit();
         });
-        header.appendChild(clearBtn);
-        voicePendingQueue.appendChild(header);
+        titleGroup.appendChild(collapseBtn);
 
-        pendingVoiceDecisions.forEach(decision => {
-            const card = document.createElement('div');
-            card.className = 'voice-pending-card';
+        if (editingAisleId === aisle.id) {
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'aisle-name-input';
+            nameInput.value = aisle.name;
+            nameInput.setAttribute('aria-label', 'Edit aisle name');
+            const saveName = () => {
+                renameAisle(state, aisle.id, nameInput.value);
+                editingAisleId = null;
+                commit();
+            };
+            nameInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); saveName(); }
+                if (e.key === 'Escape') { editingAisleId = null; render(); }
+            });
+            nameInput.addEventListener('blur', saveName);
+            titleGroup.appendChild(nameInput);
+            setTimeout(() => nameInput.focus(), 0);
+        } else {
+            const nameBtn = document.createElement('button');
+            nameBtn.type = 'button';
+            nameBtn.className = 'aisle-name-btn';
+            nameBtn.textContent = aisle.name;
+            nameBtn.title = 'Click to rename aisle';
+            nameBtn.addEventListener('click', () => {
+                editingAisleId = aisle.id;
+                render();
+            });
+            titleGroup.appendChild(nameBtn);
+        }
 
-            const top = document.createElement('div');
-            top.className = 'voice-pending-card-top';
-            const promptSpan = document.createElement('span');
-            promptSpan.textContent = decision.prompt;
-            const dismissBtn = document.createElement('button');
-            dismissBtn.type = 'button';
-            dismissBtn.className = 'voice-pending-dismiss';
-            dismissBtn.setAttribute('aria-label', 'Dismiss decision');
-            dismissBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
-            dismissBtn.addEventListener('click', () => removeVoiceDecision(decision.id));
-            top.appendChild(promptSpan);
-            top.appendChild(dismissBtn);
+        const countBadge = document.createElement('span');
+        countBadge.className = 'aisle-count';
+        countBadge.textContent = String(aisleItems.length);
+        titleGroup.appendChild(countBadge);
 
-            const chipsWrap = document.createElement('div');
-            chipsWrap.className = 'voice-pending-chips';
-            decision.actions.forEach(act => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = `voice-suggestion-chip ${act.variant || ''}`.trim();
-                btn.innerHTML = act.icon ? `<i class="${act.icon}" aria-hidden="true"></i> ${escapeHTML(act.label)}` : escapeHTML(act.label);
-                btn.addEventListener('click', () => {
-                    act.onSelect();
-                    removeVoiceDecision(decision.id);
+        const actions = document.createElement('div');
+        actions.className = 'aisle-actions';
+
+        const upBtn = document.createElement('button');
+        upBtn.type = 'button';
+        upBtn.className = 'icon-btn';
+        upBtn.textContent = '↑';
+        upBtn.title = 'Move aisle up';
+        upBtn.disabled = aisleIndex === 0;
+        upBtn.addEventListener('click', () => {
+            moveAisle(state, aisle.id, -1);
+            commit();
+        });
+
+        const downBtn = document.createElement('button');
+        downBtn.type = 'button';
+        downBtn.className = 'icon-btn';
+        downBtn.textContent = '↓';
+        downBtn.title = 'Move aisle down';
+        downBtn.disabled = aisleIndex === state.aisles.length - 1;
+        downBtn.addEventListener('click', () => {
+            moveAisle(state, aisle.id, 1);
+            commit();
+        });
+
+        const delAisleBtn = document.createElement('button');
+        delAisleBtn.type = 'button';
+        delAisleBtn.className = 'icon-btn danger';
+        delAisleBtn.textContent = '×';
+        delAisleBtn.title = `Delete ${aisle.name}`;
+        delAisleBtn.setAttribute('aria-label', `Delete aisle ${aisle.name}`);
+        delAisleBtn.addEventListener('click', () => {
+            deleteAisle(state, aisle.id);
+            commit();
+            showToast(`Deleted aisle "${aisle.name}"`);
+        });
+
+        actions.append(upBtn, downBtn, delAisleBtn);
+        header.append(titleGroup, actions);
+        card.appendChild(header);
+
+        if (!aisle.collapsed) {
+            const list = document.createElement('ul');
+            list.className = 'aisle-items';
+
+            filteredItems.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'item-row';
+                li.dataset.itemId = item.id;
+
+                const main = document.createElement('div');
+                main.className = 'item-main';
+
+                if (editingItemId === item.id) {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'item-name-input';
+                    input.value = item.name;
+                    const saveItemName = () => {
+                        updateItemName(state, item.id, input.value);
+                        editingItemId = null;
+                        commit();
+                    };
+                    input.addEventListener('keydown', e => {
+                        if (e.key === 'Enter') { e.preventDefault(); saveItemName(); }
+                        if (e.key === 'Escape') { editingItemId = null; render(); }
+                    });
+                    input.addEventListener('blur', saveItemName);
+                    main.appendChild(input);
+                    setTimeout(() => input.focus(), 0);
+                } else {
+                    const nameBtn = document.createElement('button');
+                    nameBtn.type = 'button';
+                    nameBtn.className = 'item-name-btn';
+                    nameBtn.textContent = item.name;
+                    nameBtn.title = 'Click to edit item name';
+                    nameBtn.addEventListener('click', () => {
+                        editingItemId = item.id;
+                        render();
+                    });
+                    main.appendChild(nameBtn);
+                }
+
+                const haveQty = haveMap[item.id] || 0;
+                const needQty = Math.max(0, item.wantQty - haveQty);
+                const meta = document.createElement('div');
+                meta.className = 'item-meta';
+
+                const pill = document.createElement('span');
+                if (item.wantQty === 0) {
+                    pill.className = 'stock-pill';
+                    pill.textContent = `Have ${haveQty}`;
+                } else if (needQty === 0) {
+                    pill.className = 'stock-pill stocked';
+                    pill.textContent = `Stocked (${haveQty}/${item.wantQty})`;
+                } else {
+                    pill.className = 'stock-pill need';
+                    pill.textContent = `Have ${haveQty} · Need ${needQty}`;
+                }
+                meta.appendChild(pill);
+                main.appendChild(meta);
+
+                const controls = document.createElement('div');
+                controls.className = 'item-controls';
+
+                const stepper = createQtyStepper(item.wantQty, `Desired quantity for ${item.name}`, nextQty => {
+                    updateItemWantQty(state, item.id, nextQty);
+                    commit();
                 });
-                chipsWrap.appendChild(btn);
+
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'icon-btn danger';
+                delBtn.textContent = '×';
+                delBtn.title = `Delete ${item.name}`;
+                delBtn.setAttribute('aria-label', `Delete ${item.name}`);
+                delBtn.addEventListener('click', () => {
+                    deleteItem(state, item.id);
+                    commit();
+                });
+
+                controls.append(stepper, delBtn);
+                li.append(main, controls);
+                list.appendChild(li);
             });
 
-            card.appendChild(top);
-            card.appendChild(chipsWrap);
-            voicePendingQueue.appendChild(card);
-        });
+            card.appendChild(list);
 
-        voicePendingQueue.classList.remove('hidden');
-    }
+            // Inline Add Item Form
+            const addForm = document.createElement('form');
+            addForm.className = 'aisle-add-form';
 
-    function createNewVoiceItemAction(itemName, count) {
-        const formatted = itemName.replace(/\b\w/g, c => c.toUpperCase());
-        return {
-            label: `Add "${formatted}" (Have: ${count})`,
-            variant: 'add-new',
-            icon: 'fas fa-plus',
-            onSelect: () => {
-                const currentList = getCurrentList();
-                if (!currentList) return;
-                let homeSecId = currentList.homeSections[0]?.id;
-                if (!homeSecId) {
-                    homeSecId = getOrCreateUncategorizedSection(true).id;
-                }
-                const newItem = {
-                    id: Date.now().toString(),
-                    text: formatted,
-                    homeSectionId: homeSecId,
-                    shopSectionId: 'sec-s-def',
-                    homeIndex: currentList.items.length,
-                    shopIndex: currentList.items.length,
-                    haveCount: count,
-                    wantCount: Math.max(1, count),
-                    shopCompleted: false
-                };
-                currentList.items.push(newItem);
-                inventoriedItemIds.add(newItem.id);
-                saveAppState();
-                renderList();
-                if (voiceStatus) voiceStatus.textContent = `Added "${formatted}" (Have: ${count})`;
-            }
-        };
-    }
+            const itemInput = document.createElement('input');
+            itemInput.type = 'text';
+            itemInput.className = 'aisle-add-input';
+            itemInput.placeholder = `+ Add item to ${aisle.name}...`;
+            itemInput.setAttribute('aria-label', `Add item to ${aisle.name}`);
 
-    function showVoiceAddOption(itemName, count, heardText = '') {
-        enqueueVoiceDecision(
-            `New item "${itemName}" (Have: ${count})`,
-            [createNewVoiceItemAction(itemName, count)]
-        );
-        if (voiceStatus) {
-            voiceStatus.textContent = `Queued "+ Add ${itemName}" (${count}) — keep speaking`;
-        }
-    }
+            const qtyInput = document.createElement('input');
+            qtyInput.type = 'number';
+            qtyInput.min = '0';
+            qtyInput.value = '1';
+            qtyInput.className = 'aisle-add-qty';
+            qtyInput.title = 'Desired quantity';
+            qtyInput.setAttribute('aria-label', `Desired quantity for new item in ${aisle.name}`);
 
-    function promptInventoryRepeatDisambiguation(item, count, heardText = '') {
-        enqueueVoiceDecision(
-            `"${item.text}" is at ${item.haveCount} — Set to ${count} or Add +${count}?`,
-            [
-                {
-                    label: `Set to ${count}`,
-                    onSelect: () => applyVoiceItemUpdate(item, count, heardText)
-                },
-                {
-                    label: `Add +${count} (→ ${item.haveCount + count})`,
-                    variant: 'increment',
-                    onSelect: () => applyVoiceItemUpdate(item, item.haveCount + count, heardText)
-                }
-            ]
-        );
-        if (voiceStatus) {
-            voiceStatus.textContent = `Queued Set vs Add for "${item.text}" — keep speaking`;
-        }
-    }
+            const addBtn = document.createElement('button');
+            addBtn.type = 'submit';
+            addBtn.className = 'btn-primary-sm';
+            addBtn.textContent = 'Add';
 
-    function resolveMatchedVoiceItem(item, count, heardText) {
-        const isRepeatInInventory = voiceSubMode === 'inventory' && (inventoriedItemIds.has(item.id) || item.haveCount > 0);
-        if (isRepeatInInventory) {
-            promptInventoryRepeatDisambiguation(item, count, heardText);
-        } else {
-            applyVoiceItemUpdate(item, count, heardText);
-            if (voiceSubMode === 'walk') {
-                walkCursorId = item.id;
-                advanceWalkCursor(1);
-            }
-        }
-    }
+            addForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const name = itemInput.value.trim();
+                if (!name) return;
+                const qty = Math.max(0, parseInt(qtyInput.value, 10) || 1);
+                addItem(state, aisle.id, name, qty);
+                commit();
+            });
 
-    function handleVoiceTranscript(transcript) {
-        const raw = transcript.trim();
-        const cmd = parseVoiceCommand(raw, voiceSubMode);
-        if (cmd.type === 'empty') return;
-
-        if (cmd.type === 'nav') {
-            if (cmd.action === 'next') advanceWalkCursor(1);
-            else if (cmd.action === 'prev') advanceWalkCursor(-1);
-            else if (cmd.action === 'stop') toggleVoiceBar(false);
-            return;
+            addForm.append(itemInput, qtyInput, addBtn);
+            card.appendChild(addForm);
         }
 
-        if (cmd.type === 'walk-qty') {
-            if (voiceSubMode !== 'walk' && pendingVoiceItem) {
-                const target = pendingVoiceItem;
-                clearTimeout(pendingVoiceTimer);
-                pendingVoiceItem = null;
-                resolveMatchedVoiceItem(target, cmd.count, raw);
-                return;
-            }
-            const ordered = getOrderedHomeItems();
-            if (!walkCursorId && ordered.length > 0) walkCursorId = ordered[0].id;
-            const currentItem = ordered.find(i => i.id === walkCursorId);
-            if (!currentItem) {
-                if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" — no item selected.`;
-                return;
-            }
-            const prevName = currentItem.text;
-            setHave(currentItem.id, cmd.count);
-            inventoriedItemIds.add(currentItem.id);
-            advanceWalkCursor(1);
-            const nextItem = getOrderedHomeItems().find(i => i.id === walkCursorId);
-            if (voiceStatus) {
-                voiceStatus.textContent = nextItem
-                    ? `${prevName} → ${cmd.count}. Next: "${nextItem.text}"`
-                    : `${prevName} → ${cmd.count}`;
-            }
-            return;
-        }
-
-        const currentList = getCurrentList();
-        if (!currentList) return;
-
-        // If no number was spoken (e.g. STT split "wipes" and "three", or user only said item name),
-        // hold pendingVoiceItem briefly for a spoken number AND enqueue quick-tap counts if not resolved.
-        if (cmd.type === 'item-only') {
-            const matches = matchGroceryItems(cmd.itemQuery, currentList.items);
-            if (matches.length === 0) {
-                showVoiceAddOption(cmd.itemQuery, 1, raw);
-                return;
-            }
-            const topItem = matches[0].item;
-            pendingVoiceItem = topItem;
-            clearTimeout(pendingVoiceTimer);
-            pendingVoiceTimer = setTimeout(() => {
-                if (pendingVoiceItem === topItem) {
-                    pendingVoiceItem = null;
-                    const actions = [1, 2, 3].map(n => ({
-                        label: `${topItem.text} → ${n}`,
-                        onSelect: () => resolveMatchedVoiceItem(topItem, n, raw)
-                    }));
-                    if (matches[0].score < 0.98) {
-                        actions.push(createNewVoiceItemAction(cmd.itemQuery, 1));
-                    }
-                    enqueueVoiceDecision(`No count heard for "${raw}"`, actions);
-                }
-            }, 2500);
-            if (voiceStatus) voiceStatus.textContent = `Heard "${raw}" → "${topItem.text}" (say number...)`;
-            return;
-        }
-
-        const count = cmd.count;
-        const matches = matchGroceryItems(cmd.itemQuery, currentList.items);
-
-        if (matches.length === 0) {
-            showVoiceAddOption(cmd.itemQuery, count, raw);
-            return;
-        }
-
-        const top = matches[0];
-        const second = matches[1];
-        const isClearWinner = !second || top.score >= 0.96 || (top.score - second.score >= 0.12);
-
-        if (isClearWinner) {
-            resolveMatchedVoiceItem(top.item, count, raw);
-            return;
-        }
-
-        // Ambiguous: enqueue disambiguation chips + option to add new if not exact
-        const actions = matches.slice(0, 4).map(({ item }) => {
-            const secName = currentList.homeSections.find(s => s.id === item.homeSectionId)?.name || '';
-            return {
-                label: secName ? `${item.text} (${secName}) → ${count}` : `${item.text} → ${count}`,
-                onSelect: () => resolveMatchedVoiceItem(item, count, raw)
-            };
-        });
-        if (top.score < 0.98) {
-            actions.push(createNewVoiceItemAction(cmd.itemQuery, count));
-        }
-        enqueueVoiceDecision(`Choose match for "${cmd.itemQuery}" (${count})`, actions);
-        if (voiceStatus) voiceStatus.textContent = `Queued match choice for "${cmd.itemQuery}" — keep speaking`;
-    }
-
-    function stopSpeechListening() {
-        voiceListening = false;
-        if (voiceMicToggle) voiceMicToggle.classList.remove('listening');
-        if (speechRecognition) {
-            try { speechRecognition.stop(); } catch (_) {}
-        }
-    }
-
-    function startSpeechListening() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            if (voiceStatus) {
-                voiceStatus.textContent = 'Speech recognition unavailable in this browser — type commands below.';
-            }
-            if (voiceTextInput) voiceTextInput.focus();
-            return;
-        }
-
-        if (!speechRecognition) {
-            speechRecognition = new SpeechRecognition();
-            speechRecognition.continuous = true;
-            speechRecognition.interimResults = true;
-            speechRecognition.lang = 'en-US';
-
-            speechRecognition.onresult = (event) => {
-                let interim = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const res = event.results[i];
-                    if (res.isFinal) {
-                        handleVoiceTranscript(res[0].transcript);
-                    } else {
-                        interim += res[0].transcript;
-                    }
-                }
-                if (interim && voiceStatus) {
-                    voiceStatus.textContent = `Listening: "${interim.trim()}"`;
-                }
-            };
-
-            speechRecognition.onerror = (event) => {
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    if (voiceStatus) voiceStatus.textContent = 'Mic permission denied — type commands below.';
-                    stopSpeechListening();
-                }
-            };
-
-            speechRecognition.onend = () => {
-                if (voiceListening && voiceBarOpen) {
-                    try { speechRecognition.start(); } catch (_) { stopSpeechListening(); }
-                } else {
-                    if (voiceMicToggle) voiceMicToggle.classList.remove('listening');
-                }
-            };
-        }
-
-        try {
-            voiceListening = true;
-            if (voiceMicToggle) voiceMicToggle.classList.add('listening');
-            speechRecognition.start();
-            if (voiceStatus) voiceStatus.textContent = 'Listening... say "<item> <count>" or switch to Walk List';
-        } catch (_) {
-            // Already started
-        }
-    }
-
-    function toggleVoiceBar(force) {
-        voiceBarOpen = force !== undefined ? force : !voiceBarOpen;
-        if (voiceBarOpen && currentMode !== 'home') {
-            switchMode('home', false);
-        }
-        if (voiceBarOpen && editMode) {
-            editMode = false;
-            saveMode();
-            updateModeUI();
-            renderList();
-        }
-        if (voiceBar) {
-            voiceBar.classList.toggle('hidden', !voiceBarOpen);
-        }
-        if (toolbarVoiceBtn) {
-            toolbarVoiceBtn.classList.toggle('active', voiceBarOpen);
-        }
-        if (voiceBarOpen) {
-            setVoiceSubMode(voiceSubMode);
-        } else {
-            stopSpeechListening();
-            groceryList.querySelectorAll('.grocery-item.voice-active-row').forEach(el => el.classList.remove('voice-active-row'));
-        }
-    }
-
-    if (toolbarVoiceBtn) {
-        toolbarVoiceBtn.addEventListener('click', () => toggleVoiceBar());
-    }
-    if (voiceCloseBtn) {
-        voiceCloseBtn.addEventListener('click', () => toggleVoiceBar(false));
-    }
-    if (voiceMicToggle) {
-        voiceMicToggle.addEventListener('click', () => {
-            if (voiceListening) stopSpeechListening();
-            else startSpeechListening();
-        });
-    }
-    document.querySelectorAll('.voice-pill').forEach(btn => {
-        btn.addEventListener('click', () => setVoiceSubMode(btn.dataset.voiceMode));
+        container.appendChild(card);
     });
-    if (voiceTextForm) {
-        voiceTextForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const val = voiceTextInput.value.trim();
-            if (!val) return;
-            handleVoiceTranscript(val);
-            voiceTextInput.value = '';
+
+    if (renderedCount === 0 && q) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `<div class="empty-state-title">No matching items</div><div>Try a different search term.</div>`;
+        container.appendChild(empty);
+    }
+}
+
+function renderShoppingList() {
+    const container = els.storeAislesContainer;
+    container.innerHTML = '';
+
+    const sections = getShoppingListByAisle(state, state.ui.searchQuery);
+
+    if (sections.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = state.ui.searchQuery
+            ? `<div class="empty-state-title">No matching items to buy</div><div>Try clearing your search filter.</div>`
+            : `<div class="empty-state-title">You're all stocked up!</div><div>Every item in your store list already has enough at home.</div>`;
+        container.appendChild(empty);
+    } else {
+        const cartSet = new Set(state.cartItemIds);
+        sections.forEach(({ aisle, items }) => {
+            const card = document.createElement('section');
+            card.className = 'aisle-card';
+            card.dataset.aisleId = aisle.id;
+
+            const header = document.createElement('div');
+            header.className = 'aisle-header';
+            const titleGroup = document.createElement('div');
+            titleGroup.className = 'aisle-title-group';
+            const title = document.createElement('span');
+            title.className = 'aisle-name-btn';
+            title.textContent = aisle.name;
+            const count = document.createElement('span');
+            count.className = 'aisle-count';
+            count.textContent = String(items.length);
+            titleGroup.append(title, count);
+            header.appendChild(titleGroup);
+            card.appendChild(header);
+
+            const list = document.createElement('ul');
+            list.className = 'aisle-items';
+
+            items.forEach(item => {
+                const inCart = cartSet.has(item.id);
+                const li = document.createElement('li');
+                li.className = `shopping-row${inCart ? ' in-cart' : ''}`;
+                li.dataset.itemId = item.id;
+                li.addEventListener('click', () => {
+                    toggleCartItem(state, item.id);
+                    commit();
+                });
+
+                const left = document.createElement('div');
+                left.className = 'shopping-left';
+
+                const check = document.createElement('span');
+                check.className = 'cart-check';
+                check.setAttribute('aria-hidden', 'true');
+                check.textContent = inCart ? '✓' : '';
+
+                const textWrap = document.createElement('div');
+                const nameEl = document.createElement('div');
+                nameEl.className = 'shopping-item-name';
+                nameEl.textContent = item.name;
+
+                const subEl = document.createElement('div');
+                subEl.className = 'shopping-item-sub';
+                subEl.textContent = `Have ${item.haveQty} · Want ${item.wantQty}`;
+                textWrap.append(nameEl, subEl);
+                left.append(check, textWrap);
+
+                const buyBadge = document.createElement('span');
+                buyBadge.className = 'buy-badge';
+                buyBadge.textContent = `Buy ${item.toBuy}`;
+
+                li.append(left, buyBadge);
+                list.appendChild(li);
+            });
+
+            card.appendChild(list);
+            container.appendChild(card);
         });
     }
 
-    init();
-});
+    const cartCount = state.cartItemIds.length;
+    els.shoppingCartBar.classList.toggle('hidden', cartCount === 0);
+    els.cartBarCount.textContent = `${cartCount} in cart`;
+}
+
+function renderInventoryMode() {
+    const entries = state.inventoryEntries;
+    const haveMap = getHaveQtyMap(state);
+    const entryCountMap = getEntryCountMap(state);
+    const itemsById = new Map(state.items.map(i => [i.id, i]));
+    const aislesById = new Map(state.aisles.map(a => [a.id, a]));
+
+    const uniqueCount = Object.keys(haveMap).length;
+    els.inventorySummary.textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} · ${uniqueCount} item${uniqueCount === 1 ? '' : 's'} counted`;
+    els.clearInventoryBtn.classList.toggle('hidden', entries.length === 0);
+
+    const list = els.inventoryEntriesList;
+    list.innerHTML = '';
+
+    if (entries.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `
+            <div class="empty-state-title">No inventory counted yet</div>
+            <div>Tap <strong>Speak</strong> or type <code>&lt;item&gt; &lt;count&gt;</code> above (for example, <em>"wipes 3"</em>).</div>
+        `;
+        list.appendChild(empty);
+        return;
+    }
+
+    entries.forEach(entry => {
+        const li = document.createElement('li');
+        li.className = `inv-entry ${entry.status}`;
+        li.dataset.entryId = entry.id;
+
+        const top = document.createElement('div');
+        top.className = 'inv-entry-top';
+
+        const info = document.createElement('div');
+        info.className = 'inv-entry-info';
+
+        const title = document.createElement('div');
+        title.className = 'inv-entry-title';
+
+        if (entry.status === 'matched' && entry.itemId && itemsById.has(entry.itemId)) {
+            const storeItem = itemsById.get(entry.itemId);
+            const aisle = aislesById.get(storeItem.aisleId);
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = storeItem.name;
+            title.appendChild(nameSpan);
+
+            if (aisle) {
+                const aisleTag = document.createElement('span');
+                aisleTag.className = 'inv-aisle-tag';
+                aisleTag.textContent = aisle.name;
+                title.appendChild(aisleTag);
+            }
+
+            if ((entryCountMap[storeItem.id] || 0) > 1) {
+                const totalTag = document.createElement('span');
+                totalTag.className = 'inv-total-tag';
+                totalTag.textContent = `Total: ${haveMap[storeItem.id] || 0}`;
+                title.appendChild(totalTag);
+            }
+        } else {
+            const rawSpan = document.createElement('span');
+            rawSpan.textContent = `"${entry.rawQuery}"`;
+            title.appendChild(rawSpan);
+        }
+
+        info.appendChild(title);
+
+        const controls = document.createElement('div');
+        controls.className = 'inv-entry-controls';
+
+        const stepper = createQtyStepper(entry.count, `Count for ${entry.rawQuery}`, nextCount => {
+            updateInventoryEntryCount(state, entry.id, nextCount);
+            commit();
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'inv-delete-btn';
+        deleteBtn.textContent = '×';
+        deleteBtn.title = 'Delete entry';
+        deleteBtn.setAttribute('aria-label', `Delete ${entry.rawQuery}`);
+        deleteBtn.addEventListener('click', () => {
+            deleteInventoryEntry(state, entry.id);
+            commit();
+        });
+
+        controls.append(stepper, deleteBtn);
+        top.append(info, controls);
+        li.appendChild(top);
+
+        // Ambiguous resolution UI
+        if (entry.status === 'ambiguous') {
+            const resolveBox = document.createElement('div');
+            resolveBox.className = 'inv-resolve-box';
+
+            const label = document.createElement('div');
+            label.className = 'inv-resolve-label';
+            label.textContent = 'Multiple possible matches — tap which one you meant:';
+            resolveBox.appendChild(label);
+
+            const chips = document.createElement('div');
+            chips.className = 'suggestion-chips';
+
+            entry.candidateIds.forEach(cid => {
+                const candidate = itemsById.get(cid);
+                if (!candidate) return;
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'suggestion-chip';
+                chip.textContent = candidate.name;
+                chip.addEventListener('click', () => {
+                    resolveAmbiguousEntry(state, entry.id, candidate.id);
+                    commit();
+                    showToast(`Matched to "${candidate.name}"`);
+                });
+                chips.appendChild(chip);
+            });
+
+            const newChip = document.createElement('button');
+            newChip.type = 'button';
+            newChip.className = 'suggestion-chip create-new';
+            newChip.textContent = `+ Add "${entry.rawQuery}" as new item`;
+            newChip.addEventListener('click', () => {
+                entry.status = 'unmatched';
+                entry.candidateIds = [];
+                commit();
+            });
+            chips.appendChild(newChip);
+
+            resolveBox.appendChild(chips);
+            li.appendChild(resolveBox);
+        }
+
+        // Unmatched -> Add to store list at the same time
+        if (entry.status === 'unmatched') {
+            const resolveBox = document.createElement('div');
+            resolveBox.className = 'inv-resolve-box';
+
+            const label = document.createElement('div');
+            label.className = 'inv-resolve-label';
+            label.textContent = 'Not in store list yet — add it and update inventory:';
+            resolveBox.appendChild(label);
+
+            const row = document.createElement('div');
+            row.className = 'unmatched-add-row';
+
+            const select = document.createElement('select');
+            select.className = 'aisle-select';
+            select.setAttribute('aria-label', `Select aisle for ${entry.rawQuery}`);
+            if (state.aisles.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'General (new aisle)';
+                select.appendChild(opt);
+            } else {
+                state.aisles.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = a.name;
+                    select.appendChild(opt);
+                });
+            }
+
+            const addStoreBtn = document.createElement('button');
+            addStoreBtn.type = 'button';
+            addStoreBtn.className = 'btn-primary-sm';
+            addStoreBtn.textContent = '+ Add to Store List';
+            addStoreBtn.addEventListener('click', () => {
+                const created = addStoreItemAndResolveEntry(state, entry.id, entry.rawQuery, select.value);
+                commit();
+                if (created) {
+                    showToast(`Added "${created.name}" to store & updated inventory`);
+                }
+            });
+
+            row.append(select, addStoreBtn);
+            resolveBox.appendChild(row);
+            li.appendChild(resolveBox);
+        }
+
+        list.appendChild(li);
+    });
+}
+
+function createQtyStepper(value, ariaLabel, onChange) {
+    const wrap = document.createElement('div');
+    wrap.className = 'qty-stepper';
+
+    const decBtn = document.createElement('button');
+    decBtn.type = 'button';
+    decBtn.className = 'stepper-btn';
+    decBtn.textContent = '−';
+    decBtn.setAttribute('aria-label', `Decrease ${ariaLabel}`);
+    decBtn.addEventListener('click', () => {
+        onChange(Math.max(0, (Number(value) || 0) - 1));
+    });
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.className = 'stepper-input';
+    input.value = String(value);
+    input.setAttribute('aria-label', ariaLabel);
+    input.addEventListener('change', () => {
+        const parsed = parseInt(input.value, 10);
+        onChange(Number.isNaN(parsed) ? 0 : Math.max(0, parsed));
+    });
+
+    const incBtn = document.createElement('button');
+    incBtn.type = 'button';
+    incBtn.className = 'stepper-btn';
+    incBtn.textContent = '+';
+    incBtn.setAttribute('aria-label', `Increase ${ariaLabel}`);
+    incBtn.addEventListener('click', () => {
+        onChange(Math.max(0, (Number(value) || 0) + 1));
+    });
+
+    wrap.append(decBtn, input, incBtn);
+    return wrap;
+}
+
+// Initial render
+render();
