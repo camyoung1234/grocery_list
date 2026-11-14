@@ -9,11 +9,19 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await page.reload();
     });
 
-    test('Bottom bar, Search bar replacement, Add aisle/item, Undo item delete, and localStorage persistence', async ({ page }) => {
+    test('Bottom bar tab order (Inventory, Shopping, All Items), Search bar replacement, Add aisle/item via header button, Undo item delete, and localStorage persistence', async ({ page }) => {
         // Verify bottom bar with 3-way toggle, search button, and settings button
         await expect(page.locator('#bottom-nav-bar')).toBeVisible();
         await expect(page.locator('#search-open-btn')).toBeVisible();
         await expect(page.locator('#settings-open-btn')).toBeVisible();
+
+        // Verify bottom tab order is Inventory, Shopping, All Items, with All Items active by default
+        const tabLabels = await page.locator('.segmented-nav .segmented-tab > span:first-child').allTextContents();
+        expect(tabLabels).toEqual(['Inventory', 'Shopping', 'All Items']);
+        await expect(page.locator('#tab-all-btn')).toHaveClass(/active/);
+
+        // Verify old inline add-item row at the bottom of aisles is removed
+        await expect(page.locator('.aisle-add-form')).toHaveCount(0);
 
         // Click Search button -> replaces bottom nav bar with search input
         await page.click('#search-open-btn');
@@ -30,17 +38,24 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await expect(page.locator('#bottom-nav-bar')).toBeVisible();
         await expect(page.locator('.item-row', { hasText: 'Whole Milk' })).toBeVisible();
 
-        // Add a new aisle and item
+        // Add a new aisle and item via the "Add Item" button on the aisle header row
         await page.click('#add-aisle-open-btn');
         await page.fill('#new-aisle-input', 'Bakery');
         await page.click('#add-aisle-form button[type="submit"]');
 
         const bakeryCard = page.locator('.aisle-card', { hasText: 'Bakery' });
-        await bakeryCard.locator('.aisle-add-input').fill('Sourdough Bread');
-        await bakeryCard.locator('.aisle-add-qty').fill('2');
-        await bakeryCard.locator('.aisle-add-form button[type="submit"]').click();
+        const addItemBtn = bakeryCard.locator('.aisle-header .aisle-add-item-btn');
+        await expect(addItemBtn).toHaveText('Add Item');
+        await addItemBtn.click();
+
+        const inlineNameInput = bakeryCard.locator('.item-row .item-name-input');
+        await expect(inlineNameInput).toBeFocused();
+        await inlineNameInput.fill('Sourdough Bread');
+        await inlineNameInput.press('Enter');
 
         const breadRow = bakeryCard.locator('.item-row', { hasText: 'Sourdough Bread' });
+        await expect(breadRow.locator('.stepper-input')).toHaveValue('1');
+        await breadRow.locator('button[aria-label="Increase Desired quantity for Sourdough Bread"]').click();
         await breadRow.locator('button[aria-label="Increase Desired quantity for Sourdough Bread"]').click();
         await expect(breadRow.locator('.stepper-input')).toHaveValue('3');
 
@@ -68,6 +83,29 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await page.reload();
         const reloadedBread = page.locator('.aisle-card', { hasText: 'Bakery' }).locator('.item-row', { hasText: 'Sourdough Bread' });
         await expect(reloadedBread.locator('.stepper-input')).toHaveValue('3');
+    });
+
+    test('All Items: drag-and-drop handle sorts items within a section and persists order', async ({ page }) => {
+        const householdCard = page.locator('.aisle-card', { hasText: 'Household' });
+        const getItemNames = () => householdCard.locator('.item-row .item-name-btn').allTextContents();
+
+        expect(await getItemNames()).toEqual(['Baby Wipes', 'Disinfecting Wipes', 'Paper Towels']);
+
+        // Drag "Paper Towels" handle up to "Baby Wipes" handle
+        const paperTowelsHandle = householdCard.locator('.item-row', { hasText: 'Paper Towels' }).locator('.item-drag-handle');
+        const babyWipesHandle = householdCard.locator('.item-row', { hasText: 'Baby Wipes' }).locator('.item-drag-handle');
+        await paperTowelsHandle.dragTo(babyWipesHandle);
+
+        expect(await getItemNames()).toEqual(['Paper Towels', 'Baby Wipes', 'Disinfecting Wipes']);
+
+        // Reload and verify order persists in localStorage and in Shopping List
+        await page.reload();
+        expect(await getItemNames()).toEqual(['Paper Towels', 'Baby Wipes', 'Disinfecting Wipes']);
+
+        await page.click('#tab-shopping-btn');
+        const shoppingHousehold = page.locator('.aisle-card', { hasText: 'Household' });
+        const shoppingNames = await shoppingHousehold.locator('.shopping-row .shopping-item-name').allTextContents();
+        expect(shoppingNames).toEqual(['Paper Towels', 'Baby Wipes', 'Disinfecting Wipes']);
     });
 
     test('Inventory Mode: voice/text <item> <count>, ambiguous suggestions, add new item, duplicate summing, and Undo X delete', async ({ page }) => {

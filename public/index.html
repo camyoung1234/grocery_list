@@ -103,16 +103,16 @@
             </button>
 
             <nav class="segmented-nav" aria-label="Primary Views">
-                <button type="button" id="tab-all-btn" class="segmented-tab active" data-tab="all" aria-pressed="true">
-                    <span>All Items</span>
+                <button type="button" id="tab-inventory-btn" class="segmented-tab" data-tab="inventory" aria-pressed="false">
+                    <span>Inventory</span>
+                    <span id="inventory-pending-badge" class="nav-badge warn hidden">0</span>
                 </button>
                 <button type="button" id="tab-shopping-btn" class="segmented-tab" data-tab="shopping" aria-pressed="false">
                     <span>Shopping</span>
                     <span id="shopping-count-badge" class="nav-badge">0</span>
                 </button>
-                <button type="button" id="tab-inventory-btn" class="segmented-tab" data-tab="inventory" aria-pressed="false">
-                    <span>Inventory</span>
-                    <span id="inventory-pending-badge" class="nav-badge warn hidden">0</span>
+                <button type="button" id="tab-all-btn" class="segmented-tab active" data-tab="all" aria-pressed="true">
+                    <span>All Items</span>
                 </button>
             </nav>
 

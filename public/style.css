@@ -635,44 +635,64 @@ button:focus-visible {
     margin: 0;
 }
 
-/* Inline Add Item Form inside Aisle */
-.aisle-add-form {
-    display: flex;
-    gap: 8px;
-    padding: 10px 16px 12px;
-    background: var(--surface-soft);
-}
-
-.aisle-add-input {
-    flex: 1;
-    min-width: 0;
-    padding: 8px 11px;
+/* Aisle Header Add Item Button & Item Drag Handle */
+.aisle-add-item-btn {
     border: none;
     border-radius: 8px;
-    background: var(--surface);
-    font-size: 0.88rem;
-    outline: none;
-}
-
-.aisle-add-input:focus {
-    box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.25);
-}
-
-.aisle-add-qty {
-    width: 52px;
-    padding: 8px 6px;
-    border: none;
-    border-radius: 8px;
-    background: var(--surface);
-    text-align: center;
+    background: var(--accent-soft);
+    color: var(--accent-text);
     font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    font-size: 0.88rem;
-    outline: none;
+    font-size: 0.78rem;
+    padding: 5px 10px;
+    margin-right: 4px;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.aisle-add-qty:focus {
-    box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.25);
+.aisle-add-item-btn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.item-drag-handle {
+    border: none;
+    background: transparent;
+    color: var(--text-faint);
+    width: 24px;
+    height: 28px;
+    padding: 0;
+    margin-left: -6px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: grab;
+    touch-action: none;
+    transition: color 0.12s ease, background 0.12s ease;
+}
+
+.item-drag-handle:hover {
+    color: var(--text-muted);
+    background: var(--surface-hover);
+}
+
+.item-drag-handle:active,
+.item-row.dragging .item-drag-handle {
+    cursor: grabbing;
+    color: var(--accent);
+}
+
+.item-row.dragging {
+    background: var(--surface-soft);
+    box-shadow: var(--shadow-pill);
+    position: relative;
+    z-index: 2;
+    opacity: 0.92;
+}
+
+.aisle-items.is-sorting {
+    user-select: none;
 }
 
 /* Shopping List Mode */
@@ -1271,7 +1291,6 @@ button:focus-visible {
 .nav-badge,
 .aisle-count,
 .stepper-input,
-.aisle-add-qty,
 .cart-check,
 .stock-pill,
 .shopping-item-sub,
@@ -1290,23 +1309,24 @@ body.compact .aisle-header {
     padding: 8px 12px;
 }
 
+body.compact .aisle-add-item-btn {
+    padding: 3px 8px;
+    font-size: 0.74rem;
+}
+
 body.compact .item-row {
     padding: 6px 12px;
     gap: 8px;
 }
 
+body.compact .item-drag-handle {
+    width: 22px;
+    height: 24px;
+}
+
 body.compact .shopping-row {
     padding: 8px 12px;
     gap: 10px;
-}
-
-body.compact .aisle-add-form {
-    padding: 7px 12px 9px;
-}
-
-body.compact .aisle-add-input,
-body.compact .aisle-add-qty {
-    padding: 6px 9px;
 }
 
 body.compact .stepper-btn {
