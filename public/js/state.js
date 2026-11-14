@@ -139,9 +139,9 @@ export function toggleAisleCollapsed(state, aisleId) {
 
 /* --- Store Item Mutations --- */
 
-export function addItem(state, aisleId, name, wantQty = 1) {
+export function addItem(state, aisleId, name, wantQty = 1, { allowEmptyName = false } = {}) {
     const clean = (name || '').trim();
-    if (!clean) return null;
+    if (!clean && !allowEmptyName) return null;
     let targetAisleId = aisleId;
     if (!state.aisles.some(a => a.id === targetAisleId)) {
         if (state.aisles.length === 0) {
@@ -181,6 +181,38 @@ export function moveItemToAisle(state, itemId, targetAisleId) {
     const item = state.items.find(i => i.id === itemId);
     if (!item || !state.aisles.some(a => a.id === targetAisleId)) return false;
     item.aisleId = targetAisleId;
+    return true;
+}
+
+export function reorderAisleItems(state, aisleId, orderedItemIds) {
+    const aisleItems = state.items.filter(i => i.aisleId === aisleId);
+    if (aisleItems.length <= 1) return false;
+    const itemById = new Map(aisleItems.map(i => [i.id, i]));
+    const reordered = [];
+    const seen = new Set();
+
+    for (const id of orderedItemIds) {
+        if (itemById.has(id) && !seen.has(id)) {
+            reordered.push(itemById.get(id));
+            seen.add(id);
+        }
+    }
+    for (const item of aisleItems) {
+        if (!seen.has(item.id)) {
+            reordered.push(item);
+        }
+    }
+
+    const changed = reordered.some((item, idx) => item.id !== aisleItems[idx].id);
+    if (!changed) return false;
+
+    let cursor = 0;
+    state.items = state.items.map(existing => {
+        if (existing.aisleId === aisleId) {
+            return reordered[cursor++];
+        }
+        return existing;
+    });
     return true;
 }
 

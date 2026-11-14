@@ -12,6 +12,7 @@ import {
     addItem,
     updateItemName,
     updateItemWantQty,
+    reorderAisleItems,
     deleteItem,
     processInventoryCommand,
     resolveAmbiguousEntry,
@@ -627,6 +628,56 @@ function renderStoreView(isShopping) {
     }
 }
 
+function attachItemDragReorder(dragHandle, li, list, aisleId) {
+    const moveRowByClientY = clientY => {
+        const siblings = [...list.querySelectorAll('.item-row')];
+        for (const sibling of siblings) {
+            if (sibling === li) continue;
+            const rect = sibling.getBoundingClientRect();
+            const isBeforeSibling = (li.compareDocumentPosition(sibling) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+            if (isBeforeSibling && clientY >= rect.top + rect.height * 0.35) {
+                sibling.after(li);
+            } else if (!isBeforeSibling && clientY <= rect.top + rect.height * 0.65) {
+                sibling.before(li);
+                break;
+            }
+        }
+    };
+
+    const finalizeOrder = () => {
+        li.classList.remove('dragging');
+        list.classList.remove('is-sorting');
+        const orderedIds = [...list.querySelectorAll('.item-row')]
+            .map(row => row.dataset.itemId)
+            .filter(Boolean);
+        if (reorderAisleItems(state, aisleId, orderedIds)) {
+            commit();
+        }
+    };
+
+    dragHandle.addEventListener('pointerdown', e => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
+        li.classList.add('dragging');
+        list.classList.add('is-sorting');
+
+        const onPointerMove = moveEvent => {
+            moveRowByClientY(moveEvent.clientY);
+        };
+
+        const onPointerUp = () => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+            finalizeOrder();
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+    });
+}
+
 function renderAllStoreAisles() {
     const container = els.storeAislesContainer;
     container.innerHTML = '';
@@ -651,7 +702,7 @@ function renderAllStoreAisles() {
     state.aisles.forEach((aisle, aisleIndex) => {
         const aisleItems = state.items.filter(i => i.aisleId === aisle.id);
         const filteredItems = q
-            ? aisleItems.filter(i => i.name.toLowerCase().includes(q) || aisle.name.toLowerCase().includes(q))
+            ? aisleItems.filter(i => i.id === editingItemId || i.name.toLowerCase().includes(q) || aisle.name.toLowerCase().includes(q))
             : aisleItems;
 
         if (q && filteredItems.length === 0 && !aisle.name.toLowerCase().includes(q)) {
@@ -687,18 +738,20 @@ function renderAllStoreAisles() {
             nameInput.className = 'aisle-name-input';
             nameInput.value = aisle.name;
             nameInput.setAttribute('aria-label', 'Edit aisle name');
+            let savedAisle = false;
             const saveName = () => {
+                if (savedAisle) return;
+                savedAisle = true;
                 renameAisle(state, aisle.id, nameInput.value);
                 editingAisleId = null;
                 commit();
             };
             nameInput.addEventListener('keydown', e => {
                 if (e.key === 'Enter') { e.preventDefault(); saveName(); }
-                if (e.key === 'Escape') { editingAisleId = null; render(); }
+                if (e.key === 'Escape') { savedAisle = true; editingAisleId = null; render(); }
             });
             nameInput.addEventListener('blur', saveName);
             titleGroup.appendChild(nameInput);
-            setTimeout(() => nameInput.focus(), 0);
         } else {
             const nameBtn = document.createElement('button');
             nameBtn.type = 'button';
@@ -721,6 +774,23 @@ function renderAllStoreAisles() {
 
         const actions = document.createElement('div');
         actions.className = 'aisle-actions';
+
+        const addItemBtn = document.createElement('button');
+        addItemBtn.type = 'button';
+        addItemBtn.className = 'aisle-add-item-btn';
+        addItemBtn.textContent = 'Add Item';
+        addItemBtn.title = `Add item to ${aisle.name}`;
+        addItemBtn.setAttribute('aria-label', `Add item to ${aisle.name}`);
+        addItemBtn.addEventListener('click', () => {
+            if (aisle.collapsed) {
+                aisle.collapsed = false;
+            }
+            const newItem = addItem(state, aisle.id, '', 1, { allowEmptyName: true });
+            if (newItem) {
+                editingItemId = newItem.id;
+                commit();
+            }
+        });
 
         const upBtn = document.createElement('button');
         upBtn.type = 'button';
@@ -754,7 +824,7 @@ function renderAllStoreAisles() {
             deleteAisleWithUndo(aisle);
         });
 
-        actions.append(upBtn, downBtn, delAisleBtn);
+        actions.append(addItemBtn, upBtn, downBtn, delAisleBtn);
         header.append(titleGroup, actions);
         card.appendChild(header);
 
@@ -767,6 +837,14 @@ function renderAllStoreAisles() {
                 li.className = 'item-row';
                 li.dataset.itemId = item.id;
 
+                const dragHandle = document.createElement('button');
+                dragHandle.type = 'button';
+                dragHandle.className = 'item-drag-handle';
+                dragHandle.title = `Drag to reorder ${item.name || 'item'}`;
+                dragHandle.setAttribute('aria-label', `Drag to reorder ${item.name || 'item'}`);
+                dragHandle.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="3.5" r="1.3"/><circle cx="10.5" cy="3.5" r="1.3"/><circle cx="5.5" cy="8" r="1.3"/><circle cx="10.5" cy="8" r="1.3"/><circle cx="5.5" cy="12.5" r="1.3"/><circle cx="10.5" cy="12.5" r="1.3"/></svg>';
+                attachItemDragReorder(dragHandle, li, list, aisle.id);
+
                 const main = document.createElement('div');
                 main.className = 'item-main';
 
@@ -775,18 +853,39 @@ function renderAllStoreAisles() {
                     input.type = 'text';
                     input.className = 'item-name-input';
                     input.value = item.name;
+                    input.placeholder = 'Item name...';
+                    input.setAttribute('aria-label', 'Edit item name');
+                    let savedItem = false;
                     const saveItemName = () => {
-                        updateItemName(state, item.id, input.value);
+                        if (savedItem) return;
+                        savedItem = true;
+                        const clean = input.value.trim();
                         editingItemId = null;
-                        commit();
+                        if (clean) {
+                            updateItemName(state, item.id, clean);
+                            commit();
+                        } else if (!item.name) {
+                            deleteItem(state, item.id);
+                            commit();
+                        } else {
+                            render();
+                        }
                     };
                     input.addEventListener('keydown', e => {
                         if (e.key === 'Enter') { e.preventDefault(); saveItemName(); }
-                        if (e.key === 'Escape') { editingItemId = null; render(); }
+                        if (e.key === 'Escape') {
+                            savedItem = true;
+                            editingItemId = null;
+                            if (!item.name) {
+                                deleteItem(state, item.id);
+                                commit();
+                            } else {
+                                render();
+                            }
+                        }
                     });
                     input.addEventListener('blur', saveItemName);
                     main.appendChild(input);
-                    setTimeout(() => input.focus(), 0);
                 } else {
                     const nameBtn = document.createElement('button');
                     nameBtn.type = 'button';
@@ -835,50 +934,20 @@ function renderAllStoreAisles() {
                 );
 
                 controls.appendChild(stepper);
-                li.append(main, controls);
+                li.append(dragHandle, main, controls);
                 list.appendChild(li);
             });
 
             card.appendChild(list);
-
-            // Inline Add Item Form
-            const addForm = document.createElement('form');
-            addForm.className = 'aisle-add-form';
-
-            const itemInput = document.createElement('input');
-            itemInput.type = 'text';
-            itemInput.className = 'aisle-add-input';
-            itemInput.placeholder = `+ Add item to ${aisle.name}...`;
-            itemInput.setAttribute('aria-label', `Add item to ${aisle.name}`);
-
-            const qtyInput = document.createElement('input');
-            qtyInput.type = 'number';
-            qtyInput.min = '0';
-            qtyInput.value = '1';
-            qtyInput.className = 'aisle-add-qty';
-            qtyInput.title = 'Desired quantity';
-            qtyInput.setAttribute('aria-label', `Desired quantity for new item in ${aisle.name}`);
-
-            const addBtn = document.createElement('button');
-            addBtn.type = 'submit';
-            addBtn.className = 'btn-primary-sm';
-            addBtn.textContent = 'Add';
-
-            addForm.addEventListener('submit', e => {
-                e.preventDefault();
-                const name = itemInput.value.trim();
-                if (!name) return;
-                const qty = Math.max(0, parseInt(qtyInput.value, 10) || 1);
-                addItem(state, aisle.id, name, qty);
-                commit();
-            });
-
-            addForm.append(itemInput, qtyInput, addBtn);
-            card.appendChild(addForm);
         }
 
         container.appendChild(card);
     });
+
+    const activeInput = container.querySelector('.item-name-input, .aisle-name-input');
+    if (activeInput) {
+        setTimeout(() => activeInput.focus(), 0);
+    }
 
     if (renderedCount === 0 && q) {
         const empty = document.createElement('div');
