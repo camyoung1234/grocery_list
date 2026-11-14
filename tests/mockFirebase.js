@@ -1,163 +1,81 @@
+async function setupFirebaseMock(page, initialRemoteDoc = null) {
+    await page.addInitScript((seedDoc) => {
+        window.__mockFirestoreDoc = seedDoc ? JSON.parse(JSON.stringify(seedDoc)) : null;
+        window.__mockSetDocCalls = [];
+        window.__mockAuthUser = { uid: 'test-user', email: 'test@example.com' };
+    }, initialRemoteDoc);
 
-const { test, expect } = require('@playwright/test');
-
-/**
- * Mock Firebase services for Playwright tests.
- */
-async function mockFirebase(page, initialState = null) {
-    // Shared state between the test and the browser
-    await page.addInitScript((state) => {
-        const defaultState = {
-            lists: [{
-                id: 'list-1',
-                name: 'Grocery List',
-                theme: 'var(--theme-blue)',
-                accent: 'var(--theme-amber)',
-                homeSections: [],
-                shopSections: [{ id: 'sec-s-def', name: 'Uncategorized' }],
-                items: []
-            }],
-            currentListId: 'list-1',
-            mode: 'home',
-            editMode: true,
-            updatedAt: Date.now() + 10000 // Future dated
-        };
-
-        if (state) {
-            window.__MOCK_FIREBASE_STATE__ = { ...defaultState, ...state };
-            if (window.__MOCK_FIREBASE_STATE__.updatedAt === undefined || state.updatedAt === undefined) {
-                window.__MOCK_FIREBASE_STATE__.updatedAt = Date.now() + 10000;
-            }
-        } else {
-            window.__MOCK_FIREBASE_STATE__ = defaultState;
-        }
-
-        if (state && state.user !== undefined) {
-            window.__MOCK_USER__ = state.user;
-        } else {
-            window.__MOCK_USER__ = { uid: 'test-user-id', email: 'test@example.com', isAnonymous: false };
-        }
-
-        // Auto-login to bypass the wall for all existing tests
-        if (window.__MOCK_USER__) {
-            localStorage.setItem('grocery-logged-in', 'true');
-        }
-
-        window.__FIREBASE_SNAPSHOT_CALLBACKS__ = [];
-    }, initialState);
-
-    // Mock Firebase App
-    await page.route('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js', async (route) => {
+    await page.route('https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js', async route => {
         await route.fulfill({
+            status: 200,
             contentType: 'application/javascript',
-            body: `export const initializeApp = () => ({});`
+            body: `export function initializeApp(cfg) { return { cfg }; }`
         });
     });
 
-    // Mock Firebase Auth
-    await page.route('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js', async (route) => {
+    await page.route('https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js', async route => {
         await route.fulfill({
+            status: 200,
             contentType: 'application/javascript',
             body: `
-                export const getAuth = () => ({
-                    get currentUser() { return window.__MOCK_USER__; }
-                });
-                window.__AUTH_CALLBACKS__ = window.__AUTH_CALLBACKS__ || [];
-                export const onAuthStateChanged = (auth, callback) => {
-                    window.__AUTH_CALLBACKS__.push(callback);
-                    // Trigger initial call
-                    callback(window.__MOCK_USER__);
-                    return () => {
-                        window.__AUTH_CALLBACKS__ = window.__AUTH_CALLBACKS__.filter(cb => cb !== callback);
-                    };
+                const listeners = new Set();
+                const authObj = {
+                    get currentUser() { return window.__mockAuthUser; }
                 };
-                const notifyAuthChange = () => {
-                    if (window.__AUTH_CALLBACKS__) {
-                        window.__AUTH_CALLBACKS__.forEach(cb => cb(window.__MOCK_USER__));
+                export function getAuth() { return authObj; }
+                export function onAuthStateChanged(auth, cb) {
+                    listeners.add(cb);
+                    setTimeout(() => cb(window.__mockAuthUser), 0);
+                    return () => listeners.delete(cb);
+                }
+                export async function signInWithEmailAndPassword(auth, email) {
+                    window.__mockAuthUser = { uid: 'test-user', email };
+                    listeners.forEach(cb => cb(window.__mockAuthUser));
+                    return { user: window.__mockAuthUser };
+                }
+                export async function createUserWithEmailAndPassword(auth, email) {
+                    window.__mockAuthUser = { uid: 'test-user', email };
+                    listeners.forEach(cb => cb(window.__mockAuthUser));
+                    return { user: window.__mockAuthUser };
+                }
+                export async function signOut() {
+                    window.__mockAuthUser = null;
+                    listeners.forEach(cb => cb(null));
+                }
+            `
+        });
+    });
+
+    await page.route('https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js', async route => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/javascript',
+            body: `
+                export function persistentLocalCache() { return {}; }
+                export function persistentMultipleTabManager() { return {}; }
+                export function initializeFirestore() { return {}; }
+                export function doc(db, col, id) { return { path: col + '/' + id }; }
+                export function onSnapshot(docRef, onNext) {
+                    setTimeout(() => {
+                        const data = window.__mockFirestoreDoc;
+                        onNext({
+                            exists: () => Boolean(data),
+                            data: () => data ? JSON.parse(JSON.stringify(data)) : undefined
+                        });
+                    }, 0);
+                    return () => {};
+                }
+                export async function setDoc(docRef, data, options) {
+                    window.__mockSetDocCalls.push({ data: JSON.parse(JSON.stringify(data)), options: options || null });
+                    if (options && options.merge) {
+                        window.__mockFirestoreDoc = Object.assign({}, window.__mockFirestoreDoc || {}, data);
+                    } else {
+                        window.__mockFirestoreDoc = JSON.parse(JSON.stringify(data));
                     }
-                };
-                export const sendSignInLinkToEmail = async (auth, email, settings) => {
-                    window.__LAST_EMAIL_SENT__ = email;
-                    return Promise.resolve();
-                };
-                export const isSignInWithEmailLink = (auth, url) => {
-                    return url.includes('apiKey=');
-                };
-                export const signInWithEmailLink = async (auth, email, url) => {
-                    window.__MOCK_USER__ = { uid: 'test-user-id', email: email, isAnonymous: false };
-                    notifyAuthChange();
-                    return Promise.resolve({ user: window.__MOCK_USER__ });
-                };
-                export const signOut = async () => {
-                    window.__MOCK_USER__ = null;
-                    notifyAuthChange();
-                };
-                export const signInWithEmailAndPassword = async (auth, email, password) => {
-                    window.__MOCK_USER__ = { uid: 'test-user-id', email: email, isAnonymous: false };
-                    notifyAuthChange();
-                    return Promise.resolve({ user: window.__MOCK_USER__ });
-                };
-                export const createUserWithEmailAndPassword = async (auth, email, password) => {
-                    window.__MOCK_USER__ = { uid: 'test-user-id', email: email, isAnonymous: false };
-                    notifyAuthChange();
-                    return Promise.resolve({ user: window.__MOCK_USER__ });
-                };
-                export const getAuthResponse = () => ({});
-            `
-        });
-    });
-
-    // Mock Firebase Firestore
-    await page.route('https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js', async (route) => {
-        await route.fulfill({
-            contentType: 'application/javascript',
-            body: `
-                export const initializeFirestore = () => ({});
-                export const persistentLocalCache = () => ({});
-                export const persistentMultipleTabManager = () => ({});
-                export const doc = (db, collection, id) => ({ path: collection + '/' + id });
-                export const onSnapshot = (docRef, callback) => {
-                    const notify = () => {
-                        if (window.__MOCK_FIREBASE_STATE__) {
-                            callback({
-                                exists: () => true,
-                                data: () => window.__MOCK_FIREBASE_STATE__
-                            });
-                        }
-                    };
-                    window.__FIREBASE_SNAPSHOT_CALLBACKS__.push(notify);
-                    notify();
-                    return () => {
-                        window.__FIREBASE_SNAPSHOT_CALLBACKS__ = window.__FIREBASE_SNAPSHOT_CALLBACKS__.filter(cb => cb !== notify);
-                    };
-                };
-                export const setDoc = async (docRef, data) => {
-                    window.__MOCK_FIREBASE_STATE__ = data;
-                    window.__FIREBASE_SNAPSHOT_CALLBACKS__.forEach(cb => cb());
-                };
-                export const getDoc = async (docRef) => ({
-                    exists: () => !!window.__MOCK_FIREBASE_STATE__,
-                    data: () => window.__MOCK_FIREBASE_STATE__
-                });
+                }
             `
         });
     });
 }
 
-/**
- * Update the mocked Firestore state within the browser.
- */
-async function setMockState(page, newState) {
-    await page.evaluate((state) => {
-        window.__MOCK_FIREBASE_STATE__ = {
-            ...window.__MOCK_FIREBASE_STATE__,
-            ...state,
-            updatedAt: Date.now() + 20000
-        };
-        if (window.__FIREBASE_SNAPSHOT_CALLBACKS__) {
-            window.__FIREBASE_SNAPSHOT_CALLBACKS__.forEach(cb => cb());
-        }
-    }, newState);
-}
-
-module.exports = { mockFirebase, setMockState };
+module.exports = { setupFirebaseMock };
