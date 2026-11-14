@@ -32,6 +32,19 @@ let recognition = null;
 // DOM Elements
 const els = {
     authStatusLabel: document.getElementById('auth-status-label'),
+    authStatusDot: document.getElementById('auth-status-dot'),
+    authAccountDesc: document.getElementById('auth-account-desc'),
+    settingsAuthBtn: document.getElementById('settings-auth-btn'),
+
+    authModal: document.getElementById('auth-modal'),
+    authCloseBtn: document.getElementById('auth-close-btn'),
+    authOfflineBtn: document.getElementById('auth-offline-btn'),
+    authForm: document.getElementById('auth-form'),
+    authEmailInput: document.getElementById('auth-email-input'),
+    authPasswordInput: document.getElementById('auth-password-input'),
+    authErrorMsg: document.getElementById('auth-error-msg'),
+    authSignupBtn: document.getElementById('auth-signup-btn'),
+
     tabAllBtn: document.getElementById('tab-all-btn'),
     tabShoppingBtn: document.getElementById('tab-shopping-btn'),
     tabInventoryBtn: document.getElementById('tab-inventory-btn'),
@@ -111,9 +124,111 @@ function showToast(message, undoCallback = null, durationMs = 4500) {
     }, undoCallback ? durationMs : 2600);
 }
 
-/* --- Auth-Ready Subscription --- */
+/* --- Auth & Cloud Sync --- */
+function updateSyncIndicator(status) {
+    const labels = {
+        offline: 'Offline',
+        syncing: 'Syncing...',
+        synced: 'Synced',
+        error: 'Sync Error'
+    };
+    els.authStatusLabel.textContent = labels[status] || 'Offline';
+    els.authStatusDot.className = `auth-dot ${status}`;
+}
+
+dataStore.onSyncStatusChange(updateSyncIndicator);
+
+dataStore.subscribe(remoteState => {
+    state = remoteState;
+    render();
+});
+
+function openAuthModal() {
+    els.authErrorMsg.classList.add('hidden');
+    els.authErrorMsg.textContent = '';
+    els.authModal.classList.remove('hidden');
+}
+
+function closeAuthModal(rememberOffline = true) {
+    els.authModal.classList.add('hidden');
+    if (rememberOffline) {
+        try {
+            sessionStorage.setItem('grocery_v2_offline_dismissed', '1');
+        } catch {
+            // Ignore
+        }
+    }
+}
+
 authService.onAuthStateChanged(user => {
-    els.authStatusLabel.textContent = user?.displayName || 'Local Mode';
+    if (user) {
+        els.authAccountDesc.textContent = user.email ? `Signed in as ${user.email}` : 'Signed in';
+        els.settingsAuthBtn.textContent = 'Sign Out';
+        closeAuthModal(false);
+        dataStore.connectUser(user.uid);
+    } else {
+        els.authAccountDesc.textContent = 'Not signed in — saved locally';
+        els.settingsAuthBtn.textContent = 'Sign In';
+        dataStore.disconnectUser();
+        let dismissed = false;
+        try {
+            dismissed = sessionStorage.getItem('grocery_v2_offline_dismissed') === '1';
+        } catch {
+            // Ignore
+        }
+        if (!dismissed) {
+            openAuthModal();
+        }
+    }
+});
+
+els.settingsAuthBtn.addEventListener('click', async () => {
+    const user = authService.getCurrentUser();
+    if (user) {
+        await authService.signOut();
+        showToast('Signed out');
+    } else {
+        els.settingsModal.classList.add('hidden');
+        openAuthModal();
+    }
+});
+
+els.authCloseBtn.addEventListener('click', () => closeAuthModal(true));
+els.authOfflineBtn.addEventListener('click', () => closeAuthModal(true));
+els.authModal.addEventListener('click', e => {
+    if (e.target === els.authModal) closeAuthModal(true);
+});
+
+els.authForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = els.authEmailInput.value.trim();
+    const password = els.authPasswordInput.value;
+    els.authErrorMsg.classList.add('hidden');
+    try {
+        await authService.signIn(email, password);
+        showToast('Signed in & syncing');
+    } catch (err) {
+        els.authErrorMsg.textContent = err.message || 'Sign in failed';
+        els.authErrorMsg.classList.remove('hidden');
+    }
+});
+
+els.authSignupBtn.addEventListener('click', async () => {
+    const email = els.authEmailInput.value.trim();
+    const password = els.authPasswordInput.value;
+    if (!email || !password) {
+        els.authErrorMsg.textContent = 'Please enter email and password.';
+        els.authErrorMsg.classList.remove('hidden');
+        return;
+    }
+    els.authErrorMsg.classList.add('hidden');
+    try {
+        await authService.createAccount(email, password);
+        showToast('Account created & syncing');
+    } catch (err) {
+        els.authErrorMsg.textContent = err.message || 'Could not create account';
+        els.authErrorMsg.classList.remove('hidden');
+    }
 });
 
 /* --- 3-Way Tab Switching --- */

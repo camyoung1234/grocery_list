@@ -1,7 +1,9 @@
 const { test, expect } = require('@playwright/test');
+const { setupFirebaseMock } = require('./mockFirebase');
 
 test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shopping Checkboxes', () => {
     test.beforeEach(async ({ page }) => {
+        await setupFirebaseMock(page, null);
         await page.goto('/');
         await page.evaluate(() => localStorage.clear());
         await page.reload();
@@ -219,5 +221,62 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
 
         await expect(page.locator('.inv-entry.matched', { hasText: 'Bananas' })).toBeVisible();
         await expect(page.locator('.inv-entry.matched .stepper-input')).toHaveValue('3');
+    });
+
+    test('One-time migration from legacy v1 lists flattens multiple stores and preserves original v1 data', async ({ page }) => {
+        const legacyDoc = {
+            currentListId: 'store-1',
+            lists: [
+                {
+                    id: 'store-1',
+                    name: 'Trader Joes',
+                    shopSections: [
+                        { id: 'sec-s-1', name: 'Produce' },
+                        { id: 'sec-s-2', name: 'Dairy' }
+                    ],
+                    items: [
+                        { id: 'i1', text: 'Apples', wantCount: 5, haveCount: 2, shopSectionId: 'sec-s-1', shopIndex: 0 },
+                        { id: 'i2', text: 'Milk', wantCount: 2, haveCount: 1, shopSectionId: 'sec-s-2', shopIndex: 1 }
+                    ]
+                },
+                {
+                    id: 'store-2',
+                    name: 'Costco',
+                    shopSections: [
+                        { id: 'sec-c-1', name: 'Produce' },
+                        { id: 'sec-c-2', name: 'Bulk Paper' }
+                    ],
+                    items: [
+                        { id: 'i3', text: 'Paper Towels', wantCount: 3, haveCount: 0, shopSectionId: 'sec-c-2', shopIndex: 0 },
+                        { id: 'i4', text: 'Avocados', wantCount: 4, haveCount: 0, shopSectionId: 'sec-c-1', shopIndex: 1 }
+                    ]
+                }
+            ]
+        };
+
+        await setupFirebaseMock(page, legacyDoc);
+        await page.goto('/');
+
+        // Flattened into single list: Produce (merged!), Dairy, Bulk Paper
+        await expect(page.locator('.aisle-card .aisle-name-btn', { hasText: 'Produce' })).toHaveCount(1);
+        await expect(page.locator('.aisle-card .aisle-name-btn', { hasText: 'Dairy' })).toBeVisible();
+        await expect(page.locator('.aisle-card .aisle-name-btn', { hasText: 'Bulk Paper' })).toBeVisible();
+
+        const produceCard = page.locator('.aisle-card', { hasText: 'Produce' });
+        await expect(produceCard.locator('.item-row', { hasText: 'Apples' })).toBeVisible();
+        await expect(produceCard.locator('.item-row', { hasText: 'Avocados' })).toBeVisible();
+        await expect(page.locator('.item-row', { hasText: 'Paper Towels' }).locator('.stepper-input')).toHaveValue('3');
+
+        // Verify Firestore setDoc was called with { v2: ... } and { merge: true }, leaving legacy lists intact!
+        const docState = await page.evaluate(() => ({
+            doc: window.__mockFirestoreDoc,
+            calls: window.__mockSetDocCalls
+        }));
+
+        expect(docState.calls.length).toBeGreaterThan(0);
+        expect(docState.calls[0].options).toEqual({ merge: true });
+        expect(Object.keys(docState.calls[0].data)).toEqual(['v2']);
+        expect(docState.doc.lists).toHaveLength(2);
+        expect(docState.doc.currentListId).toBe('store-1');
     });
 });

@@ -1127,6 +1127,62 @@ button:focus-visible {
     background: #22c55e;
 }
 
+.auth-dot.offline {
+    background: var(--text-faint);
+}
+
+.auth-dot.syncing {
+    background: #f59e0b;
+}
+
+.auth-dot.error {
+    background: var(--danger);
+}
+
+.setting-auth-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.auth-modal-desc {
+    margin: 0 0 14px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.auth-error {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--danger);
+    background: var(--danger-bg);
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+
+.auth-form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.auth-form-actions .btn-primary {
+    flex: 1;
+}
+
+.auth-offline-btn {
+    width: 100%;
+    margin-top: 8px;
+    font-size: 0.84rem;
+}
+
 /* Empty States */
 .empty-state {
     text-align: center;

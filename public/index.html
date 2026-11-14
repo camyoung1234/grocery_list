@@ -181,15 +181,39 @@
 
                 <div class="setting-row static">
                     <div class="setting-text">
-                        <div class="setting-label">Storage &amp; Sync</div>
-                        <div class="setting-desc">Saved locally in your browser</div>
+                        <div class="setting-label">Account &amp; Sync</div>
+                        <div class="setting-desc" id="auth-account-desc">Not signed in — saved locally</div>
                     </div>
-                    <span class="status-chip">
-                        <span class="auth-dot" aria-hidden="true"></span>
-                        <span id="auth-status-label">Local Mode</span>
-                    </span>
+                    <div class="setting-auth-actions">
+                        <span class="status-chip">
+                            <span id="auth-status-dot" class="auth-dot offline" aria-hidden="true"></span>
+                            <span id="auth-status-label">Offline</span>
+                        </span>
+                        <button type="button" id="settings-auth-btn" class="btn-tonal-sm">Sign In</button>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h2 id="auth-modal-title" class="modal-title">Sign In to Sync</h2>
+                <button type="button" id="auth-close-btn" class="icon-btn" aria-label="Continue offline">×</button>
+            </div>
+            <p class="auth-modal-desc">Sign in with your existing account to sync your aisles and inventory across devices.</p>
+            <form id="auth-form" class="auth-form">
+                <input type="email" id="auth-email-input" class="text-input" placeholder="Email" autocomplete="email" required>
+                <input type="password" id="auth-password-input" class="text-input" placeholder="Password" autocomplete="current-password" required>
+                <div id="auth-error-msg" class="auth-error hidden" role="alert"></div>
+                <div class="auth-form-actions">
+                    <button type="submit" id="auth-signin-btn" class="btn-primary">Sign In</button>
+                    <button type="button" id="auth-signup-btn" class="btn-tonal-sm">Create Account</button>
+                </div>
+            </form>
+            <button type="button" id="auth-offline-btn" class="btn-ghost auth-offline-btn">Continue Offline</button>
         </div>
     </div>
 
