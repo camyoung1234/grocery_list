@@ -35,9 +35,6 @@ export function createSeedState() {
         inventoryEntries: [],
         cartItemIds: [],
         settings: {
-            showAllItemsStockStatus: true,
-            showShoppingHaveWant: true,
-            showAisleCounts: true,
             compactDensity: false,
             inventorySortOrder: 'added'
         },
@@ -338,9 +335,6 @@ export class CloudDataStore {
             inventoryEntries: Array.isArray(raw.inventoryEntries) ? raw.inventoryEntries : [],
             cartItemIds: Array.isArray(raw.cartItemIds) ? raw.cartItemIds : [],
             settings: {
-                showAllItemsStockStatus: raw.settings?.showAllItemsStockStatus ?? true,
-                showShoppingHaveWant: raw.settings?.showShoppingHaveWant ?? true,
-                showAisleCounts: raw.settings?.showAisleCounts ?? true,
                 compactDensity: raw.settings?.compactDensity ?? false,
                 inventorySortOrder
             },

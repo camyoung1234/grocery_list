@@ -494,16 +494,6 @@ button:focus-visible {
     outline: none;
 }
 
-.aisle-count {
-    font-size: 0.75rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-muted);
-    font-weight: 600;
-    background: var(--surface-soft);
-    padding: 2px 8px;
-    border-radius: var(--radius-pill);
-}
-
 .aisle-actions {
     display: flex;
     align-items: center;
@@ -590,36 +580,6 @@ button:focus-visible {
     width: 100%;
     max-width: 240px;
     outline: none;
-}
-
-.item-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 3px;
-    font-size: 0.76rem;
-    color: var(--text-muted);
-}
-
-.stock-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 8px;
-    border-radius: var(--radius-pill);
-    font-weight: 600;
-    font-size: 0.72rem;
-    background: var(--surface-soft);
-    color: var(--text-muted);
-}
-
-.stock-pill.stocked {
-    background: var(--accent-soft);
-    color: var(--accent-text);
-}
-
-.stock-pill.need {
-    background: var(--amber-bg);
-    color: var(--amber);
 }
 
 .item-controls {
@@ -818,12 +778,6 @@ button:focus-visible {
     font-size: 0.95rem;
 }
 
-.shopping-item-sub {
-    font-size: 0.77rem;
-    color: var(--text-muted);
-    margin-top: 1px;
-}
-
 /* Inventory Mode */
 .voice-card {
     background: var(--surface);
@@ -950,12 +904,9 @@ button:focus-visible {
     box-shadow: var(--shadow-card);
 }
 
-.inv-entry.ambiguous {
-    background: #fffbeb;
-}
-
+.inv-entry.ambiguous,
 .inv-entry.unmatched {
-    background: #fafaf8;
+    background: #fffbeb;
 }
 
 .inv-entry-top {
@@ -1368,11 +1319,8 @@ button:focus-visible {
 
 /* Google Sans Code for numeric badges, counts, and steppers */
 .nav-badge,
-.aisle-count,
 .stepper-input,
 .cart-check,
-.stock-pill,
-.shopping-item-sub,
 .inv-total-tag,
 code {
     font-family: var(--font-mono);
