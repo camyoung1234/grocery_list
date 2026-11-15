@@ -1188,6 +1188,24 @@ button:focus-visible {
     transform: translateX(18px);
 }
 
+.setting-select {
+    padding: 7px 10px;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.84rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-pill);
+    outline: none;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.setting-select:focus {
+    box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.25), var(--shadow-pill);
+}
+
 .status-chip {
     display: inline-flex;
     align-items: center;
