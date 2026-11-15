@@ -396,4 +396,88 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         expect(docState.doc.lists).toHaveLength(2);
         expect(docState.doc.currentListId).toBe('store-1');
     });
+
+    test('Inventory Mode: no number chip on inventory icon, unresolved items stay at top, and 3-way sort setting (added, alphabetical, aisle)', async ({ page }) => {
+        // Verify no number chip exists on the inventory tab button
+        await expect(page.locator('#inventory-pending-badge')).toHaveCount(0);
+        await expect(page.locator('#tab-inventory-btn .nav-badge')).toHaveCount(0);
+
+        await page.click('#tab-inventory-btn');
+        const cmdInput = page.locator('#inventory-command-input');
+
+        // Add an ambiguous item ("wipes 2") and an unmatched item ("sparkling water 3")
+        await cmdInput.fill('wipes 2');
+        await cmdInput.press('Enter');
+        await cmdInput.fill('sparkling water 3');
+        await cmdInput.press('Enter');
+
+        // Add matched items in an order where 'added', 'alphabetical', and 'aisle' all produce distinct results:
+        // 1. Baby Spinach (Produce)
+        // 2. Eggs (Dairy & Eggs)
+        // 3. Bananas (Produce)
+        // 4. Pasta (Pantry)
+        for (const cmd of ['baby spinach 1', 'eggs 1', 'bananas 2', 'pasta 1']) {
+            await cmdInput.fill(cmd);
+            await cmdInput.press('Enter');
+        }
+
+        // Still no number chip on inventory icon even with unresolved items
+        await expect(page.locator('#tab-inventory-btn .nav-badge')).toHaveCount(0);
+
+        const getEntryTitles = () => page.locator('#inventory-entries-list .inv-entry .inv-entry-title > span:first-child').allTextContents();
+
+        // 1. Default ('added'): unresolved items at top (newest first), followed by matched items in order added (newest first)
+        expect(await getEntryTitles()).toEqual([
+            '"Sparkling Water"',
+            '"Wipes"',
+            'Pasta',
+            'Bananas',
+            'Eggs',
+            'Baby Spinach'
+        ]);
+
+        // Close inventory bar to access Settings
+        await page.click('#inventory-close-btn');
+        await page.click('#settings-open-btn');
+        await expect(page.locator('#setting-inventory-sort')).toHaveValue('added');
+
+        // 2. Switch to Alphabetical -> unresolved still at top, matched sorted A-Z
+        await page.selectOption('#setting-inventory-sort', 'alphabetical');
+        await page.click('#settings-close-btn');
+
+        expect(await getEntryTitles()).toEqual([
+            '"Sparkling Water"',
+            '"Wipes"',
+            'Baby Spinach',
+            'Bananas',
+            'Eggs',
+            'Pasta'
+        ]);
+
+        // 3. Switch to By aisle -> unresolved still at top, matched sorted by aisle order (Produce: Bananas, Baby Spinach; Dairy & Eggs: Eggs; Pantry: Pasta)
+        await page.click('#settings-open-btn');
+        await page.selectOption('#setting-inventory-sort', 'aisle');
+        await page.click('#settings-close-btn');
+
+        expect(await getEntryTitles()).toEqual([
+            '"Sparkling Water"',
+            '"Wipes"',
+            'Bananas',
+            'Baby Spinach',
+            'Eggs',
+            'Pasta'
+        ]);
+
+        // Verify setting persists across reload
+        await page.reload();
+        await expect(page.locator('#inventory-view')).toBeVisible();
+        expect(await getEntryTitles()).toEqual([
+            '"Sparkling Water"',
+            '"Wipes"',
+            'Bananas',
+            'Baby Spinach',
+            'Eggs',
+            'Pasta'
+        ]);
+    });
 });

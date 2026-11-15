@@ -4,6 +4,7 @@ import {
     getHaveQtyMap,
     getEntryCountMap,
     getShoppingListByAisle,
+    getSortedInventoryEntries,
     addAisle,
     renameAisle,
     deleteAisle,
@@ -53,7 +54,6 @@ const els = {
     tabAllBtn: document.getElementById('tab-all-btn'),
     tabShoppingBtn: document.getElementById('tab-shopping-btn'),
     tabInventoryBtn: document.getElementById('tab-inventory-btn'),
-    inventoryPendingBadge: document.getElementById('inventory-pending-badge'),
 
     bottomBarWrap: document.querySelector('.bottom-bar-wrap'),
     bottomNavBar: document.getElementById('bottom-nav-bar'),
@@ -72,6 +72,7 @@ const els = {
     settingShowShoppingHw: document.getElementById('setting-show-shopping-hw'),
     settingShowAisleCounts: document.getElementById('setting-show-aisle-counts'),
     settingCompactDensity: document.getElementById('setting-compact-density'),
+    settingInventorySort: document.getElementById('setting-inventory-sort'),
 
     storeView: document.getElementById('store-view'),
     inventoryView: document.getElementById('inventory-view'),
@@ -354,6 +355,7 @@ els.settingsOpenBtn.addEventListener('click', () => {
     els.settingShowShoppingHw.checked = state.settings.showShoppingHaveWant;
     els.settingShowAisleCounts.checked = state.settings.showAisleCounts;
     els.settingCompactDensity.checked = state.settings.compactDensity;
+    els.settingInventorySort.value = state.settings.inventorySortOrder || 'added';
     els.settingsModal.classList.remove('hidden');
 });
 
@@ -384,6 +386,11 @@ els.settingShowAisleCounts.addEventListener('change', e => {
 
 els.settingCompactDensity.addEventListener('change', e => {
     state.settings.compactDensity = e.target.checked;
+    commit();
+});
+
+els.settingInventorySort.addEventListener('change', e => {
+    state.settings.inventorySortOrder = e.target.value;
     commit();
 });
 
@@ -681,11 +688,6 @@ function render() {
 
     els.storeView.classList.toggle('hidden', isInventory);
     els.inventoryView.classList.toggle('hidden', !isInventory);
-
-    // Pending badge on Inventory tab
-    const unresolvedCount = state.inventoryEntries.filter(e => e.status !== 'matched').length;
-    els.inventoryPendingBadge.textContent = String(unresolvedCount);
-    els.inventoryPendingBadge.classList.toggle('hidden', unresolvedCount === 0);
 
     if (els.storeSearchInput.value !== state.ui.searchQuery) {
         els.storeSearchInput.value = state.ui.searchQuery;
@@ -1150,14 +1152,7 @@ function renderInventoryMode() {
     const aislesById = new Map(state.aisles.map(a => [a.id, a]));
     const q = (state.ui.searchQuery || '').trim().toLowerCase();
 
-    const filteredEntries = q
-        ? entries.filter(entry => {
-            const itemName = entry.itemId && itemsById.has(entry.itemId)
-                ? itemsById.get(entry.itemId).name.toLowerCase()
-                : '';
-            return itemName.includes(q) || (entry.rawQuery || '').toLowerCase().includes(q);
-        })
-        : entries;
+    const filteredEntries = getSortedInventoryEntries(state, state.ui.searchQuery);
 
     const uniqueCount = Object.keys(haveMap).length;
     els.inventorySummary.textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} · ${uniqueCount} item${uniqueCount === 1 ? '' : 's'} counted`;

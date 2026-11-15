@@ -84,6 +84,69 @@ export function getTotalToBuyItemsCount(state) {
     return count;
 }
 
+/**
+ * Return inventory entries filtered by searchQuery, keeping unresolved entries
+ * (ambiguous / unmatched) at the top, and sorting the remainder according to
+ * `state.settings.inventorySortOrder` ('added' | 'alphabetical' | 'aisle').
+ */
+export function getSortedInventoryEntries(state, searchQuery = '') {
+    const itemsById = new Map(state.items.map(i => [i.id, i]));
+    const q = (searchQuery || '').trim().toLowerCase();
+
+    const filtered = q
+        ? state.inventoryEntries.filter(entry => {
+            const itemName = entry.itemId && itemsById.has(entry.itemId)
+                ? itemsById.get(entry.itemId).name.toLowerCase()
+                : '';
+            return itemName.includes(q) || (entry.rawQuery || '').toLowerCase().includes(q);
+        })
+        : state.inventoryEntries;
+
+    const unresolved = [];
+    const matched = [];
+    for (const entry of filtered) {
+        if (entry.status !== 'matched') {
+            unresolved.push(entry);
+        } else {
+            matched.push(entry);
+        }
+    }
+
+    const sortOrder = state.settings?.inventorySortOrder || 'added';
+    if (sortOrder === 'alphabetical') {
+        matched.sort((a, b) => {
+            const nameA = (a.itemId && itemsById.has(a.itemId) ? itemsById.get(a.itemId).name : a.rawQuery) || '';
+            const nameB = (b.itemId && itemsById.has(b.itemId) ? itemsById.get(b.itemId).name : b.rawQuery) || '';
+            return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+        });
+    } else if (sortOrder === 'aisle') {
+        const aisleOrderMap = new Map(state.aisles.map((a, idx) => [a.id, idx]));
+        const itemOrderMap = new Map(state.items.map((item, idx) => [item.id, idx]));
+        matched.sort((a, b) => {
+            const itemA = a.itemId ? itemsById.get(a.itemId) : null;
+            const itemB = b.itemId ? itemsById.get(b.itemId) : null;
+            const aisleIdxA = itemA && aisleOrderMap.has(itemA.aisleId)
+                ? aisleOrderMap.get(itemA.aisleId)
+                : Number.MAX_SAFE_INTEGER;
+            const aisleIdxB = itemB && aisleOrderMap.has(itemB.aisleId)
+                ? aisleOrderMap.get(itemB.aisleId)
+                : Number.MAX_SAFE_INTEGER;
+            if (aisleIdxA !== aisleIdxB) {
+                return aisleIdxA - aisleIdxB;
+            }
+            const itemIdxA = itemA && itemOrderMap.has(itemA.id)
+                ? itemOrderMap.get(itemA.id)
+                : Number.MAX_SAFE_INTEGER;
+            const itemIdxB = itemB && itemOrderMap.has(itemB.id)
+                ? itemOrderMap.get(itemB.id)
+                : Number.MAX_SAFE_INTEGER;
+            return itemIdxA - itemIdxB;
+        });
+    }
+
+    return [...unresolved, ...matched];
+}
+
 /* --- Aisle Mutations --- */
 
 export function addAisle(state, name) {

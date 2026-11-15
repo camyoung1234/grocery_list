@@ -38,7 +38,8 @@ export function createSeedState() {
             showAllItemsStockStatus: true,
             showShoppingHaveWant: true,
             showAisleCounts: true,
-            compactDensity: false
+            compactDensity: false,
+            inventorySortOrder: 'added'
         },
         ui: {
             tab: 'all', // 'all' | 'shopping' | 'inventory'
@@ -324,6 +325,11 @@ export class CloudDataStore {
             tab = 'all';
         }
 
+        let inventorySortOrder = raw.settings?.inventorySortOrder;
+        if (!['added', 'alphabetical', 'aisle'].includes(inventorySortOrder)) {
+            inventorySortOrder = 'added';
+        }
+
         return {
             version: 2,
             updatedAt: Number(raw.updatedAt) || 0,
@@ -335,7 +341,8 @@ export class CloudDataStore {
                 showAllItemsStockStatus: raw.settings?.showAllItemsStockStatus ?? true,
                 showShoppingHaveWant: raw.settings?.showShoppingHaveWant ?? true,
                 showAisleCounts: raw.settings?.showAisleCounts ?? true,
-                compactDensity: raw.settings?.compactDensity ?? false
+                compactDensity: raw.settings?.compactDensity ?? false,
+                inventorySortOrder
             },
             ui: {
                 tab,
