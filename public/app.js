@@ -68,9 +68,6 @@ const els = {
     settingsOpenBtn: document.getElementById('settings-open-btn'),
     settingsModal: document.getElementById('settings-modal'),
     settingsCloseBtn: document.getElementById('settings-close-btn'),
-    settingShowAllStock: document.getElementById('setting-show-all-stock'),
-    settingShowShoppingHw: document.getElementById('setting-show-shopping-hw'),
-    settingShowAisleCounts: document.getElementById('setting-show-aisle-counts'),
     settingCompactDensity: document.getElementById('setting-compact-density'),
     settingInventorySort: document.getElementById('setting-inventory-sort'),
 
@@ -351,9 +348,6 @@ els.storeSearchInput.addEventListener('keydown', e => {
 
 /* --- Settings Modal --- */
 els.settingsOpenBtn.addEventListener('click', () => {
-    els.settingShowAllStock.checked = state.settings.showAllItemsStockStatus;
-    els.settingShowShoppingHw.checked = state.settings.showShoppingHaveWant;
-    els.settingShowAisleCounts.checked = state.settings.showAisleCounts;
     els.settingCompactDensity.checked = state.settings.compactDensity;
     els.settingInventorySort.value = state.settings.inventorySortOrder || 'added';
     els.settingsModal.classList.remove('hidden');
@@ -367,21 +361,6 @@ els.settingsModal.addEventListener('click', e => {
     if (e.target === els.settingsModal) {
         els.settingsModal.classList.add('hidden');
     }
-});
-
-els.settingShowAllStock.addEventListener('change', e => {
-    state.settings.showAllItemsStockStatus = e.target.checked;
-    commit();
-});
-
-els.settingShowShoppingHw.addEventListener('change', e => {
-    state.settings.showShoppingHaveWant = e.target.checked;
-    commit();
-});
-
-els.settingShowAisleCounts.addEventListener('change', e => {
-    state.settings.showAisleCounts = e.target.checked;
-    commit();
 });
 
 els.settingCompactDensity.addEventListener('change', e => {
@@ -770,8 +749,6 @@ function renderAllStoreAisles() {
     const container = els.storeAislesContainer;
     container.innerHTML = '';
 
-    const haveMap = getHaveQtyMap(state);
-    const showStockStatus = state.settings.showAllItemsStockStatus;
     const q = (state.ui.searchQuery || '').trim().toLowerCase();
 
     if (state.aisles.length === 0) {
@@ -855,13 +832,6 @@ function renderAllStoreAisles() {
                 render();
             });
             titleGroup.appendChild(nameBtn);
-        }
-
-        if (state.settings.showAisleCounts) {
-            const countBadge = document.createElement('span');
-            countBadge.className = 'aisle-count';
-            countBadge.textContent = String(aisleItems.length);
-            titleGroup.appendChild(countBadge);
         }
 
         const actions = document.createElement('div');
@@ -1000,27 +970,6 @@ function renderAllStoreAisles() {
                     main.appendChild(nameBtn);
                 }
 
-                if (showStockStatus) {
-                    const haveQty = haveMap[item.id] || 0;
-                    const needQty = Math.max(0, item.wantQty - haveQty);
-                    const meta = document.createElement('div');
-                    meta.className = 'item-meta';
-
-                    const pill = document.createElement('span');
-                    if (item.wantQty === 0) {
-                        pill.className = 'stock-pill';
-                        pill.textContent = `Have ${haveQty}`;
-                    } else if (needQty === 0) {
-                        pill.className = 'stock-pill stocked';
-                        pill.textContent = `Stocked (${haveQty}/${item.wantQty})`;
-                    } else {
-                        pill.className = 'stock-pill need';
-                        pill.textContent = `Have ${haveQty} · Need ${needQty}`;
-                    }
-                    meta.appendChild(pill);
-                    main.appendChild(meta);
-                }
-
                 const controls = document.createElement('div');
                 controls.className = 'item-controls';
 
@@ -1064,7 +1013,6 @@ function renderShoppingList() {
     container.innerHTML = '';
 
     const sections = getShoppingListByAisle(state, state.ui.searchQuery);
-    const showHaveWant = state.settings.showShoppingHaveWant;
 
     if (sections.length === 0) {
         const empty = document.createElement('div');
@@ -1090,12 +1038,6 @@ function renderShoppingList() {
         title.className = 'aisle-name-btn';
         title.textContent = aisle.name;
         titleGroup.appendChild(title);
-        if (state.settings.showAisleCounts) {
-            const count = document.createElement('span');
-            count.className = 'aisle-count';
-            count.textContent = String(items.length);
-            titleGroup.appendChild(count);
-        }
         header.appendChild(titleGroup);
         card.appendChild(header);
 
@@ -1126,13 +1068,6 @@ function renderShoppingList() {
             nameEl.className = 'shopping-item-name';
             nameEl.textContent = item.name;
             textWrap.appendChild(nameEl);
-
-            if (showHaveWant) {
-                const subEl = document.createElement('div');
-                subEl.className = 'shopping-item-sub';
-                subEl.textContent = `Have ${item.haveQty} · Want ${item.wantQty}`;
-                textWrap.appendChild(subEl);
-            }
 
             left.append(check, textWrap);
             li.appendChild(left);

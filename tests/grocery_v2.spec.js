@@ -136,18 +136,21 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
 
         const ambiguousEntry = page.locator('.inv-entry.ambiguous').first();
         await expect(ambiguousEntry).toBeVisible();
+        await expect(ambiguousEntry).toHaveCSS('background-color', 'rgb(255, 251, 235)');
         await expect(ambiguousEntry.locator('.suggestion-chip', { hasText: 'Baby Wipes' })).toBeVisible();
         await expect(ambiguousEntry.locator('.suggestion-chip', { hasText: 'Disinfecting Wipes' })).toBeVisible();
 
-        // 2. Non-existent item
+        // 2. Non-existent item (also has attention background)
         await cmdInput.fill('sparkling water 6');
         await cmdInput.press('Enter');
         await expect(cmdInput).toBeFocused();
 
         const unmatchedEntry = page.locator('.inv-entry.unmatched').first();
+        await expect(unmatchedEntry).toHaveCSS('background-color', 'rgb(255, 251, 235)');
         await unmatchedEntry.locator('.aisle-select').selectOption({ label: 'Pantry' });
         await unmatchedEntry.locator('button', { hasText: '+ Add to Store List' }).click();
         await expect(page.locator('.inv-entry.matched', { hasText: 'Sparkling Water' })).toBeVisible();
+        await expect(page.locator('.inv-entry.matched', { hasText: 'Sparkling Water' })).toHaveCSS('background-color', 'rgb(255, 255, 255)');
 
         // 3. Resolve ambiguous "wipes"
         await ambiguousEntry.locator('.suggestion-chip', { hasText: 'Baby Wipes' }).click();
@@ -180,9 +183,12 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await milkEntries.last().locator('button[aria-label="Delete Count for Milk"]').click();
         await expect(page.locator('.inv-entry.matched', { hasText: 'Whole Milk' })).toHaveCount(1);
 
-        // Switch to All Items
+        // Switch to All Items (stock status pills are permanently disabled)
         await page.click('#tab-all-btn');
-        await expect(page.locator('.item-row', { hasText: 'Whole Milk' })).toContainText('Stocked (2/2)');
+        await expect(page.locator('.item-row .stock-pill')).toHaveCount(0);
+        // Whole Milk (have 2, want 2) is stocked so it's excluded from Shopping List
+        await page.click('#tab-shopping-btn');
+        await expect(page.locator('.shopping-row', { hasText: 'Whole Milk' })).toHaveCount(0);
     });
 
     test('Shopping List: number inside unchecked box replaced by checkmark when checked, no "Buy" label, Clear Checks', async ({ page }) => {
@@ -240,20 +246,19 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await expect(page.locator('.item-row .item-name-btn', { hasText: 'Organic Bananas' })).toBeVisible();
     });
 
-    test('Settings Modal: toggles hide/show Stocked/Have/Need, Have/Want, aisle counts, and compact density', async ({ page }) => {
-        await expect(page.locator('.item-row .stock-pill').first()).toBeVisible();
-        await expect(page.locator('.aisle-count').first()).toBeVisible();
+    test('Settings Modal: Stocked/Have/Need, Have/Want, and aisle counts are removed & permanently disabled; compact density toggles', async ({ page }) => {
+        await expect(page.locator('.item-row .stock-pill')).toHaveCount(0);
+        await expect(page.locator('.aisle-count')).toHaveCount(0);
         await expect(page.locator('body')).not.toHaveClass(/compact/);
 
         await page.click('#settings-open-btn');
-        await page.click('label[for="setting-show-all-stock"]');
-        await page.click('label[for="setting-show-shopping-hw"]');
-        await page.click('label[for="setting-show-aisle-counts"]');
+        await expect(page.locator('#setting-show-all-stock')).toHaveCount(0);
+        await expect(page.locator('#setting-show-shopping-hw')).toHaveCount(0);
+        await expect(page.locator('#setting-show-aisle-counts')).toHaveCount(0);
+
         await page.click('label[for="setting-compact-density"]');
         await page.click('#settings-close-btn');
 
-        await expect(page.locator('.item-row .stock-pill')).toHaveCount(0);
-        await expect(page.locator('.aisle-count')).toHaveCount(0);
         await expect(page.locator('body')).toHaveClass(/compact/);
 
         await page.click('#tab-shopping-btn');
