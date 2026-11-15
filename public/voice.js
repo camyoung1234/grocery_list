@@ -158,6 +158,112 @@ function levenshteinRatio(a, b) {
 }
 
 /**
+ * Parse a continuous stream of spoken or typed words into completed `<item> <count>` segments
+ * plus any unconsumed trailing words (`remainder`).
+ *
+ * Example:
+ *   "Raisin bran one maple syrup one"
+ *   -> {
+ *        segments: [
+ *          { itemQuery: "raisin bran", count: 1 },
+ *          { itemQuery: "maple syrup", count: 1 }
+ *        ],
+ *        remainder: "",
+ *        stopRequested: false
+ *      }
+ */
+export function parseVoiceStream(rawText, { isInterim = false } = {}) {
+    const trimmed = (rawText || '').trim();
+    if (!trimmed) {
+        return { segments: [], remainder: '', stopRequested: false };
+    }
+
+    const spacedDigits = trimmed
+        .replace(/([a-zA-Z])(\d+)/g, '$1 $2')
+        .replace(/(\d+)([a-zA-Z])/g, '$1 $2');
+
+    const rawTokens = spacedDigits
+        .replace(/-/g, ' ')
+        .replace(/[^a-zA-Z0-9\s']/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(' ')
+        .filter(Boolean);
+
+    const stripItemTokens = tokens => {
+        let start = 0;
+        while (start < tokens.length && /^(and|then|also|plus|i|we|have|got|add|set|update|count)$/i.test(tokens[start])) {
+            start++;
+        }
+        let end = tokens.length;
+        while (end > start + 1 && /^(to|at|is|equals|x)$/i.test(tokens[end - 1])) {
+            end--;
+        }
+        return tokens.slice(start, end);
+    };
+
+    const segments = [];
+    let currentItemTokens = [];
+    let i = 0;
+
+    while (i < rawTokens.length) {
+        const cleanedItem = stripItemTokens(currentItemTokens);
+        if (cleanedItem.length > 0) {
+            let matchedLen = 0;
+            let matchedCount = null;
+
+            for (let len = Math.min(3, rawTokens.length - i); len >= 1; len--) {
+                const candidate = rawTokens.slice(i, i + len).map(t => t.toLowerCase().replace(/['’]/g, ''));
+                const nextToken = i + len < rawTokens.length
+                    ? rawTokens[i + len].toLowerCase().replace(/['’]/g, '')
+                    : null;
+                const nextIsNumber = nextToken !== null && parseNumberTokens([nextToken], false) !== null;
+                const allowHomophones = len === 1 && !nextIsNumber;
+
+                const count = parseNumberTokens(candidate, allowHomophones);
+                if (count !== null) {
+                    const isAtStreamEnd = i + len === rawTokens.length;
+                    // If interim and ends on a tens word ("twenty".."ninety"), wait in case "one".."nine" follows
+                    if (isInterim && isAtStreamEnd && len === 1 && (candidate[0] in TENS)) {
+                        break;
+                    }
+                    matchedLen = len;
+                    matchedCount = count;
+                    break;
+                }
+            }
+
+            if (matchedCount !== null) {
+                segments.push({
+                    itemQuery: cleanedItem.join(' ').trim(),
+                    count: matchedCount
+                });
+                currentItemTokens = [];
+                i += matchedLen;
+                continue;
+            }
+        }
+
+        currentItemTokens.push(rawTokens[i]);
+        i++;
+    }
+
+    let stopRequested = false;
+    const remCleaned = stripItemTokens(currentItemTokens);
+    const remLower = remCleaned.map(t => t.toLowerCase()).join(' ').trim();
+    if (/^(done|stop|exit|close|stop listening|finish)$/.test(remLower)) {
+        stopRequested = true;
+        currentItemTokens = [];
+    }
+
+    return {
+        segments,
+        remainder: currentItemTokens.join(' ').trim(),
+        stopRequested
+    };
+}
+
+/**
  * Parse a raw speech transcript or text command into `{ type, itemQuery, count }`.
  * Supports "<item> <count>" (e.g. "wipes 3", "baby wipes two"), "<count> <item>", and filler phrases.
  */

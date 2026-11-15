@@ -75,6 +75,18 @@ button:focus-visible {
     display: none !important;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* Shell */
 .app-shell {
     max-width: 720px;
@@ -98,6 +110,13 @@ button:focus-visible {
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--text);
+}
+
+.inventory-top-left {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
 }
 
 .top-actions-right {
@@ -165,8 +184,9 @@ button:focus-visible {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    padding: 8px 6px;
+    gap: 6px;
+    height: 32px;
+    padding: 0 8px;
     border: none;
     border-radius: 10px;
     background: transparent;
@@ -175,6 +195,11 @@ button:focus-visible {
     font-size: 0.84rem;
     white-space: nowrap;
     transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.tab-icon {
+    flex-shrink: 0;
+    display: block;
 }
 
 .segmented-tab:hover:not(.active) {
@@ -207,14 +232,18 @@ button:focus-visible {
     color: #fff;
 }
 
-/* Bottom Search Mode */
-.bottom-search-bar {
+/* Bottom Search & Inventory Modes */
+.bottom-search-bar,
+.bottom-inventory-bar {
     gap: 8px;
 }
 
-.bottom-search-field {
+.bottom-search-field,
+.bottom-inventory-form {
     position: relative;
     flex: 1;
+    min-width: 0;
+    display: flex;
 }
 
 .search-icon {
@@ -226,10 +255,10 @@ button:focus-visible {
     pointer-events: none;
 }
 
-.bottom-search-input {
+.bottom-search-input,
+.bottom-inventory-input {
     width: 100%;
     height: 40px;
-    padding: 8px 14px 8px 36px;
     border: none;
     border-radius: 12px;
     background: var(--surface);
@@ -238,12 +267,38 @@ button:focus-visible {
     outline: none;
 }
 
-.bottom-search-input::placeholder {
+.bottom-search-input {
+    padding: 8px 14px 8px 36px;
+}
+
+.bottom-inventory-input {
+    padding: 8px 14px;
+}
+
+.bottom-search-input::placeholder,
+.bottom-inventory-input::placeholder {
     color: var(--text-faint);
 }
 
-.bottom-search-input:focus {
-    box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.25), var(--shadow-pill);
+.bottom-search-input:focus,
+.bottom-inventory-input:focus {
+    box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.35), var(--shadow-pill);
+}
+
+.mic-toggle-btn {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+}
+
+.mic-toggle-btn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.mic-toggle-btn.listening {
+    background: var(--danger);
+    color: #fff;
+    animation: pulse-ring 1.5s infinite;
 }
 
 /* Buttons & Inputs */

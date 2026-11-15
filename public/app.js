@@ -1,4 +1,5 @@
 import { authService, dataStore } from './js/storage.js';
+import { parseVoiceStream } from './voice.js';
 import {
     getHaveQtyMap,
     getEntryCountMap,
@@ -14,6 +15,7 @@ import {
     updateItemWantQty,
     reorderAisleItems,
     deleteItem,
+    addInventorySegment,
     processInventoryCommand,
     resolveAmbiguousEntry,
     addStoreItemAndResolveEntry,
@@ -53,6 +55,8 @@ const els = {
     inventoryPendingBadge: document.getElementById('inventory-pending-badge'),
 
     bottomNavBar: document.getElementById('bottom-nav-bar'),
+    bottomInventoryBar: document.getElementById('bottom-inventory-bar'),
+    inventoryCloseBtn: document.getElementById('inventory-close-btn'),
     bottomSearchBar: document.getElementById('bottom-search-bar'),
     searchOpenBtn: document.getElementById('search-open-btn'),
     searchCloseBtn: document.getElementById('search-close-btn'),
@@ -78,7 +82,6 @@ const els = {
     storeAislesContainer: document.getElementById('store-aisles-container'),
 
     voiceMicBtn: document.getElementById('voice-mic-btn'),
-    voiceMicLabel: document.getElementById('voice-mic-label'),
     inventoryCommandForm: document.getElementById('inventory-command-form'),
     inventoryCommandInput: document.getElementById('inventory-command-input'),
     voiceFeedback: document.getElementById('voice-feedback'),
@@ -232,7 +235,7 @@ els.authSignupBtn.addEventListener('click', async () => {
     }
 });
 
-/* --- 3-Way Tab Switching --- */
+/* --- 3-Way Tab Switching & Bottom Bar Expansion --- */
 function setTab(tab) {
     if (tab !== 'inventory' && isListening) {
         stopVoiceListening();
@@ -241,13 +244,36 @@ function setTab(tab) {
     commit();
 }
 
+function openInventoryBar() {
+    setTab('inventory');
+    els.bottomNavBar.classList.add('hidden');
+    els.bottomSearchBar.classList.add('hidden');
+    els.bottomInventoryBar.classList.remove('hidden');
+    startVoiceListening();
+    els.inventoryCommandInput.focus();
+}
+
+function closeInventoryBar() {
+    if (isListening) {
+        stopVoiceListening();
+    }
+    els.inventoryCommandInput.value = '';
+    els.bottomInventoryBar.classList.add('hidden');
+    els.bottomNavBar.classList.remove('hidden');
+}
+
 els.tabAllBtn.addEventListener('click', () => setTab('all'));
 els.tabShoppingBtn.addEventListener('click', () => setTab('shopping'));
-els.tabInventoryBtn.addEventListener('click', () => setTab('inventory'));
+els.tabInventoryBtn.addEventListener('click', openInventoryBar);
+els.inventoryCloseBtn.addEventListener('click', closeInventoryBar);
 
 /* --- Bottom Search Bar --- */
 function openSearchBar() {
+    if (isListening) {
+        stopVoiceListening();
+    }
     els.bottomNavBar.classList.add('hidden');
+    els.bottomInventoryBar.classList.add('hidden');
     els.bottomSearchBar.classList.remove('hidden');
     els.storeSearchInput.focus();
 }
@@ -362,9 +388,19 @@ els.addAisleForm.addEventListener('submit', e => {
 els.inventoryCommandForm.addEventListener('submit', e => {
     e.preventDefault();
     const text = els.inventoryCommandInput.value.trim();
-    if (!text) return;
+    if (!text) {
+        els.inventoryCommandInput.focus();
+        return;
+    }
     els.inventoryCommandInput.value = '';
     handleVoiceOrTextCommand(text);
+    els.inventoryCommandInput.focus();
+});
+
+els.inventoryCommandInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeInventoryBar();
+    }
 });
 
 els.clearInventoryBtn.addEventListener('click', () => {
@@ -379,6 +415,18 @@ els.clearInventoryBtn.addEventListener('click', () => {
     });
 });
 
+const streamResultState = new Map();
+
+function announceInventoryAddition(entry, classification) {
+    if (classification.status === 'matched') {
+        els.voiceFeedback.textContent = `Logged "${classification.item.name}" × ${entry.count}`;
+    } else if (classification.status === 'ambiguous') {
+        els.voiceFeedback.textContent = `Multiple matches for "${entry.rawQuery}" × ${entry.count} — tap the right one below.`;
+    } else {
+        els.voiceFeedback.textContent = `"${entry.rawQuery}" isn't in your store list yet — add it below.`;
+    }
+}
+
 function handleVoiceOrTextCommand(rawText) {
     const result = processInventoryCommand(state, rawText);
     if (result.action === 'empty') return;
@@ -388,13 +436,10 @@ function handleVoiceOrTextCommand(rawText) {
         return;
     }
 
-    const { entry, classification } = result;
-    if (classification.status === 'matched') {
-        els.voiceFeedback.textContent = `Logged "${classification.item.name}" × ${entry.count}`;
-    } else if (classification.status === 'ambiguous') {
-        els.voiceFeedback.textContent = `Multiple matches for "${entry.rawQuery}" × ${entry.count} — tap the right one below.`;
-    } else {
-        els.voiceFeedback.textContent = `"${entry.rawQuery}" isn't in your store list yet — add it below.`;
+    announceInventoryAddition(result.entry, result.classification);
+    if (result.stopRequested) {
+        stopVoiceListening();
+        els.voiceFeedback.textContent = 'Stopped listening.';
     }
 
     commit();
@@ -410,17 +455,73 @@ function initSpeechRecognition() {
     rec.interimResults = true;
 
     rec.onresult = event => {
-        let interim = '';
+        let displayRemainder = '';
+        let didMutate = false;
+        let shouldStop = false;
+
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript.trim();
-            if (event.results[i].isFinal) {
-                handleVoiceOrTextCommand(transcript);
+            const res = event.results[i];
+            const transcript = res[0].transcript.trim();
+            const isInterim = !res.isFinal;
+
+            const prev = streamResultState.get(i);
+            // If this result index was already finalized with the exact same transcript, skip it.
+            // If a test or new utterance reuses index i after finalization with a new transcript, reset its count.
+            let alreadyEmitted = 0;
+            if (prev) {
+                if (prev.finalized && prev.transcript === transcript) {
+                    continue;
+                }
+                if (!prev.finalized) {
+                    alreadyEmitted = prev.emitted;
+                }
+            }
+
+            const stream = parseVoiceStream(transcript, { isInterim });
+            if (stream.segments.length > alreadyEmitted) {
+                const newSegments = stream.segments.slice(alreadyEmitted);
+                for (const seg of newSegments) {
+                    const added = addInventorySegment(state, seg.itemQuery, seg.count);
+                    if (added) {
+                        announceInventoryAddition(added.entry, added.classification);
+                        didMutate = true;
+                    }
+                }
+                alreadyEmitted = stream.segments.length;
+            }
+
+            if (stream.stopRequested) {
+                shouldStop = true;
+            }
+
+            if (!isInterim) {
+                // If finalized with no <item> <count> segments emitted yet, fall back to single-command parser
+                // (for leading-count commands like "2 bananas" or item-only commands).
+                if (alreadyEmitted === 0 && stream.remainder && !stream.stopRequested) {
+                    handleVoiceOrTextCommand(stream.remainder);
+                    alreadyEmitted = 1;
+                }
+                streamResultState.set(i, { emitted: alreadyEmitted, finalized: true, transcript });
             } else {
-                interim += (interim ? ' ' : '') + transcript;
+                streamResultState.set(i, { emitted: alreadyEmitted, finalized: false, transcript });
+                if (stream.remainder) {
+                    displayRemainder += (displayRemainder ? ' ' : '') + stream.remainder;
+                }
             }
         }
-        if (interim) {
-            els.voiceFeedback.textContent = `Hearing: "${interim}"...`;
+
+        if (didMutate) {
+            commit();
+        }
+
+        els.inventoryCommandInput.value = displayRemainder;
+        if (displayRemainder) {
+            els.voiceFeedback.textContent = `Hearing: "${displayRemainder}"...`;
+        }
+
+        if (shouldStop) {
+            stopVoiceListening();
+            els.voiceFeedback.textContent = 'Stopped listening.';
         }
     };
 
@@ -434,6 +535,7 @@ function initSpeechRecognition() {
     };
 
     rec.onend = () => {
+        streamResultState.clear();
         if (isListening) {
             try {
                 rec.start();
@@ -456,10 +558,10 @@ function startVoiceListening() {
         return;
     }
 
+    streamResultState.clear();
     isListening = true;
     els.voiceMicBtn.classList.add('listening');
     els.voiceMicBtn.setAttribute('aria-pressed', 'true');
-    els.voiceMicLabel.textContent = 'Listening...';
     els.voiceFeedback.textContent = 'Listening — say "<item> <count>" (e.g. "wipes 3")...';
     try {
         recognition.start();
@@ -469,10 +571,10 @@ function startVoiceListening() {
 }
 
 function stopVoiceListening() {
+    streamResultState.clear();
     isListening = false;
     els.voiceMicBtn.classList.remove('listening');
     els.voiceMicBtn.setAttribute('aria-pressed', 'false');
-    els.voiceMicLabel.textContent = 'Speak';
     if (recognition) {
         try {
             recognition.stop();
@@ -489,6 +591,7 @@ els.voiceMicBtn.addEventListener('click', () => {
     } else {
         startVoiceListening();
     }
+    els.inventoryCommandInput.focus();
 });
 
 /* --- Delete with Undo Helpers --- */
@@ -1070,7 +1173,7 @@ function renderInventoryMode() {
         empty.className = 'empty-state';
         empty.innerHTML = `
             <div class="empty-state-title">No inventory counted yet</div>
-            <div>Tap <strong>Speak</strong> or type <code>&lt;item&gt; &lt;count&gt;</code> above (for example, <em>"wipes 3"</em>).</div>
+            <div>Speak or type <code>&lt;item&gt; &lt;count&gt;</code> in the bottom bar (for example, <em>"wipes 3"</em>).</div>
         `;
         list.appendChild(empty);
         return;
