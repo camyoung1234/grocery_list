@@ -9,11 +9,18 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await page.reload();
     });
 
-    test('Bottom bar tab order (Inventory, Shopping, All Items), Search bar replacement, Add aisle/item via header button, Undo item delete, and localStorage persistence', async ({ page }) => {
-        // Verify bottom bar with 3-way toggle, search button, and settings button
+    test('Bottom bar tab order (Inventory, Shopping, All Items), no shopping count chip, Search bar replacement, Add aisle/item via header button, Undo button without banners, and localStorage persistence', async ({ page }) => {
+        // Verify bottom bar with 3-way toggle, search button, undo button, and settings button
         await expect(page.locator('#bottom-nav-bar')).toBeVisible();
         await expect(page.locator('#search-open-btn')).toBeVisible();
+        await expect(page.locator('#undo-btn')).toBeVisible();
+        await expect(page.locator('#undo-btn')).toBeDisabled();
         await expect(page.locator('#settings-open-btn')).toBeVisible();
+        await expect(page.locator('#shopping-count-badge')).toHaveCount(0);
+
+        // Verify viewport meta includes interactive-widget=resizes-content
+        const viewportContent = await page.locator('meta[name="viewport"]').getAttribute('content');
+        expect(viewportContent).toContain('interactive-widget=resizes-content');
 
         // Verify bottom tab order is Inventory, Shopping, All Items (with SVG icons), with All Items active by default
         const tabLabels = await page.locator('.segmented-nav .segmented-tab').evaluateAll(
@@ -62,7 +69,7 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await breadRow.locator('button[aria-label="Increase Desired quantity for Sourdough Bread"]').click();
         await expect(breadRow.locator('.stepper-input')).toHaveValue('3');
 
-        // Decrement Sourdough Bread to 0 -> minus button becomes X, then click X to delete + Undo
+        // Decrement Sourdough Bread to 0 -> minus button becomes X, then click X to delete + Undo via #undo-btn (no undo banner)
         const decBtn = breadRow.locator('button[aria-label="Decrease Desired quantity for Sourdough Bread"]');
         await decBtn.click(); // 2
         await decBtn.click(); // 1
@@ -74,8 +81,9 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await delAtZeroBtn.click();
 
         await expect(bakeryCard.locator('.item-row', { hasText: 'Sourdough Bread' })).toHaveCount(0);
-        await expect(page.locator('.toast-undo-btn')).toBeVisible();
-        await page.click('.toast-undo-btn');
+        await expect(page.locator('.toast-undo-btn')).toHaveCount(0);
+        await expect(page.locator('#undo-btn')).toBeEnabled();
+        await page.click('#undo-btn');
         await expect(bakeryCard.locator('.item-row', { hasText: 'Sourdough Bread' })).toBeVisible();
 
         // Restore desired quantity to 3 and verify localStorage persistence
@@ -111,14 +119,14 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         expect(shoppingNames).toEqual(['Paper Towels', 'Baby Wipes', 'Disinfecting Wipes']);
     });
 
-    test('Inventory Mode: expanding bottom bar, Enter keeps input focused, ambiguous suggestions, add new item, duplicate summing, and Undo X delete', async ({ page }) => {
+    test('Inventory Mode: expanding bottom bar does NOT focus input, Enter keeps input focused, ambiguous suggestions, add new item, duplicate summing, and Undo X delete', async ({ page }) => {
         await page.click('#tab-inventory-btn');
 
-        // Bottom bar expands to #bottom-inventory-bar and focuses #inventory-command-input
+        // Bottom bar expands to #bottom-inventory-bar and does NOT focus #inventory-command-input
         await expect(page.locator('#bottom-nav-bar')).toBeHidden();
         await expect(page.locator('#bottom-inventory-bar')).toBeVisible();
         const cmdInput = page.locator('#inventory-command-input');
-        await expect(cmdInput).toBeFocused();
+        await expect(cmdInput).not.toBeFocused();
 
         // 1. Ambiguous match via typing + Enter, and verify input stays focused
         await cmdInput.fill('wipes 3');
@@ -155,22 +163,24 @@ test.describe('Grocery List v2 — Bottom Bar, Search Toggle, Undo Delete & Shop
         await expect(milkEntries).toHaveCount(2);
         await expect(milkEntries.first()).toContainText('Total: 3');
 
-        // 5. Decrement "milk 1" to 0 -> minus becomes X, click X to delete -> Undo restores, then delete again
+        // 5. Decrement "milk 1" to 0 -> minus becomes X, click X to delete -> Undo via #undo-btn restores, then delete again
         const milk1Row = milkEntries.last();
         await milk1Row.locator('button[aria-label="Decrease Count for Milk"]').click();
         await expect(milk1Row.locator('.stepper-input')).toHaveValue('0');
         await milk1Row.locator('button[aria-label="Delete Count for Milk"]').click();
         await expect(page.locator('.inv-entry.matched', { hasText: 'Whole Milk' })).toHaveCount(1);
-        await page.click('.toast-undo-btn');
+        await expect(page.locator('.toast-undo-btn')).toHaveCount(0);
+
+        // Close bottom inventory bar to access #undo-btn, undo, then re-delete
+        await page.click('#inventory-close-btn');
+        await expect(page.locator('#bottom-nav-bar')).toBeVisible();
+        await page.click('#undo-btn');
         await expect(page.locator('.inv-entry.matched', { hasText: 'Whole Milk' })).toHaveCount(2);
 
         await milkEntries.last().locator('button[aria-label="Delete Count for Milk"]').click();
         await expect(page.locator('.inv-entry.matched', { hasText: 'Whole Milk' })).toHaveCount(1);
 
-        // Close bottom inventory bar and switch to All Items
-        await page.click('#inventory-close-btn');
-        await expect(page.locator('#bottom-inventory-bar')).toBeHidden();
-        await expect(page.locator('#bottom-nav-bar')).toBeVisible();
+        // Switch to All Items
         await page.click('#tab-all-btn');
         await expect(page.locator('.item-row', { hasText: 'Whole Milk' })).toContainText('Stocked (2/2)');
     });

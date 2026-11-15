@@ -4,7 +4,6 @@ import {
     getHaveQtyMap,
     getEntryCountMap,
     getShoppingListByAisle,
-    getTotalToBuyItemsCount,
     addAisle,
     renameAisle,
     deleteAisle,
@@ -32,6 +31,9 @@ let editingItemId = null;
 let isListening = false;
 let recognition = null;
 
+const MAX_UNDO_HISTORY = 50;
+const undoStack = [];
+
 // DOM Elements
 const els = {
     authStatusLabel: document.getElementById('auth-status-label'),
@@ -51,9 +53,9 @@ const els = {
     tabAllBtn: document.getElementById('tab-all-btn'),
     tabShoppingBtn: document.getElementById('tab-shopping-btn'),
     tabInventoryBtn: document.getElementById('tab-inventory-btn'),
-    shoppingCountBadge: document.getElementById('shopping-count-badge'),
     inventoryPendingBadge: document.getElementById('inventory-pending-badge'),
 
+    bottomBarWrap: document.querySelector('.bottom-bar-wrap'),
     bottomNavBar: document.getElementById('bottom-nav-bar'),
     bottomInventoryBar: document.getElementById('bottom-inventory-bar'),
     inventoryCloseBtn: document.getElementById('inventory-close-btn'),
@@ -62,6 +64,7 @@ const els = {
     searchCloseBtn: document.getElementById('search-close-btn'),
     storeSearchInput: document.getElementById('store-search-input'),
 
+    undoBtn: document.getElementById('undo-btn'),
     settingsOpenBtn: document.getElementById('settings-open-btn'),
     settingsModal: document.getElementById('settings-modal'),
     settingsCloseBtn: document.getElementById('settings-close-btn'),
@@ -92,12 +95,45 @@ const els = {
     toastContainer: document.getElementById('toast-container')
 };
 
+function createUndoSnapshot() {
+    return {
+        aisles: state.aisles.map(a => ({ ...a })),
+        items: state.items.map(i => ({ ...i })),
+        inventoryEntries: state.inventoryEntries.map(e => ({
+            ...e,
+            candidateIds: [...(e.candidateIds || [])]
+        })),
+        cartItemIds: [...state.cartItemIds]
+    };
+}
+
+function pushUndo(snapshot = createUndoSnapshot()) {
+    undoStack.push(snapshot);
+    if (undoStack.length > MAX_UNDO_HISTORY) {
+        undoStack.shift();
+    }
+}
+
+function performUndo() {
+    if (undoStack.length === 0) return;
+    const snapshot = undoStack.pop();
+    state.aisles = snapshot.aisles;
+    state.items = snapshot.items;
+    state.inventoryEntries = snapshot.inventoryEntries;
+    state.cartItemIds = snapshot.cartItemIds;
+    editingAisleId = null;
+    editingItemId = null;
+    commit();
+}
+
+els.undoBtn.addEventListener('click', performUndo);
+
 function commit() {
     dataStore.saveState(state);
     render();
 }
 
-function showToast(message, undoCallback = null, durationMs = 4500) {
+function showToast(message) {
     // Clear existing toasts so they don't stack excessively on mobile
     els.toastContainer.innerHTML = '';
 
@@ -108,24 +144,10 @@ function showToast(message, undoCallback = null, durationMs = 4500) {
     textSpan.textContent = message;
     toast.appendChild(textSpan);
 
-    let timer = null;
-    if (typeof undoCallback === 'function') {
-        const undoBtn = document.createElement('button');
-        undoBtn.type = 'button';
-        undoBtn.className = 'toast-undo-btn';
-        undoBtn.textContent = 'Undo';
-        undoBtn.addEventListener('click', () => {
-            if (timer) clearTimeout(timer);
-            toast.remove();
-            undoCallback();
-        });
-        toast.appendChild(undoBtn);
-    }
-
     els.toastContainer.appendChild(toast);
-    timer = setTimeout(() => {
+    setTimeout(() => {
         toast.remove();
-    }, undoCallback ? durationMs : 2600);
+    }, 2600);
 }
 
 /* --- Auth & Cloud Sync --- */
@@ -250,7 +272,6 @@ function openInventoryBar() {
     els.bottomSearchBar.classList.add('hidden');
     els.bottomInventoryBar.classList.remove('hidden');
     startVoiceListening();
-    els.inventoryCommandInput.focus();
 }
 
 function closeInventoryBar() {
@@ -268,19 +289,43 @@ els.tabInventoryBtn.addEventListener('click', openInventoryBar);
 els.inventoryCloseBtn.addEventListener('click', closeInventoryBar);
 
 /* --- Bottom Search Bar --- */
+function syncVisualViewport() {
+    if (!window.visualViewport || !els.bottomBarWrap) return;
+    const vv = window.visualViewport;
+    const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+    if (keyboardHeight > 80) {
+        els.bottomBarWrap.style.bottom = `${keyboardHeight}px`;
+    } else {
+        els.bottomBarWrap.style.bottom = '';
+    }
+}
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncVisualViewport);
+    window.visualViewport.addEventListener('scroll', syncVisualViewport);
+}
+
 function openSearchBar() {
     if (isListening) {
         stopVoiceListening();
     }
+    window.scrollTo(0, 0);
     els.bottomNavBar.classList.add('hidden');
     els.bottomInventoryBar.classList.add('hidden');
     els.bottomSearchBar.classList.remove('hidden');
-    els.storeSearchInput.focus();
+    els.storeSearchInput.focus({ preventScroll: true });
+    requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+        syncVisualViewport();
+    });
 }
 
 function closeSearchBar() {
     els.bottomSearchBar.classList.add('hidden');
     els.bottomNavBar.classList.remove('hidden');
+    if (els.bottomBarWrap) {
+        els.bottomBarWrap.style.bottom = '';
+    }
     if (state.ui.searchQuery) {
         state.ui.searchQuery = '';
         els.storeSearchInput.value = '';
@@ -294,6 +339,7 @@ els.searchCloseBtn.addEventListener('click', closeSearchBar);
 els.storeSearchInput.addEventListener('input', e => {
     state.ui.searchQuery = e.target.value;
     commit();
+    window.scrollTo(0, 0);
 });
 
 els.storeSearchInput.addEventListener('keydown', e => {
@@ -357,6 +403,7 @@ function attachDoubleTap(el, onDoubleTap) {
 /* --- Store Toolbar Actions --- */
 els.clearChecksBtn.addEventListener('click', () => {
     if (state.cartItemIds.length === 0) return;
+    pushUndo();
     clearCartChecks(state);
     commit();
     showToast('Cleared shopping list check marks');
@@ -377,6 +424,7 @@ els.addAisleForm.addEventListener('submit', e => {
     e.preventDefault();
     const name = els.newAisleInput.value.trim();
     if (!name) return;
+    pushUndo();
     addAisle(state, name);
     els.newAisleInput.value = '';
     els.addAisleForm.classList.add('hidden');
@@ -405,14 +453,10 @@ els.inventoryCommandInput.addEventListener('keydown', e => {
 
 els.clearInventoryBtn.addEventListener('click', () => {
     if (state.inventoryEntries.length === 0) return;
-    const prevEntries = state.inventoryEntries.map(e => ({ ...e }));
+    pushUndo();
     clearInventory(state);
     els.voiceFeedback.textContent = 'Inventory cleared. Ready for a fresh count.';
     commit();
-    showToast('Cleared inventory', () => {
-        state.inventoryEntries = prevEntries;
-        commit();
-    });
 });
 
 const streamResultState = new Map();
@@ -428,6 +472,7 @@ function announceInventoryAddition(entry, classification) {
 }
 
 function handleVoiceOrTextCommand(rawText) {
+    const snap = createUndoSnapshot();
     const result = processInventoryCommand(state, rawText);
     if (result.action === 'empty') return;
     if (result.action === 'nav' && result.navAction === 'stop') {
@@ -436,6 +481,7 @@ function handleVoiceOrTextCommand(rawText) {
         return;
     }
 
+    pushUndo(snap);
     announceInventoryAddition(result.entry, result.classification);
     if (result.stopRequested) {
         stopVoiceListening();
@@ -458,6 +504,7 @@ function initSpeechRecognition() {
         let displayRemainder = '';
         let didMutate = false;
         let shouldStop = false;
+        const preSnapshot = createUndoSnapshot();
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const res = event.results[i];
@@ -511,6 +558,7 @@ function initSpeechRecognition() {
         }
 
         if (didMutate) {
+            pushUndo(preSnapshot);
             commit();
         }
 
@@ -554,7 +602,6 @@ function startVoiceListening() {
     }
     if (!recognition) {
         els.voiceFeedback.textContent = 'Voice recognition is not supported in this browser. Type "<item> <count>" below.';
-        els.inventoryCommandInput.focus();
         return;
     }
 
@@ -591,96 +638,34 @@ els.voiceMicBtn.addEventListener('click', () => {
     } else {
         startVoiceListening();
     }
-    els.inventoryCommandInput.focus();
 });
 
-/* --- Delete with Undo Helpers --- */
+/* --- Delete Helpers --- */
 function deleteStoreItemWithUndo(item) {
-    const itemIdx = state.items.findIndex(i => i.id === item.id);
-    if (itemIdx === -1) return;
-    const itemSnapshot = { ...item };
-    const wasInCart = state.cartItemIds.includes(item.id);
-    const affectedEntries = state.inventoryEntries
-        .filter(e => e.itemId === item.id)
-        .map(e => ({ id: e.id, status: e.status }));
-
+    if (!state.items.some(i => i.id === item.id)) return;
+    pushUndo();
     deleteItem(state, item.id);
     commit();
-
-    showToast(`Deleted "${item.name}"`, () => {
-        if (!state.items.some(i => i.id === itemSnapshot.id)) {
-            state.items.splice(Math.min(itemIdx, state.items.length), 0, itemSnapshot);
-        }
-        if (wasInCart && !state.cartItemIds.includes(itemSnapshot.id)) {
-            state.cartItemIds.push(itemSnapshot.id);
-        }
-        for (const prev of affectedEntries) {
-            const entry = state.inventoryEntries.find(e => e.id === prev.id);
-            if (entry) {
-                entry.itemId = itemSnapshot.id;
-                entry.status = prev.status;
-            }
-        }
-        commit();
-    });
 }
 
 function deleteAisleWithUndo(aisle) {
-    const aisleIdx = state.aisles.findIndex(a => a.id === aisle.id);
-    if (aisleIdx === -1) return;
-    const aisleSnapshot = { ...aisle };
-    const itemsSnapshot = state.items.filter(i => i.aisleId === aisle.id).map(i => ({ ...i }));
-    const itemIdSet = new Set(itemsSnapshot.map(i => i.id));
-    const cartSnapshot = state.cartItemIds.filter(id => itemIdSet.has(id));
-    const affectedEntries = state.inventoryEntries
-        .filter(e => e.itemId && itemIdSet.has(e.itemId))
-        .map(e => ({ id: e.id, itemId: e.itemId, status: e.status }));
-
+    if (!state.aisles.some(a => a.id === aisle.id)) return;
+    pushUndo();
     deleteAisle(state, aisle.id);
     commit();
-
-    showToast(`Deleted aisle "${aisle.name}"`, () => {
-        if (!state.aisles.some(a => a.id === aisleSnapshot.id)) {
-            state.aisles.splice(Math.min(aisleIdx, state.aisles.length), 0, aisleSnapshot);
-        }
-        for (const it of itemsSnapshot) {
-            if (!state.items.some(i => i.id === it.id)) {
-                state.items.push(it);
-            }
-        }
-        for (const id of cartSnapshot) {
-            if (!state.cartItemIds.includes(id)) state.cartItemIds.push(id);
-        }
-        for (const prev of affectedEntries) {
-            const entry = state.inventoryEntries.find(e => e.id === prev.id);
-            if (entry) {
-                entry.itemId = prev.itemId;
-                entry.status = prev.status;
-            }
-        }
-        commit();
-    });
 }
 
-function deleteInventoryEntryWithUndo(entry, label) {
-    const idx = state.inventoryEntries.findIndex(e => e.id === entry.id);
-    if (idx === -1) return;
-    const snapshot = { ...entry, candidateIds: [...(entry.candidateIds || [])] };
-
+function deleteInventoryEntryWithUndo(entry) {
+    if (!state.inventoryEntries.some(e => e.id === entry.id)) return;
+    pushUndo();
     deleteInventoryEntry(state, entry.id);
     commit();
-
-    showToast(`Deleted "${label}"`, () => {
-        if (!state.inventoryEntries.some(e => e.id === snapshot.id)) {
-            state.inventoryEntries.splice(Math.min(idx, state.inventoryEntries.length), 0, snapshot);
-        }
-        commit();
-    });
 }
 
 /* --- Render --- */
 function render() {
     document.body.classList.toggle('compact', Boolean(state.settings.compactDensity));
+    els.undoBtn.disabled = undoStack.length === 0;
 
     const tab = state.ui.tab;
     const isAll = tab === 'all';
@@ -701,10 +686,6 @@ function render() {
     const unresolvedCount = state.inventoryEntries.filter(e => e.status !== 'matched').length;
     els.inventoryPendingBadge.textContent = String(unresolvedCount);
     els.inventoryPendingBadge.classList.toggle('hidden', unresolvedCount === 0);
-
-    // Shopping list badge
-    const toBuyCount = getTotalToBuyItemsCount(state);
-    els.shoppingCountBadge.textContent = String(toBuyCount);
 
     if (els.storeSearchInput.value !== state.ui.searchQuery) {
         els.storeSearchInput.value = state.ui.searchQuery;
@@ -753,7 +734,9 @@ function attachItemDragReorder(dragHandle, li, list, aisleId) {
         const orderedIds = [...list.querySelectorAll('.item-row')]
             .map(row => row.dataset.itemId)
             .filter(Boolean);
+        const snap = createUndoSnapshot();
         if (reorderAisleItems(state, aisleId, orderedIds)) {
+            pushUndo(snap);
             commit();
         }
     };
@@ -845,7 +828,11 @@ function renderAllStoreAisles() {
             const saveName = () => {
                 if (savedAisle) return;
                 savedAisle = true;
+                const snap = createUndoSnapshot();
+                const clean = nameInput.value.trim();
+                const changed = clean && clean !== aisle.name;
                 renameAisle(state, aisle.id, nameInput.value);
+                if (changed) pushUndo(snap);
                 editingAisleId = null;
                 commit();
             };
@@ -902,6 +889,7 @@ function renderAllStoreAisles() {
         upBtn.title = 'Move aisle up';
         upBtn.disabled = aisleIndex === 0;
         upBtn.addEventListener('click', () => {
+            pushUndo();
             moveAisle(state, aisle.id, -1);
             commit();
         });
@@ -913,6 +901,7 @@ function renderAllStoreAisles() {
         downBtn.title = 'Move aisle down';
         downBtn.disabled = aisleIndex === state.aisles.length - 1;
         downBtn.addEventListener('click', () => {
+            pushUndo();
             moveAisle(state, aisle.id, 1);
             commit();
         });
@@ -965,6 +954,13 @@ function renderAllStoreAisles() {
                         const clean = input.value.trim();
                         editingItemId = null;
                         if (clean) {
+                            if (!item.name) {
+                                const snap = createUndoSnapshot();
+                                snap.items = snap.items.filter(i => i.id !== item.id);
+                                pushUndo(snap);
+                            } else if (clean !== item.name) {
+                                pushUndo();
+                            }
                             updateItemName(state, item.id, clean);
                             commit();
                         } else if (!item.name) {
@@ -1030,6 +1026,7 @@ function renderAllStoreAisles() {
                     item.wantQty,
                     `Desired quantity for ${item.name}`,
                     nextQty => {
+                        pushUndo();
                         updateItemWantQty(state, item.id, nextQty);
                         commit();
                     },
@@ -1109,6 +1106,7 @@ function renderShoppingList() {
             li.className = `shopping-row${inCart ? ' in-cart' : ''}`;
             li.dataset.itemId = item.id;
             li.addEventListener('click', () => {
+                pushUndo();
                 toggleCartItem(state, item.id);
                 commit();
             });
@@ -1240,10 +1238,11 @@ function renderInventoryMode() {
             entry.count,
             `Count for ${entry.rawQuery}`,
             nextCount => {
+                pushUndo();
                 updateInventoryEntryCount(state, entry.id, nextCount);
                 commit();
             },
-            () => deleteInventoryEntryWithUndo(entry, displayLabel)
+            () => deleteInventoryEntryWithUndo(entry)
         );
 
         controls.appendChild(stepper);
@@ -1271,6 +1270,7 @@ function renderInventoryMode() {
                 chip.className = 'suggestion-chip';
                 chip.textContent = candidate.name;
                 chip.addEventListener('click', () => {
+                    pushUndo();
                     resolveAmbiguousEntry(state, entry.id, candidate.id);
                     commit();
                     showToast(`Matched to "${candidate.name}"`);
@@ -1283,6 +1283,7 @@ function renderInventoryMode() {
             newChip.className = 'suggestion-chip create-new';
             newChip.textContent = `+ Add "${entry.rawQuery}" as new item`;
             newChip.addEventListener('click', () => {
+                pushUndo();
                 entry.status = 'unmatched';
                 entry.candidateIds = [];
                 commit();
@@ -1328,6 +1329,7 @@ function renderInventoryMode() {
             addStoreBtn.className = 'btn-primary-sm';
             addStoreBtn.textContent = '+ Add to Store List';
             addStoreBtn.addEventListener('click', () => {
+                pushUndo();
                 const created = addStoreItemAndResolveEntry(state, entry.id, entry.rawQuery, select.value);
                 commit();
                 if (created) {
