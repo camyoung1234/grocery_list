@@ -52,39 +52,19 @@
 
         <!-- INVENTORY MODE -->
         <main id="inventory-view" class="main-content hidden" aria-label="Inventory Mode">
-            <section class="voice-card" aria-label="Voice and Quick Inventory Entry">
-                <div class="voice-card-header">
-                    <div>
-                        <h2 class="voice-card-title">Take Inventory</h2>
-                        <p class="voice-card-subtitle">Say or type <code>&lt;item&gt; &lt;count&gt;</code> — e.g. <em>&ldquo;wipes 3&rdquo;</em> or <em>&ldquo;milk 2&rdquo;</em></p>
-                    </div>
-                    <button type="button" id="voice-mic-btn" class="mic-btn" aria-label="Start voice input" aria-pressed="false">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                            <line x1="12" y1="19" x2="12" y2="23"/>
-                            <line x1="8" y1="23" x2="16" y2="23"/>
-                        </svg>
-                        <span id="voice-mic-label">Speak</span>
-                    </button>
+            <div class="top-actions-row">
+                <div class="inventory-top-left">
+                    <span class="view-heading">Inventory</span>
+                    <span class="inventory-summary" id="inventory-summary">0 entries</span>
                 </div>
-
-                <form id="inventory-command-form" class="command-form">
-                    <input type="text" id="inventory-command-input" class="command-input" placeholder='Type or speak: "wipes 3", "bananas 4"...' aria-label="Inventory item and count" autocomplete="off">
-                    <button type="submit" id="inventory-command-submit" class="btn-primary">Add</button>
-                </form>
-
-                <div id="voice-feedback" class="voice-feedback" role="status" aria-live="polite">
-                    Ready — tap Speak or type an item &amp; count.
-                </div>
-            </section>
-
-            <section class="inventory-list-section" aria-label="Inventory Entries">
-                <div class="inventory-list-header">
-                    <div class="inventory-summary" id="inventory-summary">0 entries</div>
+                <div class="top-actions-right">
                     <button type="button" id="clear-inventory-btn" class="btn-ghost-danger hidden">Clear All</button>
                 </div>
+            </div>
 
+            <div id="voice-feedback" class="sr-only" role="status" aria-live="polite"></div>
+
+            <section class="inventory-list-section" aria-label="Inventory Entries">
                 <ul id="inventory-entries-list" class="inventory-entries-list">
                     <!-- Rendered dynamically -->
                 </ul>
@@ -103,16 +83,34 @@
             </button>
 
             <nav class="segmented-nav" aria-label="Primary Views">
-                <button type="button" id="tab-inventory-btn" class="segmented-tab" data-tab="inventory" aria-pressed="false">
-                    <span>Inventory</span>
+                <button type="button" id="tab-inventory-btn" class="segmented-tab" data-tab="inventory" aria-label="Inventory" title="Inventory" aria-pressed="false">
+                    <svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
                     <span id="inventory-pending-badge" class="nav-badge warn hidden">0</span>
                 </button>
-                <button type="button" id="tab-shopping-btn" class="segmented-tab" data-tab="shopping" aria-pressed="false">
-                    <span>Shopping</span>
+                <button type="button" id="tab-shopping-btn" class="segmented-tab" data-tab="shopping" aria-label="Shopping" title="Shopping" aria-pressed="false">
+                    <svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m3 7 2 2 4-4"/>
+                        <path d="m3 17 2 2 4-4"/>
+                        <line x1="13" y1="6" x2="21" y2="6"/>
+                        <line x1="13" y1="12" x2="21" y2="12"/>
+                        <line x1="13" y1="18" x2="21" y2="18"/>
+                    </svg>
                     <span id="shopping-count-badge" class="nav-badge">0</span>
                 </button>
-                <button type="button" id="tab-all-btn" class="segmented-tab active" data-tab="all" aria-pressed="true">
-                    <span>All Items</span>
+                <button type="button" id="tab-all-btn" class="segmented-tab active" data-tab="all" aria-label="All Items" title="All Items" aria-pressed="true">
+                    <svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="9" y1="6" x2="21" y2="6"/>
+                        <line x1="9" y1="12" x2="21" y2="12"/>
+                        <line x1="9" y1="18" x2="21" y2="18"/>
+                        <circle cx="4" cy="6" r="1.25" fill="currentColor" stroke="none"/>
+                        <circle cx="4" cy="12" r="1.25" fill="currentColor" stroke="none"/>
+                        <circle cx="4" cy="18" r="1.25" fill="currentColor" stroke="none"/>
+                    </svg>
                 </button>
             </nav>
 
@@ -121,6 +119,23 @@
                     <circle cx="12" cy="12" r="3"/>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
+            </button>
+        </div>
+
+        <div id="bottom-inventory-bar" class="bottom-bar bottom-inventory-bar hidden">
+            <button type="button" id="voice-mic-btn" class="bottom-icon-btn mic-toggle-btn" aria-label="Toggle voice input" title="Toggle voice input" aria-pressed="false">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+            </button>
+            <form id="inventory-command-form" class="bottom-inventory-form">
+                <input type="text" id="inventory-command-input" class="bottom-inventory-input" placeholder='Speak or type "wipes 3"...' aria-label="Inventory item and count" autocomplete="off" enterkeyhint="done">
+            </form>
+            <button type="button" id="inventory-close-btn" class="bottom-icon-btn" aria-label="Close inventory input" title="Close inventory input">
+                ×
             </button>
         </div>
 

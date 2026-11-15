@@ -1,4 +1,4 @@
-import { parseVoiceCommand, classifyVoiceMatch } from '../voice.js';
+import { parseVoiceCommand, parseVoiceStream, classifyVoiceMatch } from '../voice.js';
 
 export function createId(prefix = 'id') {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -232,17 +232,10 @@ export function deleteItem(state, itemId) {
 
 /* --- Inventory & Voice Mutations --- */
 
-export function processInventoryCommand(state, rawText) {
-    const parsed = parseVoiceCommand(rawText);
-    if (parsed.type === 'empty') {
-        return { action: 'empty' };
-    }
-    if (parsed.type === 'nav') {
-        return { action: 'nav', navAction: parsed.action };
-    }
-
-    const query = parsed.itemQuery || '';
-    const count = Math.max(0, Number(parsed.count) || 0);
+export function addInventorySegment(state, rawQueryText, rawCount) {
+    const query = (rawQueryText || '').trim();
+    if (!query) return null;
+    const count = Math.max(0, Number(rawCount) || 0);
     const classification = classifyVoiceMatch(query, state.items);
 
     const entry = {
@@ -259,7 +252,46 @@ export function processInventoryCommand(state, rawText) {
 
     // Prepend so the newest spoken/typed entry appears at the top of the inventory list
     state.inventoryEntries.unshift(entry);
-    return { action: 'added', entry, classification };
+    return { entry, classification };
+}
+
+export function processInventoryCommand(state, rawText) {
+    const stream = parseVoiceStream(rawText, { isInterim: false });
+    if (stream.segments.length > 0) {
+        const added = [];
+        for (const seg of stream.segments) {
+            const res = addInventorySegment(state, seg.itemQuery, seg.count);
+            if (res) added.push(res);
+        }
+        if (added.length > 0) {
+            const last = added[added.length - 1];
+            return {
+                action: 'added',
+                added,
+                entry: last.entry,
+                classification: last.classification,
+                stopRequested: stream.stopRequested
+            };
+        }
+    }
+
+    const parsed = parseVoiceCommand(rawText);
+    if (parsed.type === 'empty') {
+        return { action: 'empty' };
+    }
+    if (parsed.type === 'nav') {
+        return { action: 'nav', navAction: parsed.action };
+    }
+
+    const single = addInventorySegment(state, parsed.itemQuery, parsed.count);
+    if (!single) return { action: 'empty' };
+    return {
+        action: 'added',
+        added: [single],
+        entry: single.entry,
+        classification: single.classification,
+        stopRequested: false
+    };
 }
 
 export function resolveAmbiguousEntry(state, entryId, itemId) {
