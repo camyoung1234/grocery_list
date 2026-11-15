@@ -169,6 +169,12 @@ button:focus-visible {
     box-shadow: var(--shadow-pill);
 }
 
+.bottom-icon-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+    pointer-events: none;
+}
+
 .segmented-nav {
     flex: 1;
     min-width: 0;
